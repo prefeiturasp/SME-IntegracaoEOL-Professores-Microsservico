@@ -43,10 +43,10 @@ pip install -r requirements/local.txt
 python manage.py migrate
 
 # 4. Rodar o servidor
-python manage.py runserver 0.0.0.0:8001
+python manage.py runserver 0.0.0.0:[PORT_WEB]
 ```
 
-Acesse em: http://localhost:8001/api/docs/
+Acesse em: http://localhost:[PORT_WEB]/api/docs/
 
 ---
 
@@ -57,7 +57,7 @@ cp .env.example .env
 docker compose -f docker-compose-dev.yml up --build
 ```
 
-Acesse em: http://localhost:8001/api/docs/
+Acesse em: http://localhost:[PORT_WEB]/api/docs/
 
 ---
 
@@ -78,7 +78,7 @@ Todos os endpoints exigem o header `X-API-Key` com o valor configurado em `API_K
 Valor padrão em desenvolvimento: `dev-key-default`
 
 ```bash
-curl -H "X-API-Key: dev-key-default" http://localhost:8001/api/professores/7654321/
+curl -H "X-API-Key: dev-key-default" http://localhost:[PORT_WEB]/api/professores/7654321/
 ```
 
 ---
