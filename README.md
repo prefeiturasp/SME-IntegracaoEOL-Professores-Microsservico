@@ -1,4 +1,4 @@
-# SME-SGP-MS-Professores
+# SME-IntegracaoEOL-Professores-Microsservico
 
 Microsserviço **mock** do domínio Professores para o SGP (Sistema de Gestão Pedagógica) da SME-SP.
 

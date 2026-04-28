@@ -1,4 +1,4 @@
-"""Configuracoes Django do SME-SGP-MS-Professores (mock)."""
+"""Configuracoes Django do SME-IntegracaoEOL-Professores-Microsservico (mock)."""
 
 import os
 import urllib.parse
@@ -40,6 +40,7 @@ def _parse_db_url(url: Any) -> dict:
         "PORT": str(parsed.port or 5432),
         "POOL_OPTIONS": _POOL_OPTIONS,
     }
+
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
@@ -117,7 +118,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 NOME_APLICACAO = os.getenv(
-    "NOME_APLICACAO", "SME-SGP-MS-Professores"
+    "NOME_APLICACAO", "SME-IntegracaoEOL-Professores-Microsservico"
 )
 AMBIENTE_APLICACAO = os.getenv("AMBIENTE_APLICACAO", "local")
 NIVEL_LOG = os.getenv("NIVEL_LOG", "INFO")
@@ -136,7 +137,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "SME-SGP-MS-Professores API (mock)",
+    "TITLE": "SME-IntegracaoEOL-Professores-Microsservico API (mock)",
     "DESCRIPTION": (
         "Mock dos endpoints do domínio Professores — SGP EOL.\n\n"
         "Todos os endpoints retornam dados estáticos sem lógica de negócio."
