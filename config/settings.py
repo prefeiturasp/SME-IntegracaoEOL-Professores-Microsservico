@@ -153,6 +153,7 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    **({"SERVERS": [{"url": SCRIPT_PREFIX}]} if SCRIPT_PREFIX else {}),
     "APPEND_COMPONENTS": {
         "securitySchemes": {
             "ApiKeyAuth": {
