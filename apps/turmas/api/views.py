@@ -42,17 +42,6 @@ class TurmasHistoricasAnoProfessorView(APIView):
         request: Request,
         ano_letivo: int,
         professor_rf: str,
-        **kwargs,
     ) -> Response:
-        """
-        Retorna lista mock de turmas históricas.
-
-        Mantém compatibilidade com parâmetros externos da rota
-        enquanto segue padrão interno snake_case.
-        """
-
-        ano_letivo = kwargs.get("anoLetivo", ano_letivo)
-
-        professor_rf = kwargs.get("professorRf", professor_rf)
-
+        """Retorna lista mock de turmas históricas."""
         return Response(_MOCK_TURMAS_HISTORICAS)
