@@ -19,6 +19,6 @@ COPY requirements /app/requirements
 COPY scripts /app/scripts
 
 RUN pip install --upgrade pip \
-    && pip install -r /app/requirements/base.txt
+    && pip install -r /app/requirements/local.txt
 
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]

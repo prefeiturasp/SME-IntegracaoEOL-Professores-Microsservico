@@ -12,17 +12,25 @@ _TAG_ESCOLA_FUNC = ["Funcionários por Escola"]
 _TAG_PERFIL = ["Perfis SGP"]
 _TAG_ACESSO = ["Acessos"]
 
+_NOME_MARIA_SILVA = "Maria Silva"
+_NOME_CARLOS_PEREIRA = "Carlos Pereira"
+_CARGO_PROFESSOR_FUNDAMENTAL_MEDIO = (
+    "Professor de Ensino Fundamental II e Médio"
+)
+_CODIGO_RF_MARIA = "7654321"
+_CODIGO_RF_CARLOS = "1234567"
+
 _MOCK_FUNC_LIST = [
     {
-        "codigoRf": "7654321",
-        "nomeServidor": "Maria Silva",
-        "cargo": "Professor de Ensino Fundamental II e Médio",
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nomeServidor": _NOME_MARIA_SILVA,
+        "cargo": _CARGO_PROFESSOR_FUNDAMENTAL_MEDIO,
         "dataInicio": "2024-02-01",
         "dataFim": None,
     },
     {
-        "codigoRf": "1234567",
-        "nomeServidor": "Carlos Pereira",
+        "codigoRf": _CODIGO_RF_CARLOS,
+        "nomeServidor": _NOME_CARLOS_PEREIRA,
         "cargo": "Diretor de Escola",
         "dataInicio": "2023-01-15",
         "dataFim": None,
@@ -40,52 +48,60 @@ _MOCK_FUNC_EXTERNO_LIST = [
 
 _MOCK_CARGOS = [
     {
-        "codigoRf": "7654321",
-        "nomeServidor": "Maria Silva",
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nomeServidor": _NOME_MARIA_SILVA,
         "dataInicio": "2010-03-01",
         "dataFim": None,
-        "cargo": "Professor de Ensino Fundamental II e Médio",
+        "cargo": _CARGO_PROFESSOR_FUNDAMENTAL_MEDIO,
     }
 ]
 
 _MOCK_NOME_SERVIDOR = {
-    "codigoRf": "7654321",
-    "nome": "Maria Silva",
+    "codigoRf": _CODIGO_RF_MARIA,
+    "nome": _NOME_MARIA_SILVA,
     "cpf": "123.456.789-00",
 }
 
 _MOCK_DRE_UE = {
-    "codigoRf": "7654321",
-    "nome": "Maria Silva",
+    "codigoRf": _CODIGO_RF_MARIA,
+    "nome": _NOME_MARIA_SILVA,
     "codigoDre": "108100",
     "codigoUe": "000532",
 }
 
 _MOCK_DRE_UE_CARGO = {
-    "codigoRf": "7654321",
+    "codigoRf": _CODIGO_RF_MARIA,
     "codigoDre": "108100",
     "codigoUe": "000532",
-    "cargo": "Professor de Ensino Fundamental II e Médio",
+    "cargo": _CARGO_PROFESSOR_FUNDAMENTAL_MEDIO,
 }
 
 _MOCK_USUARIOS_SGP = [
     {
-        "codigoRf": "7654321",
-        "nomeServidor": "Maria Silva",
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nomeServidor": _NOME_MARIA_SILVA,
         "codigoDre": "108100",
         "codigoUe": "000532",
     },
     {
-        "codigoRf": "1234567",
-        "nomeServidor": "Carlos Pereira",
+        "codigoRf": _CODIGO_RF_CARLOS,
+        "nomeServidor": _NOME_CARLOS_PEREIRA,
         "codigoDre": "108100",
         "codigoUe": "000532",
     },
 ]
 
 _MOCK_RESUMO = [
-    {"codigoRf": "7654321", "nome": "Maria Silva", "cpf": "123.456.789-00"},
-    {"codigoRf": "1234567", "nome": "Carlos Pereira", "cpf": "111.222.333-44"},
+    {
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nome": _NOME_MARIA_SILVA,
+        "cpf": "123.456.789-00",
+    },
+    {
+        "codigoRf": _CODIGO_RF_CARLOS,
+        "nome": _NOME_CARLOS_PEREIRA,
+        "cpf": "111.222.333-44",
+    },
 ]
 
 
@@ -108,8 +124,8 @@ class FuncionariosPorUEView(APIView):
     def get(
         self,
         request: Request,
-        codigoUE: str,
-        codigoCargo: int | None = None,
+        codigo_ue: str,
+        codigo_cargo: int | None = None,
     ) -> Response:
         """Retorna lista mock de funcionários."""
         return Response(_MOCK_FUNC_LIST)
@@ -131,7 +147,11 @@ class FuncionariosCargosQueryView(APIView):
         parameters=[
             OpenApiParameter("ueCodigo", str, OpenApiParameter.PATH),
             OpenApiParameter(
-                "cargos", int, OpenApiParameter.QUERY, required=False, many=True
+                "cargos",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
+                many=True,
             ),
             OpenApiParameter(
                 "dreCodigo", str, OpenApiParameter.QUERY, required=False
@@ -139,7 +159,7 @@ class FuncionariosCargosQueryView(APIView):
         ],
         responses={200: list},
     )
-    def get(self, request: Request, ueCodigo: str) -> Response:
+    def get(self, request: Request, ue_codigo: str) -> Response:
         """Retorna lista mock de funcionários por cargos."""
         return Response(_MOCK_FUNC_LIST)
 
@@ -166,8 +186,8 @@ class FuncionariosFuncaoAtividadeView(APIView):
     def get(
         self,
         request: Request,
-        codigoUE: str,
-        codigoFuncaoAtividade: int | None = None,
+        codigo_ue: str,
+        codigo_funcao_atividade: int | None = None,
     ) -> Response:
         """Retorna lista mock de funcionários por função de atividade."""
         return Response(_MOCK_FUNC_LIST)
@@ -201,7 +221,7 @@ class FuncionariosFuncoesAtividadesQueryView(APIView):
         ],
         responses={200: list},
     )
-    def get(self, request: Request, ueCodigo: str) -> Response:
+    def get(self, request: Request, ue_codigo: str) -> Response:
         """Retorna lista mock de funcionários por funções de atividade."""
         return Response(_MOCK_FUNC_LIST)
 
@@ -228,8 +248,8 @@ class FuncionariosFuncaoExternaView(APIView):
     def get(
         self,
         request: Request,
-        codigoUE: str,
-        codigoFuncaoExterna: int | None = None,
+        codigo_ue: str,
+        codigo_funcao_externa: int | None = None,
     ) -> Response:
         """Retorna lista mock de funcionários externos."""
         return Response(_MOCK_FUNC_EXTERNO_LIST)
@@ -263,7 +283,7 @@ class FuncionariosFuncoesExternasQueryView(APIView):
         ],
         responses={200: list},
     )
-    def get(self, request: Request, ueCodigo: str) -> Response:
+    def get(self, request: Request, ue_codigo: str) -> Response:
         """Retorna lista mock de funcionários externos por funções."""
         return Response(_MOCK_FUNC_EXTERNO_LIST)
 
@@ -287,7 +307,7 @@ class CargosFuncionarioView(APIView):
         responses={200: list, 400: dict, 404: dict},
     )
     def get(
-        self, request: Request, registroFuncional: str
+        self, request: Request, registro_funcional: str
     ) -> Response:
         """Retorna lista mock de cargos do funcionário."""
         return Response(_MOCK_CARGOS)
@@ -333,7 +353,7 @@ class NomeServidorView(APIView):
         responses={200: dict, 400: dict, 404: dict},
     )
     def get(
-        self, request: Request, registroFuncional: str
+        self, request: Request, registro_funcional: str
     ) -> Response:
         """Retorna nome e CPF mock do servidor."""
         return Response(_MOCK_NOME_SERVIDOR)
@@ -358,7 +378,7 @@ class DreUeAtribuicaoFuncionarioView(APIView):
         responses={200: dict, 400: dict, 404: dict},
     )
     def get(
-        self, request: Request, registroFuncional: str
+        self, request: Request, registro_funcional: str
     ) -> Response:
         """Retorna DRE/UE mock do funcionário."""
         return Response(_MOCK_DRE_UE)
@@ -383,7 +403,7 @@ class ServidorAtivoView(APIView):
         responses={200: bool, 400: dict, 404: dict},
     )
     def get(
-        self, request: Request, registroFuncional: str
+        self, request: Request, registro_funcional: str
     ) -> Response:
         """Retorna true (servidor ativo) no mock."""
         return Response(True)
@@ -411,8 +431,8 @@ class DreUeAtribuicaoCargoView(APIView):
     def get(
         self,
         request: Request,
-        registroFuncional: str,
-        codigoCargo: int,
+        registro_funcional: str,
+        codigo_cargo: int,
     ) -> Response:
         """Retorna DRE/UE/cargo mock do funcionário."""
         return Response(_MOCK_DRE_UE_CARGO)
@@ -449,7 +469,7 @@ class UsuariosSGPView(APIView):
         ],
         responses={200: list, 400: dict, 404: dict},
     )
-    def get(self, request: Request, idPerfil: str) -> Response:
+    def get(self, request: Request, id_perfil: str) -> Response:
         """Retorna lista mock de usuários SGP."""
         return Response(_MOCK_USUARIOS_SGP)
 
@@ -490,7 +510,7 @@ class FuncionariosSGPDreView(APIView):
         responses={200: list, 400: dict, 404: dict},
     )
     def get(
-        self, request: Request, idPerfil: str, codigoDre: str
+        self, request: Request, id_perfil: str, codigo_dre: str
     ) -> Response:
         """Retorna lista mock de funcionários SGP por DRE."""
         return Response(_MOCK_USUARIOS_SGP)
@@ -512,7 +532,7 @@ class AcessoSondagemView(APIView):
         ],
         responses={200: bool},
     )
-    def get(self, request: Request, codigoRF: str) -> Response:
+    def get(self, request: Request, codigo_rf: str) -> Response:
         """Retorna true (tem acesso à sondagem) no mock."""
         return Response(True)
 

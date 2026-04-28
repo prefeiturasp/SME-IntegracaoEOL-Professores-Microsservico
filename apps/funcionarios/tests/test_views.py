@@ -2,37 +2,45 @@
 
 import json
 
-from django.test import Client, SimpleTestCase, override_settings
+import pytest
+from django.test import Client
 
 API_KEY = "test-key"
 HEADERS = {"HTTP_X_API_KEY": API_KEY}
 
+_URL_FUNCIONARIOS_UE = "/api/escolas/000532/funcionarios/"
+_URL_CARGO_RF = "/api/funcionarios/cargo/7654321/"
+_URL_NOME_SERVIDOR = "/api/funcionarios/nome-servidor/7654321/"
+_URL_NOME_USUARIO_EOL = "/api/funcionarios/nome-usuario-eol/7654321/"
+_URL_FUNCIONARIO_ATIVO = "/api/acessos/funcionario-ativo/7654321/"
+_PERFIL_UUID = "550e8400-e29b-41d4-a716-446655440000"
+_DRE_CODIGO = "108100"
+
+
+@pytest.fixture()
+def authed(settings):
+    """Cliente HTTP autenticado com API_KEY para os testes."""
+    settings.API_KEY = API_KEY
+    c = Client()
+
+    class _Authed:
+        def get(self, url, **kwargs):
+            return c.get(url, **{**HEADERS, **kwargs})
+
+        def post(self, url, data=None, **kwargs):
+            body = json.dumps(data or [])
+            return c.post(
+                url,
+                body,
+                content_type="application/json",
+                **{**HEADERS, **kwargs},
+            )
+
+    return _Authed()
+
 
 def _json(response):
     return json.loads(response.content)
-
-
-class _AuthedMixin:
-    def setUp(self):
-        super().setUp()
-        self.authed = _AuthedClient(self.client)
-
-
-class _AuthedClient:
-    def __init__(self, client: Client):
-        self._c = client
-
-    def get(self, url: str, **kwargs):
-        return self._c.get(url, **{**HEADERS, **kwargs})
-
-    def post(self, url: str, data=None, **kwargs):
-        body = json.dumps(data or [])
-        return self._c.post(
-            url,
-            body,
-            content_type="application/json",
-            **{**HEADERS, **kwargs},
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -40,21 +48,23 @@ class _AuthedClient:
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP25FuncionariosPorUE(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get("/api/escolas/000532/funcionarios/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
 
-    def test_campos_presentes(self):
-        item = _json(self.authed.get("/api/escolas/000532/funcionarios/"))[0]
+class TestEP25FuncionariosPorUE:
+    def test_retorna_lista(self, authed):
+        resp = authed.get(_URL_FUNCIONARIOS_UE)
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
+
+    def test_campos_presentes(self, authed):
+        resp = authed.get(_URL_FUNCIONARIOS_UE)
+        item = _json(resp)[0]
         for campo in ("codigoRf", "nomeServidor", "cargo"):
-            self.assertIn(campo, item)
+            assert campo in item
 
-    def test_sem_api_key_retorna_403(self):
-        resp = Client().get("/api/escolas/000532/funcionarios/")
-        self.assertEqual(resp.status_code, 403)
+    def test_sem_api_key_retorna_403(self, settings):
+        settings.API_KEY = API_KEY
+        resp = Client().get(_URL_FUNCIONARIOS_UE)
+        assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -62,20 +72,16 @@ class TestEP25FuncionariosPorUE(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP26FuncionariosPorCargo(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get(
-            "/api/escolas/000532/funcionarios/cargos/3239/"
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
 
-    def test_cargo_diferente_retorna_200(self):
-        resp = self.authed.get(
-            "/api/escolas/000532/funcionarios/cargos/3247/"
-        )
-        self.assertEqual(resp.status_code, 200)
+class TestEP26FuncionariosPorCargo:
+    def test_retorna_lista(self, authed):
+        resp = authed.get("/api/escolas/000532/funcionarios/cargos/3239/")
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
+
+    def test_cargo_diferente_retorna_200(self, authed):
+        resp = authed.get("/api/escolas/000532/funcionarios/cargos/3247/")
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -83,25 +89,24 @@ class TestEP26FuncionariosPorCargo(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP26BFuncionariosCargosQuery(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get("/api/escolas/000532/funcionarios/cargos/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
 
-    def test_com_query_cargos(self):
-        resp = self.authed.get(
-            "/api/escolas/000532/funcionarios/cargos/"
-            "?cargos=3239&cargos=3247"
+class TestEP26BFuncionariosCargosQuery:
+    def test_retorna_lista(self, authed):
+        resp = authed.get("/api/escolas/000532/funcionarios/cargos/")
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
+
+    def test_com_query_cargos(self, authed):
+        resp = authed.get(
+            "/api/escolas/000532/funcionarios/cargos/?cargos=3239&cargos=3247"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
-    def test_com_dre(self):
-        resp = self.authed.get(
+    def test_com_dre(self, authed):
+        resp = authed.get(
             "/api/escolas/000532/funcionarios/cargos/?dreCodigo=108100"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -109,14 +114,14 @@ class TestEP26BFuncionariosCargosQuery(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP27FuncaoAtividade(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get(
+
+class TestEP27FuncaoAtividade:
+    def test_retorna_lista(self, authed):
+        resp = authed.get(
             "/api/escolas/000532/funcionarios/funcoes-atividades/5/"
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
 
 
 # ---------------------------------------------------------------------------
@@ -124,22 +129,22 @@ class TestEP27FuncaoAtividade(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP27BFuncoesAtividadesQuery(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get(
+
+class TestEP27BFuncoesAtividadesQuery:
+    def test_retorna_lista(self, authed):
+        resp = authed.get(
             "/api/escolas/000532/funcionarios/funcoes-atividades/"
             "?dreCodigo=108100"
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
 
-    def test_com_funcoes_e_dre(self):
-        resp = self.authed.get(
+    def test_com_funcoes_e_dre(self, authed):
+        resp = authed.get(
             "/api/escolas/000532/funcionarios/funcoes-atividades/"
             "?funcoesAtividades=1&funcoesAtividades=2&dreCodigo=108100"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -147,23 +152,23 @@ class TestEP27BFuncoesAtividadesQuery(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP28FuncaoExterna(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get(
+
+class TestEP28FuncaoExterna:
+    def test_retorna_lista(self, authed):
+        resp = authed.get(
             "/api/escolas/000532/funcionarios/funcoes-externas/10/"
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
+        assert resp.status_code == 200
+        data = _json(resp)
+        assert isinstance(data, list)
 
-    def test_campos_externos(self):
-        item = _json(
-            self.authed.get(
-                "/api/escolas/000532/funcionarios/funcoes-externas/10/"
-            )
-        )[0]
+    def test_campos_externos(self, authed):
+        resp = authed.get(
+            "/api/escolas/000532/funcionarios/funcoes-externas/10/"
+        )
+        item = _json(resp)[0]
         for campo in ("cpf", "nomeServidor", "codigoEscola"):
-            self.assertIn(campo, item)
+            assert campo in item
 
 
 # ---------------------------------------------------------------------------
@@ -171,21 +176,19 @@ class TestEP28FuncaoExterna(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP28BFuncoesExternasQuery(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get(
-            "/api/escolas/000532/funcionarios/funcoes-externas/"
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
 
-    def test_com_funcoes_query(self):
-        resp = self.authed.get(
+class TestEP28BFuncoesExternasQuery:
+    def test_retorna_lista(self, authed):
+        resp = authed.get("/api/escolas/000532/funcionarios/funcoes-externas/")
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
+
+    def test_com_funcoes_query(self, authed):
+        resp = authed.get(
             "/api/escolas/000532/funcionarios/funcoes-externas/"
             "?funcoes=10&funcoes=11"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -193,21 +196,22 @@ class TestEP28BFuncoesExternasQuery(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP29CargosFuncionario(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get("/api/funcionarios/cargo/7654321/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
 
-    def test_campos_cargo(self):
-        item = _json(self.authed.get("/api/funcionarios/cargo/7654321/"))[0]
+class TestEP29CargosFuncionario:
+    def test_retorna_lista(self, authed):
+        resp = authed.get(_URL_CARGO_RF)
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
+
+    def test_campos_cargo(self, authed):
+        resp = authed.get(_URL_CARGO_RF)
+        item = _json(resp)[0]
         for campo in ("codigoRf", "nomeServidor", "cargo", "dataInicio"):
-            self.assertIn(campo, item)
+            assert campo in item
 
-    def test_rf_diferente_retorna_200(self):
-        resp = self.authed.get("/api/funcionarios/cargo/9999999/")
-        self.assertEqual(resp.status_code, 200)
+    def test_rf_diferente_retorna_200(self, authed):
+        resp = authed.get("/api/funcionarios/cargo/9999999/")
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -215,22 +219,22 @@ class TestEP29CargosFuncionario(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP30FuncionarioExternoPorCpf(_AuthedMixin, SimpleTestCase):
-    def test_retorna_dados(self):
-        resp = self.authed.get(
+
+class TestEP30FuncionarioExternoPorCpf:
+    def test_retorna_dados(self, authed):
+        resp = authed.get(
             "/api/funcionarios/funcionario-externo/987.654.321-00/"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
         data = _json(resp)
         for campo in ("cpf", "nome", "codigoUe"):
-            self.assertIn(campo, data)
+            assert campo in data
 
-    def test_cpf_diferente_retorna_200(self):
-        resp = self.authed.get(
+    def test_cpf_diferente_retorna_200(self, authed):
+        resp = authed.get(
             "/api/funcionarios/funcionario-externo/000.000.000-00/"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -238,18 +242,18 @@ class TestEP30FuncionarioExternoPorCpf(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP31NomeServidor(_AuthedMixin, SimpleTestCase):
-    def test_retorna_nome_e_cpf(self):
-        resp = self.authed.get("/api/funcionarios/nome-servidor/7654321/")
-        self.assertEqual(resp.status_code, 200)
+
+class TestEP31NomeServidor:
+    def test_retorna_nome_e_cpf(self, authed):
+        resp = authed.get(_URL_NOME_SERVIDOR)
+        assert resp.status_code == 200
         data = _json(resp)
         for campo in ("codigoRf", "nome", "cpf"):
-            self.assertIn(campo, data)
+            assert campo in data
 
-    def test_rf_diferente_retorna_200(self):
-        resp = self.authed.get("/api/funcionarios/nome-servidor/9999999/")
-        self.assertEqual(resp.status_code, 200)
+    def test_rf_diferente_retorna_200(self, authed):
+        resp = authed.get("/api/funcionarios/nome-servidor/9999999/")
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -257,14 +261,14 @@ class TestEP31NomeServidor(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP32DreUeAtribuicao(_AuthedMixin, SimpleTestCase):
-    def test_retorna_dre_ue(self):
-        resp = self.authed.get("/api/funcionarios/nome-usuario-eol/7654321/")
-        self.assertEqual(resp.status_code, 200)
+
+class TestEP32DreUeAtribuicao:
+    def test_retorna_dre_ue(self, authed):
+        resp = authed.get(_URL_NOME_USUARIO_EOL)
+        assert resp.status_code == 200
         data = _json(resp)
         for campo in ("codigoRf", "nome", "codigoDre", "codigoUe"):
-            self.assertIn(campo, data)
+            assert campo in data
 
 
 # ---------------------------------------------------------------------------
@@ -272,20 +276,21 @@ class TestEP32DreUeAtribuicao(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP33ServidorAtivo(_AuthedMixin, SimpleTestCase):
-    def test_retorna_true(self):
-        resp = self.authed.get("/api/acessos/funcionario-ativo/7654321/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertIs(_json(resp), True)
 
-    def test_rf_qualquer_retorna_200(self):
-        resp = self.authed.get("/api/acessos/funcionario-ativo/9999999/")
-        self.assertEqual(resp.status_code, 200)
+class TestEP33ServidorAtivo:
+    def test_retorna_true(self, authed):
+        resp = authed.get(_URL_FUNCIONARIO_ATIVO)
+        assert resp.status_code == 200
+        assert _json(resp) is True
 
-    def test_sem_api_key_retorna_403(self):
-        resp = Client().get("/api/acessos/funcionario-ativo/7654321/")
-        self.assertEqual(resp.status_code, 403)
+    def test_rf_qualquer_retorna_200(self, authed):
+        resp = authed.get("/api/acessos/funcionario-ativo/9999999/")
+        assert resp.status_code == 200
+
+    def test_sem_api_key_retorna_403(self, settings):
+        settings.API_KEY = API_KEY
+        resp = Client().get(_URL_FUNCIONARIO_ATIVO)
+        assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -293,50 +298,48 @@ class TestEP33ServidorAtivo(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP34DreUeAtribuicaoCargo(_AuthedMixin, SimpleTestCase):
-    def test_retorna_dre_ue_cargo(self):
-        resp = self.authed.get(
+
+class TestEP34DreUeAtribuicaoCargo:
+    def test_retorna_dre_ue_cargo(self, authed):
+        resp = authed.get(
             "/api/funcionarios/atribuicao/7654321/cargo/3239/"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
         data = _json(resp)
         for campo in ("codigoRf", "codigoDre", "codigoUe", "cargo"):
-            self.assertIn(campo, data)
+            assert campo in data
 
-    def test_cargo_diferente_retorna_200(self):
-        resp = self.authed.get(
+    def test_cargo_diferente_retorna_200(self, authed):
+        resp = authed.get(
             "/api/funcionarios/atribuicao/7654321/cargo/3247/"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
 # EP-35 — Usuários SGP por perfil
 # ---------------------------------------------------------------------------
 
-_PERFIL = "550e8400-e29b-41d4-a716-446655440000"
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP35UsuariosSGP(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.get(f"/api/funcionarios/perfis/{_PERFIL}/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
+class TestEP35UsuariosSGP:
+    def test_retorna_lista(self, authed):
+        resp = authed.get(f"/api/funcionarios/perfis/{_PERFIL_UUID}/")
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
 
-    def test_campos_presentes(self):
-        resp = self.authed.get(f"/api/funcionarios/perfis/{_PERFIL}/")
+    def test_campos_presentes(self, authed):
+        resp = authed.get(f"/api/funcionarios/perfis/{_PERFIL_UUID}/")
         item = _json(resp)[0]
         for campo in ("codigoRf", "nomeServidor", "codigoDre", "codigoUe"):
-            self.assertIn(campo, item)
+            assert campo in item
 
-    def test_com_filtros_query(self):
-        resp = self.authed.get(
-            f"/api/funcionarios/perfis/{_PERFIL}/"
+    def test_com_filtros_query(self, authed):
+        resp = authed.get(
+            f"/api/funcionarios/perfis/{_PERFIL_UUID}/"
             "?CodigoDre=108100&CodigoUe=000532"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -344,26 +347,29 @@ class TestEP35UsuariosSGP(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP36FuncionariosSGPDre(_AuthedMixin, SimpleTestCase):
-    def _url(self, suffix=""):
-        return f"/api/funcionarios/perfis/{_PERFIL}/dres/108100/{suffix}"
 
-    def test_retorna_lista(self):
-        resp = self.authed.get(self._url())
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
-
-    def test_campos_presentes(self):
-        item = _json(self.authed.get(self._url()))[0]
-        for campo in ("codigoRf", "nomeServidor"):
-            self.assertIn(campo, item)
-
-    def test_com_filtros(self):
-        resp = self.authed.get(
-            self._url("?CodigoUe=000532&NomeServidor=Maria")
+class TestEP36FuncionariosSGPDre:
+    def test_retorna_lista(self, authed):
+        resp = authed.get(
+            f"/api/funcionarios/perfis/{_PERFIL_UUID}/dres/{_DRE_CODIGO}/"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
+
+    def test_campos_presentes(self, authed):
+        resp = authed.get(
+            f"/api/funcionarios/perfis/{_PERFIL_UUID}/dres/{_DRE_CODIGO}/"
+        )
+        item = _json(resp)[0]
+        for campo in ("codigoRf", "nomeServidor"):
+            assert campo in item
+
+    def test_com_filtros(self, authed):
+        resp = authed.get(
+            f"/api/funcionarios/perfis/{_PERFIL_UUID}/dres/{_DRE_CODIGO}/"
+            "?CodigoUe=000532&NomeServidor=Maria"
+        )
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -371,22 +377,22 @@ class TestEP36FuncionariosSGPDre(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP37AcessoSondagem(_AuthedMixin, SimpleTestCase):
-    def test_retorna_true(self):
-        resp = self.authed.get(
+
+class TestEP37AcessoSondagem:
+    def test_retorna_true(self, authed):
+        resp = authed.get(
             "/api/perfis/servidores/7654321"
             "/VerificaSeProfessorTemAcessoAhSondagem/"
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIs(_json(resp), True)
+        assert resp.status_code == 200
+        assert _json(resp) is True
 
-    def test_rf_diferente_retorna_200(self):
-        resp = self.authed.get(
+    def test_rf_diferente_retorna_200(self, authed):
+        resp = authed.get(
             "/api/perfis/servidores/9999999"
             "/VerificaSeProfessorTemAcessoAhSondagem/"
         )
-        self.assertEqual(resp.status_code, 200)
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -394,28 +400,28 @@ class TestEP37AcessoSondagem(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP38BuscarPorListaRF(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.post(
+
+class TestEP38BuscarPorListaRF:
+    def test_retorna_lista(self, authed):
+        resp = authed.post(
             "/api/funcionarios/BuscarPorListaRF/",
             ["7654321", "1234567"],
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
 
-    def test_campos_presentes(self):
-        item = _json(
-            self.authed.post(
-                "/api/funcionarios/BuscarPorListaRF/", ["7654321"]
-            )
-        )[0]
+    def test_campos_presentes(self, authed):
+        resp = authed.post(
+            "/api/funcionarios/BuscarPorListaRF/",
+            ["7654321"],
+        )
+        item = _json(resp)[0]
         for campo in ("codigoRf", "nome", "cpf"):
-            self.assertIn(campo, item)
+            assert campo in item
 
-    def test_lista_vazia_retorna_200(self):
-        resp = self.authed.post("/api/funcionarios/BuscarPorListaRF/", [])
-        self.assertEqual(resp.status_code, 200)
+    def test_lista_vazia_retorna_200(self, authed):
+        resp = authed.post("/api/funcionarios/BuscarPorListaRF/", [])
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -423,35 +429,34 @@ class TestEP38BuscarPorListaRF(_AuthedMixin, SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP39BuscarPorListaLogin(_AuthedMixin, SimpleTestCase):
-    def test_retorna_lista(self):
-        resp = self.authed.post(
+
+class TestEP39BuscarPorListaLogin:
+    def test_retorna_lista(self, authed):
+        resp = authed.post(
             "/api/funcionarios/BuscarPorListaLogin/",
             ["login1", "login2"],
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsInstance(_json(resp), list)
+        assert resp.status_code == 200
+        assert isinstance(_json(resp), list)
 
-    def test_campos_presentes(self):
-        item = _json(
-            self.authed.post(
-                "/api/funcionarios/BuscarPorListaLogin/", ["login1"]
-            )
-        )[0]
-        for campo in ("codigoRf", "nome", "cpf"):
-            self.assertIn(campo, item)
-
-    def test_lista_vazia_retorna_200(self):
-        resp = self.authed.post(
-            "/api/funcionarios/BuscarPorListaLogin/", []
+    def test_campos_presentes(self, authed):
+        resp = authed.post(
+            "/api/funcionarios/BuscarPorListaLogin/",
+            ["login1"],
         )
-        self.assertEqual(resp.status_code, 200)
+        item = _json(resp)[0]
+        for campo in ("codigoRf", "nome", "cpf"):
+            assert campo in item
 
-    def test_sem_api_key_retorna_403(self):
+    def test_lista_vazia_retorna_200(self, authed):
+        resp = authed.post("/api/funcionarios/BuscarPorListaLogin/", [])
+        assert resp.status_code == 200
+
+    def test_sem_api_key_retorna_403(self, settings):
+        settings.API_KEY = API_KEY
         resp = Client().post(
             "/api/funcionarios/BuscarPorListaLogin/",
             json.dumps(["login1"]),
             content_type="application/json",
         )
-        self.assertEqual(resp.status_code, 403)
+        assert resp.status_code == 403

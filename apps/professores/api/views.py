@@ -1,43 +1,46 @@
 """Views mock do domínio Professores (EP-01 a EP-23)."""
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.mock_data import (
-    ATRIBUICAO_MOCK,
-    ERRO_400,
-    ERRO_PADRAO,
-    PROFESSOR_MOCK,
-)
+from apps.core.mock_data import PROFESSOR_MOCK
 
 _TAG_PROF = ["Professores"]
 _TAG_TITULAR = ["Professores Titulares"]
 
+_NOME_MARIA_SILVA = "Maria Silva"
+_NOME_CARLOS_PEREIRA = "Carlos Pereira"
+_CARGO_PROFESSOR_FUNDAMENTAL_MEDIO = (
+    "Professor de Ensino Fundamental II e Médio"
+)
+_TURMA_1A_MANHA = "1A - Manhã"
+_CODIGO_RF_MARIA = "7654321"
+_CODIGO_RF_CARLOS = "1234567"
+
 _MOCK_PROFESSOR_LIST = [
     {
-        "codigoRf": "7654321",
-        "nome": "Maria Silva",
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nome": _NOME_MARIA_SILVA,
         "componenteCurricular": "Língua Portuguesa",
         "codigoComponenteCurricular": 138,
-        "cargo": "Professor de Ensino Fundamental II e Médio",
+        "cargo": _CARGO_PROFESSOR_FUNDAMENTAL_MEDIO,
         "cpf": "123.456.789-00",
         "dataInicioAtribuicao": "2024-02-01",
         "dataFimAtribuicao": "2024-12-20",
         "dataInicioExercicio": "2010-03-01",
-        "nomeTurma": "1A - Manhã",
+        "nomeTurma": _TURMA_1A_MANHA,
         "codigoTurma": 2112345,
         "turno": "M",
         "tipoTurma": 1,
     },
     {
-        "codigoRf": "1234567",
-        "nome": "Carlos Pereira",
+        "codigoRf": _CODIGO_RF_CARLOS,
+        "nome": _NOME_CARLOS_PEREIRA,
         "componenteCurricular": "Matemática",
         "codigoComponenteCurricular": 139,
-        "cargo": "Professor de Ensino Fundamental II e Médio",
+        "cargo": _CARGO_PROFESSOR_FUNDAMENTAL_MEDIO,
         "cpf": "111.222.333-44",
         "dataInicioAtribuicao": "2024-02-01",
         "dataFimAtribuicao": "2024-12-20",
@@ -52,7 +55,7 @@ _MOCK_PROFESSOR_LIST = [
 _MOCK_TURMAS_LIST = [
     {
         "codigoTurma": 2112345,
-        "nomeTurma": "1A - Manhã",
+        "nomeTurma": _TURMA_1A_MANHA,
         "codigoEscola": "000532",
         "dataInicioAtribuicao": "2024-02-01",
         "dataFimAtribuicao": "2024-12-20",
@@ -64,21 +67,21 @@ _MOCK_TURMAS_LIST = [
 ]
 
 _MOCK_PROF_TURMA = {
-    "codigoRf": "7654321",
-    "nome": "Maria Silva",
+    "codigoRf": _CODIGO_RF_MARIA,
+    "nome": _NOME_MARIA_SILVA,
     "cpf": "123.456.789-00",
     "codigoEscola": "000532",
-    "nomeTurma": "1A - Manhã",
+    "nomeTurma": _TURMA_1A_MANHA,
     "codigoTurma": 2112345,
-    "cargo": "Professor de Ensino Fundamental II e Médio",
+    "cargo": _CARGO_PROFESSOR_FUNDAMENTAL_MEDIO,
     "dataInicio": "2024-02-01",
     "dataFim": "2024-12-20",
 }
 
 _MOCK_ATRIB_TURMA_DISC = [
     {
-        "codigoRf": "7654321",
-        "nome": "Maria Silva",
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nome": _NOME_MARIA_SILVA,
         "cpf": "123.456.789-00",
         "codigoComponenteCurricular": 138,
         "dataAtribuicao": "2024-02-01",
@@ -88,23 +91,23 @@ _MOCK_ATRIB_TURMA_DISC = [
 ]
 
 _MOCK_TITULAR = {
-    "codigoRf": "7654321",
-    "nome": "Maria Silva",
+    "codigoRf": _CODIGO_RF_MARIA,
+    "nome": _NOME_MARIA_SILVA,
     "cpf": "123.456.789-00",
 }
 
 _MOCK_TITULARES_LIST = [
     {
         "codigoTurma": 2112345,
-        "codigoRf": "7654321",
-        "nome": "Maria Silva",
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nome": _NOME_MARIA_SILVA,
     }
 ]
 
 _MOCK_TITULARES_TURMA = [
     {
-        "codigoRf": "7654321",
-        "nome": "Maria Silva",
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nome": _NOME_MARIA_SILVA,
         "codigoComponenteCurricular": 138,
         "codigoTerritorioSaber": 0,
         "codigoExperienciaPedagogica": 0,
@@ -112,13 +115,21 @@ _MOCK_TITULARES_TURMA = [
 ]
 
 _MOCK_AUTOCOMPLETE = [
-    {"codigoRf": "7654321", "nomeServidor": "Maria Silva"},
-    {"codigoRf": "1234567", "nomeServidor": "Carlos Pereira"},
+    {"codigoRf": _CODIGO_RF_MARIA, "nomeServidor": _NOME_MARIA_SILVA},
+    {"codigoRf": _CODIGO_RF_CARLOS, "nomeServidor": _NOME_CARLOS_PEREIRA},
 ]
 
 _MOCK_RESUMO = [
-    {"codigoRf": "7654321", "nome": "Maria Silva", "cpf": "123.456.789-00"},
-    {"codigoRf": "1234567", "nome": "Carlos Pereira", "cpf": "111.222.333-44"},
+    {
+        "codigoRf": _CODIGO_RF_MARIA,
+        "nome": _NOME_MARIA_SILVA,
+        "cpf": "123.456.789-00",
+    },
+    {
+        "codigoRf": _CODIGO_RF_CARLOS,
+        "nome": _NOME_CARLOS_PEREIRA,
+        "cpf": "111.222.333-44",
+    },
 ]
 
 _MOCK_ATRIB_PERIODO = [
@@ -152,8 +163,8 @@ class BuscaProfessoresView(APIView):
     def get(
         self,
         request: Request,
-        codigoEolEscola: str,
-        anoLetivo: int | None = None,
+        codigo_eol_escola: str,
+        ano_letivo: int | None = None,
     ) -> Response:
         """Retorna lista mock de professores da escola."""
         return Response(_MOCK_PROFESSOR_LIST)
@@ -175,9 +186,9 @@ class BuscaTurmasAtribuidasEscolaView(APIView):
     def get(
         self,
         request: Request,
-        codigoEolEscola: str,
-        anoLetivo: int,
-        codigoRF: str | None = None,
+        codigo_eol_escola: str,
+        ano_letivo: int,
+        codigo_rf: str | None = None,
     ) -> Response:
         """Retorna lista mock de turmas atribuídas."""
         return Response(_MOCK_TURMAS_LIST)
@@ -202,8 +213,8 @@ class BuscarTurmasAtribuidasView(APIView):
     def get(
         self,
         request: Request,
-        codigoRF: str,
-        anoLetivo: int | None = None,
+        codigo_rf: str,
+        ano_letivo: int | None = None,
     ) -> Response:
         """Retorna lista mock de turmas atribuídas."""
         return Response(_MOCK_TURMAS_LIST)
@@ -225,10 +236,10 @@ class ObterNomePeloRFView(APIView):
         ],
         responses={200: dict},
     )
-    def get(self, request: Request, rfProfessor: str) -> Response:
+    def get(self, request: Request, rf_professor: str) -> Response:
         """Retorna nome mock do professor."""
         return Response(
-            {"codigoRf": rfProfessor, "nome": PROFESSOR_MOCK["nome"]}
+            {"codigoRf": rf_professor, "nome": PROFESSOR_MOCK["nome"]}
         )
 
 
@@ -256,7 +267,7 @@ class BuscarPorRfAnoLetivoView(APIView):
         responses={200: dict},
     )
     def get(
-        self, request: Request, codigoRf: str, anoLetivo: int
+        self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
         """Retorna dados mock do professor."""
         return Response(_MOCK_PROF_TURMA)
@@ -287,7 +298,7 @@ class BuscarPorRfDreUeView(APIView):
         responses={200: dict},
     )
     def get(
-        self, request: Request, codigoRf: str, anoLetivo: int
+        self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
         """Retorna dados mock do professor filtrado por DRE/UE."""
         return Response(_MOCK_PROF_TURMA)
@@ -317,7 +328,7 @@ class AutoCompleteView(APIView):
         responses={200: list},
     )
     def get(
-        self, request: Request, anoLetivo: int, dreId: str
+        self, request: Request, ano_letivo: int, dre_id: str
     ) -> Response:
         """Retorna lista mock de professores para autocomplete."""
         return Response(_MOCK_AUTOCOMPLETE)
@@ -340,7 +351,7 @@ class BuscarPorListaRFView(APIView):
         request=list,
         responses={200: list},
     )
-    def post(self, request: Request, anoLetivo: int) -> Response:
+    def post(self, request: Request, ano_letivo: int) -> Response:
         """Retorna lista mock de professores."""
         return Response(_MOCK_RESUMO)
 
@@ -361,7 +372,7 @@ class VerificarValidadeView(APIView):
         ],
         responses={200: bool},
     )
-    def get(self, request: Request, codigoRf: str) -> Response:
+    def get(self, request: Request, codigo_rf: str) -> Response:
         """Retorna true (professor válido)."""
         return Response(True)
 
@@ -382,7 +393,7 @@ class EhEmeiView(APIView):
         ],
         responses={200: bool, 400: dict},
     )
-    def get(self, request: Request, codigoRF: str) -> Response:
+    def get(self, request: Request, codigo_rf: str) -> Response:
         """Retorna false (professor não é EMEI no mock)."""
         return Response(False)
 
@@ -405,14 +416,14 @@ class AtribuicaoStatusView(APIView):
         responses={200: dict, 422: dict, 500: dict},
     )
     def get(
-        self, request: Request, codigoRF: str, codigoTurma: int
+        self, request: Request, codigo_rf: str, codigo_turma: int
     ) -> Response:
         """Retorna status de atribuição mock."""
         return Response(
             {
                 "possuiAtribuicao": True,
-                "codigoRf": codigoRF,
-                "codigoTurma": codigoTurma,
+                "codigoRf": codigo_rf,
+                "codigoTurma": codigo_turma,
             }
         )
 
@@ -441,7 +452,7 @@ class AtribuicaoVerificarDataView(APIView):
         responses={200: bool, 400: dict, 422: dict, 500: dict},
     )
     def get(
-        self, request: Request, codigoRF: str, codigoTurma: int
+        self, request: Request, codigo_rf: str, codigo_turma: int
     ) -> Response:
         """Retorna true (possui atribuição) no mock."""
         return Response(True)
@@ -480,9 +491,9 @@ class AtribuicaoDisciplinaDataView(APIView):
     def get(
         self,
         request: Request,
-        codigoRF: str,
-        codigoTurma: int,
-        disciplinaId: int,
+        codigo_rf: str,
+        codigo_turma: int,
+        disciplina_id: int,
     ) -> Response:
         """Retorna true (possui atribuição) no mock."""
         return Response(True)
@@ -498,7 +509,9 @@ class AtribuicaoDisciplinaDataTickView(APIView):
 
     @extend_schema(
         tags=_TAG_PROF,
-        summary="EP-15 | Verificar atribuição na disciplina/turma via dataTick",
+        summary=(
+            "EP-15 | Verificar atribuição na disciplina/turma via dataTick"
+        ),
         parameters=[
             OpenApiParameter("codigoRF", str, OpenApiParameter.PATH),
             OpenApiParameter("codigoTurma", int, OpenApiParameter.PATH),
@@ -515,9 +528,9 @@ class AtribuicaoDisciplinaDataTickView(APIView):
     def get(
         self,
         request: Request,
-        codigoRF: str,
-        codigoTurma: int,
-        disciplinaId: int,
+        codigo_rf: str,
+        codigo_turma: int,
+        disciplina_id: int,
     ) -> Response:
         """Retorna true (possui atribuição) no mock."""
         return Response(True)
@@ -554,9 +567,9 @@ class AtribuicaoRecorrenciaDatasView(APIView):
     def get(
         self,
         request: Request,
-        codigoRF: str,
-        codigoTurma: int,
-        disciplinaId: int,
+        codigo_rf: str,
+        codigo_turma: int,
+        disciplina_id: int,
     ) -> Response:
         """Retorna lista mock de datas com status de atribuição."""
         return Response(_MOCK_ATRIB_PERIODO)
@@ -583,7 +596,7 @@ class AtribuicaoTurmasListaView(APIView):
         responses={200: list},
     )
     def post(
-        self, request: Request, codigoRf: str, disciplinaId: int
+        self, request: Request, codigo_rf: str, disciplina_id: int
     ) -> Response:
         """Retorna lista mock de turmas com status de atribuição."""
         return Response(_MOCK_VERIF_TURMAS)
@@ -616,11 +629,11 @@ class AtribuicaoPeriodoView(APIView):
     def post(
         self,
         request: Request,
-        codigoRf: str,
-        codigoTurma: int,
-        componenteCurricularId: int,
-        dataInicioPeriodo: str,
-        dataFimPeriodo: str,
+        codigo_rf: str,
+        codigo_turma: int,
+        componente_curricular_id: int,
+        data_inicio_periodo: str,
+        data_fim_periodo: str,
     ) -> Response:
         """Retorna true (possui atribuição no período) no mock."""
         return Response(True)
@@ -652,7 +665,7 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
         responses={200: list, 400: dict, 422: dict, 500: dict},
     )
     def get(
-        self, request: Request, codigoTurma: int, disciplinaId: int
+        self, request: Request, codigo_turma: int, disciplina_id: int
     ) -> Response:
         """Retorna lista mock de professores atribuídos."""
         return Response(_MOCK_ATRIB_TURMA_DISC)
@@ -680,8 +693,8 @@ class TitularPorTurmaDisciplinaView(APIView):
     def get(
         self,
         request: Request,
-        codigoTurma: int,
-        codigoComponenteCurricular: int,
+        codigo_turma: int,
+        codigo_componente_curricular: int,
     ) -> Response:
         """Retorna titular mock."""
         return Response(_MOCK_TITULAR)
@@ -750,8 +763,8 @@ class TitularesPorTurmaAgrupamentoView(APIView):
     def get(
         self,
         request: Request,
-        codigoTurma: int,
-        realizaAgrupamento: str,
+        codigo_turma: int,
+        realiza_agrupamento: str,
     ) -> Response:
         """Retorna lista mock de titulares com componentes."""
         return Response(_MOCK_TITULARES_TURMA)
@@ -785,8 +798,8 @@ class TitularesPorUeView(APIView):
     def get(
         self,
         request: Request,
-        ueCodigo: str,
-        dataReferencia: str,
+        ue_codigo: str,
+        data_referencia: str,
     ) -> Response:
         """Retorna lista mock de titulares da UE."""
         return Response(_MOCK_TITULARES_TURMA)
