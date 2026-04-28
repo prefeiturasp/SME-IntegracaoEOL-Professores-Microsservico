@@ -15,8 +15,11 @@ def _json(response):
 class _AuthedMixin:
     """Mixin que fornece client autenticado e helper de requisição."""
 
-    def setUp(self):
+    # Método obrigatório do unittest/Django TestCase
+    def setUp(self):  # NOSONAR
+
         super().setUp()
+
         self.authed = _AuthedClient(self.client)
 
 
