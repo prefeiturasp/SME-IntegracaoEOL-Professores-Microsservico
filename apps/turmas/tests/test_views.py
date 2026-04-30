@@ -20,14 +20,14 @@ class TestEP24TurmasHistoricas:
         # turma fixture cria TurmaEscola 2112345 com status="A"
         res = client.get(self._url)
         assert res.status_code == 200
-        assert any(t["codigoTurma"] == 2112345 for t in res.data)
+        assert any(t["codigo"] == 2112345 for t in res.data)
 
     def test_estrutura_dos_campos(self, client, atribuicao, turma):
         res = client.get(self._url)
         assert res.status_code == 200
         assert len(res.data) >= 1
         item = res.data[0]
-        for campo in ("codigoTurma", "nomeTurma", "codigoEscola", "anoLetivo", "status"):
+        for campo in ("codigo", "nomeTurma", "ueCodigo", "anoLetivo", "ehistorico"):
             assert campo in item
 
     def test_sem_atribuicao_retorna_lista_vazia(self, client, db):
@@ -40,7 +40,7 @@ class TestEP24TurmasHistoricas:
         # → o JOIN com TurmaEscola falha e nenhuma turma é devolvida
         res = client.get(self._url)
         assert res.status_code == 200
-        assert not any(t.get("codigoTurma") == 2112345 for t in res.data)
+        assert not any(t.get("codigo") == 2112345 for t in res.data)
 
     def test_ano_diferente_retorna_vazio(self, client, atribuicao, turma):
         res = client.get(f"{_BASE}/2099/professor/7654321/turmas-historicas-geral/")

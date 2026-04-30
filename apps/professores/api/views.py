@@ -130,10 +130,11 @@ class ObterNomePeloRFView(APIView):
         responses={200: NomePorRFSerializer, 404: dict},
     )
     def get(self, request: Request, rfProfessor: str) -> Response:
-        resultado = repository.obter_nome_rf(rfProfessor)
-        if resultado is None:
+        nome = repository.obter_nome_rf(rfProfessor)
+        if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(resultado)
+        from django.http import HttpResponse
+        return HttpResponse(nome, content_type="text/plain")
 
 
 # ---------------------------------------------------------------------------

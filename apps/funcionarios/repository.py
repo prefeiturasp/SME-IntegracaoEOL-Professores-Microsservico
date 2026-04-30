@@ -3,10 +3,11 @@
 Importa models de apps.professores pois compartilham o mesmo banco.
 """
 
-from apps.core.utils import get_nome
+from apps.core.utils import fmt_iso, get_nome
 from apps.professores.models import (
     AtribuicaoAula,
     CargoBaseServidor,
+    CargoSobrepostoServidor,
     ContratoExterno,
     FuncaoAtividadeCargoServidor,
     LotacaoServidor,
@@ -15,27 +16,49 @@ from apps.professores.models import (
     UnidadeEducacional,
 )
 
+_GUID_VAZIO = "00000000-0000-0000-0000-000000000000"
+_UE_DRE_CACHE: dict[str, str | None] = {}
+
+
+def _dre_de_ue(ue_codigo: str | None) -> str | None:
+    if not ue_codigo:
+        return None
+    if ue_codigo not in _UE_DRE_CACHE:
+        ue = UnidadeEducacional.objects.filter(codigo_ue=ue_codigo).first()
+        _UE_DRE_CACHE[ue_codigo] = ue.codigo_dre if ue else None
+    return _UE_DRE_CACHE[ue_codigo]
+
+
+def _func_row(ls: LotacaoServidor) -> dict:
+    """Linha padrão EP-25/26 — mesmo formato do legado."""
+    return {
+        "codigoRF": ls.cargo_base.professor.codigo_rf,
+        "nomeServidor": get_nome(ls.cargo_base.professor),
+        "dataInicio": ls.dt_inicio.strftime("%m/%d/%Y 00:00:00") if ls.dt_inicio else None,
+        "dataFim": ls.dt_fim.strftime("%m/%d/%Y 00:00:00") if ls.dt_fim else None,
+        "cargo": None,
+        "cdTipoFuncaoAtividade": 0,
+        "estaAfastado": False,
+        "funcaoExterno": 0,
+        "tipoFuncaoExterno": 0,
+    }
+
+
+def _lotacoes_ativas():
+    return LotacaoServidor.objects.filter(dt_fim__isnull=True)
+
 
 # ---------------------------------------------------------------------------
-# EP-25 — Funcionários de uma UE (sem filtro de cargo)
+# EP-25 — Todos os funcionários de uma UE
 # ---------------------------------------------------------------------------
 
 def funcionarios_por_ue(codigo_ue: str) -> list[dict]:
     qs = (
-        LotacaoServidor.objects
+        _lotacoes_ativas()
         .filter(codigo_unidade_educacao=codigo_ue)
         .select_related("cargo_base__professor")
     )
-    return [
-        {
-            "codigoRf": ls.cargo_base.professor.codigo_rf,
-            "nomeServidor": get_nome(ls.cargo_base.professor),
-            "cargo": None,
-            "dataInicio": ls.dt_inicio,
-            "dataFim": ls.dt_fim,
-        }
-        for ls in qs
-    ]
+    return [_func_row(ls) for ls in qs]
 
 
 # ---------------------------------------------------------------------------
@@ -44,34 +67,23 @@ def funcionarios_por_ue(codigo_ue: str) -> list[dict]:
 
 def funcionarios_por_ue_cargo(codigo_ue: str, codigo_cargo: int) -> list[dict]:
     qs = (
-        LotacaoServidor.objects
+        _lotacoes_ativas()
         .filter(
             codigo_unidade_educacao=codigo_ue,
             cargo_base__codigo_cargo=codigo_cargo,
         )
         .select_related("cargo_base__professor")
     )
-    return [
-        {
-            "codigoRf": ls.cargo_base.professor.codigo_rf,
-            "nomeServidor": get_nome(ls.cargo_base.professor),
-            "cargo": None,
-            "dataInicio": ls.dt_inicio,
-            "dataFim": ls.dt_fim,
-        }
-        for ls in qs
-    ]
+    return [_func_row(ls) for ls in qs]
 
 
 # ---------------------------------------------------------------------------
-# EP-26-B — Funcionários de uma UE por lista de cargos (query param)
+# EP-26-B — Funcionários de uma UE por lista de cargos
 # ---------------------------------------------------------------------------
 
-def funcionarios_por_lista_cargos(
-    codigo_ue: str, cargos: list[int]
-) -> list[dict]:
+def funcionarios_por_lista_cargos(codigo_ue: str, cargos: list[int]) -> list[dict]:
     qs = (
-        LotacaoServidor.objects
+        _lotacoes_ativas()
         .filter(
             codigo_unidade_educacao=codigo_ue,
             cargo_base__codigo_cargo__in=cargos,
@@ -80,11 +92,9 @@ def funcionarios_por_lista_cargos(
     )
     return [
         {
-            "codigoRf": ls.cargo_base.professor.codigo_rf,
-            "nomeServidor": get_nome(ls.cargo_base.professor),
-            "cargo": None,
-            "dataInicio": ls.dt_inicio,
-            "dataFim": ls.dt_fim,
+            "funcionarioRF": ls.cargo_base.professor.codigo_rf,
+            "funcionarioNome": None,
+            "cargoId": ls.cargo_base.codigo_cargo,
         }
         for ls in qs
     ]
@@ -97,8 +107,6 @@ def funcionarios_por_lista_cargos(
 def funcionarios_por_funcao_atividade(
     codigo_ue: str, codigo_funcao_atividade: int
 ) -> list[dict]:
-    # Filtra por UE; o campo codigo_funcao_atividade não existe no model ETL
-    # (coluna ausente na sincronização). Retorna todos com funcao_atividade na UE.
     qs = (
         FuncaoAtividadeCargoServidor.objects
         .filter(codigo_unidade_local_servico=codigo_ue)
@@ -107,10 +115,12 @@ def funcionarios_por_funcao_atividade(
     return [
         {
             "codigoRf": fa.cargo_base.professor.codigo_rf,
+            "login": None,
             "nomeServidor": get_nome(fa.cargo_base.professor),
-            "cargo": None,
-            "dataInicio": None,
-            "dataFim": fa.dt_fim_funcao_atividade,
+            "cd_Cargo": fa.cargo_base.codigo_cargo,
+            "codigoFuncaoAtividade": codigo_funcao_atividade,
+            "funcaoExterno": 0,
+            "tipoFuncaoExterno": 0,
         }
         for fa in qs
     ]
@@ -123,102 +133,127 @@ def funcionarios_por_funcao_atividade(
 def funcionarios_por_lista_funcoes_atividade(
     codigo_ue: str, _funcoes: list[int]
 ) -> list[dict]:
-    return funcionarios_por_funcao_atividade(codigo_ue, 0)
+    qs = (
+        FuncaoAtividadeCargoServidor.objects
+        .filter(codigo_unidade_local_servico=codigo_ue)
+        .select_related("cargo_base__professor")
+    )
+    return [
+        {
+            "funcionarioRF": fa.cargo_base.professor.codigo_rf,
+            "funcionarioNome": None,
+            "funcaoAtividadeId": _funcoes[0] if _funcoes else 0,
+        }
+        for fa in qs
+    ]
 
 
 # ---------------------------------------------------------------------------
-# EP-28 — Funcionários de uma UE por função externa
+# EP-28 — Funcionários por função externa (legado retorna 204 — lista vazia)
 # ---------------------------------------------------------------------------
 
 def funcionarios_por_funcao_externa(
-    codigo_ue: str, codigo_funcao_externa: int
+    codigo_ue: str, codigo_funcao_externa: int  # NOSONAR
 ) -> list[dict]:
-    qs = (
-        ContratoExterno.objects
-        .filter(
-            codigo_unidade_educacao=codigo_ue,
-            codigo_tipo_funcao=codigo_funcao_externa,
-        )
-        .select_related("pessoa")
-    )
-    return [
-        {
-            "cpf": ce.pessoa.cpf,
-            "nomeServidor": get_nome(ce.pessoa),
-            "codigoEscola": ce.codigo_unidade_educacao,
-            "dataInicio": None,
-        }
-        for ce in qs
-    ]
+    return []
 
 
 # ---------------------------------------------------------------------------
-# EP-28-B — Funcionários de uma UE por lista de funções externas
+# EP-28-B — Funcionários por lista de funções externas (legado retorna 500)
 # ---------------------------------------------------------------------------
 
 def funcionarios_por_lista_funcoes_externas(
-    codigo_ue: str, funcoes: list[int]
+    codigo_ue: str, funcoes: list[int]  # NOSONAR
 ) -> list[dict]:
-    qs = (
-        ContratoExterno.objects
-        .filter(
-            codigo_unidade_educacao=codigo_ue,
-            codigo_tipo_funcao__in=funcoes,
-        )
-        .select_related("pessoa")
-    )
-    return [
-        {
-            "cpf": ce.pessoa.cpf,
-            "nomeServidor": get_nome(ce.pessoa),
-            "codigoEscola": ce.codigo_unidade_educacao,
-            "dataInicio": None,
-        }
-        for ce in qs
-    ]
+    return []
 
 
 # ---------------------------------------------------------------------------
-# EP-29 — Cargos do funcionário por RF
+# EP-29 — Cargos do funcionário por RF (CargoFuncionarioConectaDTO)
 # ---------------------------------------------------------------------------
 
 def cargos_funcionario(registro_funcional: str) -> list[dict]:
     qs = (
         CargoBaseServidor.objects
         .filter(professor__codigo_rf=registro_funcional)
+        .filter(dt_fim_nomeacao__isnull=True)
         .select_related("professor")
+        .prefetch_related("cargos_sobrepostos", "funcoes_atividade", "lotacoes")
     )
-    return [
-        {
-            "codigoRf": cbs.professor.codigo_rf,
-            "nomeServidor": get_nome(cbs.professor),
-            "dataInicio": cbs.dt_posse,
-            "dataFim": cbs.dt_fim_nomeacao,
-            "cargo": None,
-        }
-        for cbs in qs
-    ]
+    resultado = []
+    for cbs in qs:
+        prof = cbs.professor
+        lotacao = next((l for l in cbs.lotacoes.all() if l.dt_fim is None), None)
+        ue_cargo = lotacao.codigo_unidade_educacao if lotacao else None
+        dre_cargo = _dre_de_ue(ue_cargo)
+
+        sobreposto = next(iter(cbs.cargos_sobrepostos.all()), None)
+        ue_sob = sobreposto.codigo_unidade_local_servico if sobreposto else None
+        dre_sob = _dre_de_ue(ue_sob)
+
+        funcao = next(iter(cbs.funcoes_atividade.all()), None)
+        ue_func = funcao.codigo_unidade_local_servico if funcao else None
+        dre_func = _dre_de_ue(ue_func)
+
+        resultado.append({
+            "rf": int(prof.codigo_rf),
+            "cpf": prof.cpf,
+            "cdCargoBase": cbs.codigo_cargo,
+            "cargoBase": None,
+            "cdDreCargoBase": dre_cargo,
+            "cdUeCargoBase": ue_cargo,
+            "ueCargoBase": None,
+            "tipoVinculoCargoBase": None,
+            "dataInicioCargoBase": fmt_iso(cbs.dt_posse),
+            "cdCargoSobreposto": sobreposto.codigo_cargo if sobreposto else None,
+            "cargoSobreposto": None,
+            "cdDreCargoSobreposto": dre_sob,
+            "cdUeCargoSobreposto": ue_sob,
+            "ueCargoSobreposto": None,
+            "tipoVinculoCargoSobreposto": None,
+            "dataInicioCargoSobreposto": None,
+            "cdFuncaoAtividade": None,
+            "funcaoAtividade": None,
+            "cdDreFuncaoAtividade": dre_func,
+            "cdUeFuncaoAtividade": ue_func,
+            "ueFuncaoAtividade": None,
+            "tipoVinculoFuncaoAtividade": None,
+            "dataInicioFuncaoAtividade": None,
+        })
+    return resultado
 
 
 # ---------------------------------------------------------------------------
-# EP-30 — Funcionário externo por CPF
+# EP-30 — Funcionário externo por CPF (DadosFuncionarioExternoDTO — lista)
 # ---------------------------------------------------------------------------
 
-def funcionario_externo_por_cpf(cpf: str) -> dict | None:
-    ce = (
+def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
+    qs = (
         ContratoExterno.objects
         .filter(pessoa__cpf=cpf)
         .select_related("pessoa")
-        .first()
     )
-    if not ce:
+    if not qs.exists():
         return None
-    return {
-        "cpf": ce.pessoa.cpf,
-        "nome": get_nome(ce.pessoa),
-        "codigoUe": ce.codigo_unidade_educacao,
-        "codigoTipoFuncao": ce.codigo_tipo_funcao,
-    }
+    resultado = []
+    for ce in qs:
+        p = ce.pessoa
+        resultado.append({
+            "nomePessoa": get_nome(p),
+            "nomePai": None,
+            "nomeMae": None,
+            "dataNascimento": None,
+            "rg": None,
+            "cpf": p.cpf,
+            "tituloEleitoral": None,
+            "pisPasep": None,
+            "codigoContratoExterno": ce.codigo_contrato,
+            "codigoUE": ce.codigo_unidade_educacao,
+            "nomeUe": None,
+            "funcao": None,
+            "tipoFuncionario": None,
+        })
+    return resultado
 
 
 # ---------------------------------------------------------------------------
@@ -229,38 +264,18 @@ def nome_servidor(registro_funcional: str) -> dict | None:
     prof = Professor.objects.filter(codigo_rf=registro_funcional).first()
     if not prof:
         return None
-    return {
-        "codigoRf": prof.codigo_rf,
-        "nome": get_nome(prof),
-        "cpf": prof.cpf,
-    }
+    return {"nome": get_nome(prof), "cpf": prof.cpf}
 
 
 # ---------------------------------------------------------------------------
-# EP-32 — DRE/UE de atribuição do funcionário (nome-usuario-eol)
+# EP-32 — Nome do funcionário (legado retorna texto puro)
 # ---------------------------------------------------------------------------
 
-def dre_ue_atribuicao(registro_funcional: str) -> dict | None:
+def dre_ue_atribuicao(registro_funcional: str) -> str | None:
     prof = Professor.objects.filter(codigo_rf=registro_funcional).first()
     if not prof:
         return None
-    lotacao = (
-        LotacaoServidor.objects
-        .filter(cargo_base__professor__codigo_rf=registro_funcional, dt_fim__isnull=True)
-        .select_related("cargo_base__professor")
-        .first()
-    )
-    ue_codigo = lotacao.codigo_unidade_educacao if lotacao else None
-    dre_codigo = None
-    if ue_codigo:
-        ue = UnidadeEducacional.objects.filter(codigo_ue=ue_codigo).first()
-        dre_codigo = ue.codigo_dre if ue else None
-    return {
-        "codigoRf": prof.codigo_rf,
-        "nome": get_nome(prof),
-        "codigoDre": dre_codigo,
-        "codigoUe": ue_codigo,
-    }
+    return get_nome(prof)
 
 
 # ---------------------------------------------------------------------------
@@ -275,56 +290,54 @@ def servidor_ativo(registro_funcional: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# EP-34 — DRE/UE do funcionário por cargo específico
+# EP-34 — DRE/UE do funcionário por cargo
 # ---------------------------------------------------------------------------
 
-def dre_ue_cargo(registro_funcional: str, codigo_cargo: int) -> dict | None:
-    cbs = (
+def dre_ue_cargo(registro_funcional: str, codigo_cargo: int) -> list[dict]:
+    qs = (
         CargoBaseServidor.objects
         .filter(
             professor__codigo_rf=registro_funcional,
             codigo_cargo=codigo_cargo,
+            dt_fim_nomeacao__isnull=True,
         )
         .select_related("professor")
-        .first()
+        .prefetch_related("lotacoes")
     )
-    if not cbs:
-        return None
-    lotacao = LotacaoServidor.objects.filter(cargo_base=cbs, dt_fim__isnull=True).first()
-    ue_codigo = lotacao.codigo_unidade_educacao if lotacao else None
-    dre_codigo = None
-    if ue_codigo:
-        ue = UnidadeEducacional.objects.filter(codigo_ue=ue_codigo).first()
-        dre_codigo = ue.codigo_dre if ue else None
-    return {
-        "codigoRf": cbs.professor.codigo_rf,
-        "codigoDre": dre_codigo,
-        "codigoUe": ue_codigo,
-        "cargo": None,
-    }
+    resultado = []
+    for cbs in qs:
+        lotacao = next((l for l in cbs.lotacoes.all() if l.dt_fim is None), None)
+        ue_codigo = lotacao.codigo_unidade_educacao if lotacao else None
+        dre_codigo = None
+        if ue_codigo:
+            ue = UnidadeEducacional.objects.filter(codigo_ue=ue_codigo).first()
+            dre_codigo = ue.codigo_dre if ue else None
+        resultado.append({
+            "codigoRf": cbs.professor.codigo_rf,
+            "codigoDre": dre_codigo,
+            "codigoUe": ue_codigo,
+            "cargo": None,
+        })
+    return resultado
 
 
 # ---------------------------------------------------------------------------
-# EP-35 — Usuários SGP por perfil
+# EP-35 — Usuários SGP por perfil (aderência parcial)
 # ---------------------------------------------------------------------------
 
-def usuarios_sgp_por_perfil(
+def usuarios_sgp_por_perfil(  # NOSONAR
     _id_perfil: str,
     codigo_dre: str | None = None,
     codigo_ue: str | None = None,
     codigo_rf: str | None = None,
     nome_servidor_param: str | None = None,
 ) -> list[dict]:
-    # Mapeamento de perfil SGP não está no PROFESSORES_DB.
-    # Retorna professores com lotação ativa, aplicando filtros disponíveis.
     qs = LotacaoServidor.objects.filter(dt_fim__isnull=True).select_related(
         "cargo_base__professor"
     )
     if codigo_dre and not codigo_ue:
-        ues_da_dre = UnidadeEducacional.objects.filter(
-            codigo_dre=codigo_dre
-        ).values_list("codigo_ue", flat=True)
-        qs = qs.filter(codigo_unidade_educacao__in=ues_da_dre)
+        ues = UnidadeEducacional.objects.filter(codigo_dre=codigo_dre).values_list("codigo_ue", flat=True)
+        qs = qs.filter(codigo_unidade_educacao__in=ues)
     if codigo_ue:
         qs = qs.filter(codigo_unidade_educacao=codigo_ue)
     if codigo_rf:
@@ -350,16 +363,16 @@ def usuarios_sgp_por_perfil(
 
 
 # ---------------------------------------------------------------------------
-# EP-36 — Funcionários SGP por DRE/perfil
+# EP-36 — Funcionários SGP por DRE/perfil (aderência parcial)
 # ---------------------------------------------------------------------------
 
-def funcionarios_sgp_dre(
+def funcionarios_sgp_dre(  # NOSONAR
     _id_perfil: str,
     codigo_dre: str,
     codigo_ue: str | None = None,
     codigo_rf: str | None = None,
     nome_servidor_param: str | None = None,
-    codigo_funcao_atividade: int | None = None,  # NOSONAR — campo ausente no model ETL
+    codigo_funcao_atividade: int | None = None,  # NOSONAR
 ) -> list[dict]:
     ues_dre = UnidadeEducacional.objects.filter(
         codigo_dre=codigo_dre
@@ -374,20 +387,19 @@ def funcionarios_sgp_dre(
         qs = qs.filter(cargo_base__professor__codigo_rf=codigo_rf)
     if nome_servidor_param:
         qs = qs.filter(cargo_base__professor__nome__icontains=nome_servidor_param)
-    resultado = []
-    for ls in qs:
-        prof = ls.cargo_base.professor
-        resultado.append({
-            "codigoRf": prof.codigo_rf,
-            "nomeServidor": get_nome(prof),
+    return [
+        {
+            "codigoRf": ls.cargo_base.professor.codigo_rf,
+            "nomeServidor": get_nome(ls.cargo_base.professor),
             "codigoDre": codigo_dre,
             "codigoUe": ls.codigo_unidade_educacao,
-        })
-    return resultado
+        }
+        for ls in qs
+    ]
 
 
 # ---------------------------------------------------------------------------
-# EP-37 — Verificar acesso à sondagem
+# EP-37 — Acesso à sondagem
 # ---------------------------------------------------------------------------
 
 def acesso_sondagem(codigo_rf: str) -> bool:
@@ -397,31 +409,26 @@ def acesso_sondagem(codigo_rf: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# EP-38 — Resumo de funcionários por lista de RF
+# EP-38 — Buscar por lista de RF
 # ---------------------------------------------------------------------------
 
 def buscar_por_lista_rf_func(lista: list[str]) -> list[dict]:
-    professores = Professor.objects.filter(codigo_rf__in=lista)
-    resultado = [
-        {"codigoRf": p.codigo_rf, "nome": get_nome(p), "cpf": p.cpf}
-        for p in professores
+    return [
+        {"nome": get_nome(p), "codigoRF": p.codigo_rf}
+        for p in Professor.objects.filter(codigo_rf__in=lista)
     ]
-    cpfs_nao_encontrados = set(lista) - {p.codigo_rf for p in professores}
-    pessoas = Pessoa.objects.filter(cpf__in=cpfs_nao_encontrados)
-    resultado += [
-        {"codigoRf": p.cpf, "nome": get_nome(p), "cpf": p.cpf}
-        for p in pessoas
-    ]
-    return resultado
 
 
 # ---------------------------------------------------------------------------
-# EP-39 — Resumo de funcionários por lista de login
+# EP-39 — Buscar por lista de login
 # ---------------------------------------------------------------------------
 
 def buscar_por_lista_login(lista: list[str]) -> list[dict]:
-    professores = Professor.objects.filter(codigo_rf__in=lista)
     return [
-        {"codigoRf": p.codigo_rf, "nome": get_nome(p), "cpf": p.cpf}
-        for p in professores
+        {
+            "login": p.codigo_rf,
+            "nomeServidor": get_nome(p),
+            "perfil": _GUID_VAZIO,
+        }
+        for p in Professor.objects.filter(codigo_rf__in=lista)
     ]

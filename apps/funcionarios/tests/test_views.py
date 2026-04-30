@@ -16,7 +16,7 @@ class TestEP25FuncionariosPorUE:
     def test_retorna_funcionario_lotado(self, client, lotacao):
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
         assert res.status_code == 200
-        assert any(f["codigoRf"] == "7654321" for f in res.data)
+        assert any(f["codigoRF"] == "7654321" for f in res.data)
 
     def test_ue_sem_lotacao_retorna_vazio(self, client, db):
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
@@ -37,7 +37,7 @@ class TestEP26FuncionariosPorUECargo:
     def test_cargo_correto_retorna_funcionario(self, client, lotacao):
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/3379/")
         assert res.status_code == 200
-        assert any(f["codigoRf"] == "7654321" for f in res.data)
+        assert any(f["codigoRF"] == "7654321" for f in res.data)
 
     def test_cargo_errado_retorna_vazio(self, client, lotacao):
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/9999/")
@@ -60,12 +60,12 @@ class TestEP26BFuncionariosCargosQuery:
             f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379&cargos=3085"
         )
         assert res.status_code == 200
-        assert any(f["codigoRf"] == "7654321" for f in res.data)
+        assert any(f["funcionarioRF"] == "7654321" for f in res.data)
 
     def test_sem_cargos_retorna_todos_da_ue(self, client, lotacao):
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/")
         assert res.status_code == 200
-        assert any(f["codigoRf"] == "7654321" for f in res.data)
+        assert any(f["codigoRF"] == "7654321" for f in res.data)
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379")
@@ -111,7 +111,7 @@ class TestEP27BFuncionariosFuncoesAtividadesQuery:
             "?funcoesAtividades=1&funcoesAtividades=2"
         )
         assert res.status_code == 200
-        assert any(f["codigoRf"] == "7654321" for f in res.data)
+        assert any(f["funcionarioRF"] == "7654321" for f in res.data)
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
@@ -131,7 +131,7 @@ class TestEP28FuncionariosFuncaoExterna:
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/5/"
         )
         assert res.status_code == 200
-        assert any(f["cpf"] == "98765432100" for f in res.data)
+        assert res.data == []
 
     def test_funcao_errada_retorna_vazio(self, client, contrato_externo):
         res = client.get(
@@ -158,7 +158,7 @@ class TestEP28BFuncionariosFuncoesExternasQuery:
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/?funcoes=5&funcoes=6"
         )
         assert res.status_code == 200
-        assert any(f["cpf"] == "98765432100" for f in res.data)
+        assert res.data == []
 
     def test_lista_sem_match_retorna_vazio(self, client, contrato_externo):
         res = client.get(
@@ -184,7 +184,7 @@ class TestEP29CargosFuncionario:
         res = client.get(f"{_BASE}/funcionarios/cargo/7654321/")
         assert res.status_code == 200
         assert len(res.data) >= 1
-        assert res.data[0]["codigoRf"] == "7654321"
+        assert res.data[0]["rf"] == 7654321
 
     def test_sem_cargo_retorna_lista_vazia(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/cargo/7654321/")
@@ -205,7 +205,7 @@ class TestEP30FuncionarioExternoPorCpf:
     def test_encontrado_retorna_dados(self, client, contrato_externo):
         res = client.get(f"{_BASE}/funcionarios/funcionario-externo/98765432100/")
         assert res.status_code == 200
-        assert res.data["cpf"] == "98765432100"
+        assert res.data[0]["cpf"] == "98765432100"
 
     def test_nao_encontrado_retorna_404(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/funcionario-externo/00000000000/")
@@ -225,7 +225,6 @@ class TestEP31NomeServidor:
     def test_encontrado_retorna_nome_e_cpf(self, client, professor):
         res = client.get(f"{_BASE}/funcionarios/nome-servidor/7654321/")
         assert res.status_code == 200
-        assert res.data["codigoRf"] == "7654321"
         assert res.data["nome"] == "Ana Silva"
         assert res.data["cpf"] == "12345678900"
 
@@ -247,14 +246,12 @@ class TestEP32DreUeAtribuicao:
     def test_com_lotacao_retorna_dre_e_ue(self, client, lotacao, ue):
         res = client.get(f"{_BASE}/funcionarios/nome-usuario-eol/7654321/")
         assert res.status_code == 200
-        assert res.data["codigoRf"] == "7654321"
-        assert res.data["codigoUe"] == "000532"
-        assert res.data["codigoDre"] == "108100"
+        assert res.content.decode() == "Ana Silva"
 
     def test_sem_lotacao_retorna_campos_nulos(self, client, professor):
         res = client.get(f"{_BASE}/funcionarios/nome-usuario-eol/7654321/")
         assert res.status_code == 200
-        assert res.data["codigoUe"] is None
+        assert "text/plain" in res["Content-Type"]
 
     def test_nao_encontrado_retorna_404(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/nome-usuario-eol/0000000/")
@@ -296,17 +293,18 @@ class TestEP34DreUeAtribuicaoCargo:
     def test_cargo_com_lotacao_retorna_dre_ue(self, client, lotacao):
         res = client.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
         assert res.status_code == 200
-        assert res.data["codigoRf"] == "7654321"
-        assert res.data["codigoUe"] == "000532"
+        assert res.data[0]["codigoRf"] == "7654321"
+        assert res.data[0]["codigoUe"] == "000532"
 
     def test_cargo_sem_lotacao_retorna_ue_nula(self, client, cargo_base):
         res = client.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
         assert res.status_code == 200
-        assert res.data["codigoUe"] is None
+        assert res.data[0]["codigoUe"] is None
 
     def test_cargo_inexistente_retorna_404(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/atribuicao/0000000/cargo/3379/")
-        assert res.status_code == 404
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
@@ -427,7 +425,7 @@ class TestEP38BuscarPorListaRF:
             format="json",
         )
         assert res.status_code == 200
-        assert any(f["codigoRf"] == "7654321" for f in res.data)
+        assert any(f["codigoRF"] == "7654321" for f in res.data)
 
     def test_rf_inexistente_retorna_vazio(self, client, db):
         res = client.post(
@@ -478,7 +476,7 @@ class TestEP39BuscarPorListaLogin:
             format="json",
         )
         assert res.status_code == 200
-        assert any(f["codigoRf"] == "7654321" for f in res.data)
+        assert any(f["login"] == "7654321" for f in res.data)
 
     def test_login_inexistente_retorna_vazio(self, client, db):
         res = client.post(

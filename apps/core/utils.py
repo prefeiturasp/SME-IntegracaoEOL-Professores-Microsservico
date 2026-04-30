@@ -12,6 +12,26 @@ def ticks_to_date(ticks: int) -> date:
     return (_DOTNET_EPOCH + timedelta(microseconds=ticks // 10)).date()
 
 
+def ticks_to_datetime_str(ticks: int) -> str:
+    """Converte .NET Ticks para string ISO datetime preservando o horário."""
+    dt = _DOTNET_EPOCH + timedelta(microseconds=ticks // 10)
+    return dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def fmt_br(d: Any) -> str | None:
+    """Formata date/datetime no padrão MM/DD/YYYY HH:mm:ss do legado EOL."""
+    if d is None:
+        return None
+    return d.strftime("%m/%d/%Y 00:00:00")
+
+
+def fmt_iso(d: Any) -> str | None:
+    """Formata date como ISO datetime YYYY-MM-DDTHH:mm:ss."""
+    if d is None:
+        return None
+    return d.strftime("%Y-%m-%dT00:00:00")
+
+
 def get_nome(obj: Any) -> str:
     """Retorna nome_social quando preenchido, caso contrário retorna nome (P9)."""
     nome_social = getattr(obj, "nome_social", None)

@@ -285,10 +285,11 @@ class DreUeAtribuicaoFuncionarioView(APIView):
         responses={200: DreUeAtribuicaoSerializer, 400: dict, 404: dict},
     )
     def get(self, request: Request, registroFuncional: str) -> Response:
-        resultado = repository.dre_ue_atribuicao(registroFuncional)
-        if resultado is None:
+        nome = repository.dre_ue_atribuicao(registroFuncional)
+        if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(resultado)
+        from django.http import HttpResponse
+        return HttpResponse(nome, content_type="text/plain")
 
 
 # ---------------------------------------------------------------------------
