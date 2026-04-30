@@ -182,12 +182,7 @@ class BuscarPorRfDreUeView(APIView):
         responses={200: ProfessorPerfilSerializer, 404: dict},
     )
     def get(self, request: Request, codigoRf: str, anoLetivo: int) -> Response:
-        resultado = repository.buscar_por_rf_dre_ue(
-            codigoRf,
-            anoLetivo,
-            dre_id=request.query_params.get("dreId"),
-            ue_id=request.query_params.get("ueId"),
-        )
+        resultado = repository.buscar_por_rf_dre_ue(codigoRf)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -682,13 +677,9 @@ class TitularesPorUeView(APIView):
         ueCodigo: str,
         dataReferencia: str,
     ) -> Response:
-        agrupamento = (
-            request.query_params.get("realizaAgrupamento", "").lower() == "true"
-        )
         return Response(
             repository.titulares_por_ue(
                 ueCodigo,
                 date.fromisoformat(dataReferencia),
-                realiza_agrupamento=agrupamento,
             )
         )

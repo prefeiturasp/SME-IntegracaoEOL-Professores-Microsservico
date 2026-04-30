@@ -258,12 +258,7 @@ def buscar_por_rf_ano(rf: str, ano_letivo: int) -> dict | None:  # NOSONAR
 # EP-07 — BuscarPorRfDreUe
 # ---------------------------------------------------------------------------
 
-def buscar_por_rf_dre_ue(  # NOSONAR
-    rf: str,
-    ano_letivo: int,
-    dre_id: str | None = None,
-    ue_id: str | None = None,
-) -> dict | None:
+def buscar_por_rf_dre_ue(rf: str) -> dict | None:
     prof = Professor.objects.filter(codigo_rf=rf).first()
     if not prof:
         return None
@@ -623,7 +618,6 @@ def titulares_por_turmas(codigos_turmas: list[int]) -> list[dict]:
     for codigo_turma in codigos_turmas:
         filtro |= _filtro_turma(codigo_turma)
     qs = qs.filter(filtro) if filtro else qs.none()
-    serie_map = _serie_turma_map(qs)
     resultado = []
     for aa in qs:
         prof = aa.cargo_base.professor
@@ -698,10 +692,9 @@ def titulares_por_turma_agrupamento(
 # EP-23 — Titulares por UE e data de referência
 # ---------------------------------------------------------------------------
 
-def titulares_por_ue(  # NOSONAR
+def titulares_por_ue(
     ue_codigo: str,
     data_referencia: date,
-    realiza_agrupamento: bool = False,
 ) -> list[dict]:
     qs = (
         AtribuicaoAula.objects
