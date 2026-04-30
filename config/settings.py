@@ -1,6 +1,7 @@
-"""Configuracoes Django do SME-IntegracaoEOL-Professores-Microsservico (mock)."""
+"""Configuracoes Django do SME-IntegracaoEOL-Professores-Microsservico."""
 
 import os
+import secrets
 import urllib.parse
 from pathlib import Path
 from typing import Any
@@ -41,14 +42,13 @@ def _parse_db_url(url: Any) -> dict:
         "POOL_OPTIONS": _POOL_OPTIONS,
     }
 
-
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     if os.getenv("DJANGO_DEBUG", "1") == "0":
         raise ImproperlyConfigured(
             "A variável DJANGO_SECRET_KEY é obrigatória em produção."
         )
-    SECRET_KEY = os.getenv("HOSTNAME")
+    SECRET_KEY = secrets.token_hex(50)
 
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = [
@@ -71,7 +71,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "apps.core.middleware.PrefixMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -101,7 +100,11 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-URL_BANCO_PROFESSORES = os.getenv("URL_BANCO_PROFESSORES")
+import sys as _sys
+
+URL_BANCO_PROFESSORES = (
+    None if "pytest" in _sys.modules else os.getenv("URL_BANCO_PROFESSORES")
+)
 
 DATABASES = {
     "default": _parse_db_url(URL_BANCO_PROFESSORES),
@@ -114,17 +117,10 @@ TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 USE_TZ = True
 
-SCRIPT_PREFIX = os.getenv("APP_PREFIX", "")
-
-FORCE_SCRIPT_NAME = SCRIPT_PREFIX or None
-USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
-_static_prefix = SCRIPT_PREFIX.rstrip("/") if SCRIPT_PREFIX else ""
-STATIC_URL = f"{_static_prefix}/static/"
-MEDIA_URL = f"{_static_prefix}/media/"
+STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+TEST_RUNNER = "config.test_runner.ProfessoresTestRunner"
 
 NOME_APLICACAO = os.getenv(
     "NOME_APLICACAO", "SME-IntegracaoEOL-Professores-Microsservico"
@@ -132,7 +128,7 @@ NOME_APLICACAO = os.getenv(
 AMBIENTE_APLICACAO = os.getenv("AMBIENTE_APLICACAO", "local")
 NIVEL_LOG = os.getenv("NIVEL_LOG", "INFO")
 
-API_KEY = os.getenv("API_KEY", "dev-key-default")
+API_KEY = os.getenv("API_KEY", "")
 API_KEY_HEADER = os.getenv("API_KEY_HEADER", "X-API-Key")
 
 REST_FRAMEWORK = {
@@ -146,14 +142,15 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "SME-IntegracaoEOL-Professores-Microsservico API (mock)",
+    "TITLE": "SME-IntegracaoEOL-Professores-Microsservico API",
     "DESCRIPTION": (
-        "Mock dos endpoints do domínio Professores — SGP EOL.\n\n"
-        "Todos os endpoints retornam dados estáticos sem lógica de negócio."
+        "Endpoints do domínio Professores — SGP EOL.\n\n"
+        "Dados servidos diretamente do PROFESSORES_DB (populado pelo ETL).\n"
+        "Campos dependentes de outros domínios são retornados como null "
+        "e enriquecidos pelo Transition Gateway."
     ),
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    **({"SERVERS": [{"url": SCRIPT_PREFIX}]} if SCRIPT_PREFIX else {}),
     "APPEND_COMPONENTS": {
         "securitySchemes": {
             "ApiKeyAuth": {

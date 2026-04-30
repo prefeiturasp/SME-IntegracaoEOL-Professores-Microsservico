@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "SME-IntegracaoEOL-Professores-Microsservico"
 version = "0.1.0"
-description = "Microsserviço mock de Professores — SGP EOL"
+description = "Microsserviço de Professores — SGP EOL"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "SME" }]
