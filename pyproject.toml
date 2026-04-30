@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "SME-SGP-MS-Professores"
+name = "SME-IntegracaoEOL-Professores-Microsservico"
 version = "0.1.0"
 description = "Microsserviço de Professores — SGP EOL"
 readme = "README.md"

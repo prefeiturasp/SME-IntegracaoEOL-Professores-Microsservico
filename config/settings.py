@@ -1,4 +1,4 @@
-"""Configuracoes Django do SME-SGP-MS-Professores."""
+"""Configuracoes Django do SME-IntegracaoEOL-Professores-Microsservico."""
 
 import os
 import secrets
@@ -123,7 +123,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "config.test_runner.ProfessoresTestRunner"
 
 NOME_APLICACAO = os.getenv(
-    "NOME_APLICACAO", "SME-SGP-MS-Professores"
+    "NOME_APLICACAO", "SME-IntegracaoEOL-Professores-Microsservico"
 )
 AMBIENTE_APLICACAO = os.getenv("AMBIENTE_APLICACAO", "local")
 NIVEL_LOG = os.getenv("NIVEL_LOG", "INFO")
@@ -142,7 +142,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "SME-SGP-MS-Professores API",
+    "TITLE": "SME-IntegracaoEOL-Professores-Microsservico API",
     "DESCRIPTION": (
         "Endpoints do domínio Professores — SGP EOL.\n\n"
         "Dados servidos diretamente do PROFESSORES_DB (populado pelo ETL).\n"
