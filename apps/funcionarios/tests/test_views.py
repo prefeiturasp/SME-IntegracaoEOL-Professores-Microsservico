@@ -1,46 +1,10 @@
-"""Testes das views mock do domínio Funcionários (EP-25 a EP-39)."""
-
-import json
+"""Testes das views do domínio Funcionários (EP-25 a EP-39)."""
 
 import pytest
-from django.test import Client
 
-API_KEY = "test-key"
-HEADERS = {"HTTP_X_API_KEY": API_KEY}
+pytestmark = pytest.mark.django_db
 
-_URL_FUNCIONARIOS_UE = "/api/escolas/000532/funcionarios/"
-_URL_CARGO_RF = "/api/funcionarios/cargo/7654321/"
-_URL_NOME_SERVIDOR = "/api/funcionarios/nome-servidor/7654321/"
-_URL_NOME_USUARIO_EOL = "/api/funcionarios/nome-usuario-eol/7654321/"
-_URL_FUNCIONARIO_ATIVO = "/api/acessos/funcionario-ativo/7654321/"
-_PERFIL_UUID = "550e8400-e29b-41d4-a716-446655440000"
-_DRE_CODIGO = "108100"
-
-
-@pytest.fixture()
-def authed(settings):
-    """Cliente HTTP autenticado com API_KEY para os testes."""
-    settings.API_KEY = API_KEY
-    c = Client()
-
-    class _Authed:
-        def get(self, url, **kwargs):
-            return c.get(url, **{**HEADERS, **kwargs})
-
-        def post(self, url, data=None, **kwargs):
-            body = json.dumps(data or [])
-            return c.post(
-                url,
-                body,
-                content_type="application/json",
-                **{**HEADERS, **kwargs},
-            )
-
-    return _Authed()
-
-
-def _json(response):
-    return json.loads(response.content)
+_BASE = "/api"
 
 
 # ---------------------------------------------------------------------------
@@ -48,147 +12,166 @@ def _json(response):
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP25FuncionariosPorUE:
-    def test_retorna_lista(self, authed):
-        resp = authed.get(_URL_FUNCIONARIOS_UE)
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+    def test_retorna_funcionario_lotado(self, client, lotacao):
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
 
-    def test_campos_presentes(self, authed):
-        resp = authed.get(_URL_FUNCIONARIOS_UE)
-        item = _json(resp)[0]
-        for campo in ("codigoRf", "nomeServidor", "cargo"):
-            assert campo in item
+    def test_ue_sem_lotacao_retorna_vazio(self, client, db):
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_sem_api_key_retorna_403(self, settings):
-        settings.API_KEY = API_KEY
-        resp = Client().get(_URL_FUNCIONARIOS_UE)
-        assert resp.status_code == 403
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/escolas/000532/funcionarios/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# EP-26 — Funcionários por cargo específico
+# EP-26 — Funcionários de uma UE por cargo específico
 # ---------------------------------------------------------------------------
 
 
+class TestEP26FuncionariosPorUECargo:
+    def test_cargo_correto_retorna_funcionario(self, client, lotacao):
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/3379/")
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
 
-class TestEP26FuncionariosPorCargo:
-    def test_retorna_lista(self, authed):
-        resp = authed.get("/api/escolas/000532/funcionarios/cargos/3239/")
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+    def test_cargo_errado_retorna_vazio(self, client, lotacao):
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/9999/")
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_cargo_diferente_retorna_200(self, authed):
-        resp = authed.get("/api/escolas/000532/funcionarios/cargos/3247/")
-        assert resp.status_code == 200
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/escolas/000532/funcionarios/cargos/3379/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# EP-26-B — Funcionários por lista de cargos (query)
+# EP-26-B — Funcionários de uma UE por lista de cargos (query)
 # ---------------------------------------------------------------------------
-
 
 
 class TestEP26BFuncionariosCargosQuery:
-    def test_retorna_lista(self, authed):
-        resp = authed.get("/api/escolas/000532/funcionarios/cargos/")
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
-
-    def test_com_query_cargos(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/cargos/?cargos=3239&cargos=3247"
+    def test_cargo_na_lista_retorna_funcionario(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379&cargos=3085"
         )
-        assert resp.status_code == 200
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
 
-    def test_com_dre(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/cargos/?dreCodigo=108100"
-        )
-        assert resp.status_code == 200
+    def test_sem_cargos_retorna_todos_da_ue(self, client, lotacao):
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/")
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# EP-27 — Funcionários por função de atividade específica
+# EP-27 — Funcionários de uma UE por função de atividade
 # ---------------------------------------------------------------------------
 
 
-
-class TestEP27FuncaoAtividade:
-    def test_retorna_lista(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/funcoes-atividades/5/"
+class TestEP27FuncionariosFuncaoAtividade:
+    def test_retorna_funcionario_com_funcao(self, client, funcao_atividade):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/"
         )
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
 
-
-# ---------------------------------------------------------------------------
-# EP-27-B — Funcionários por lista de funções de atividade (query)
-# ---------------------------------------------------------------------------
-
-
-
-class TestEP27BFuncoesAtividadesQuery:
-    def test_retorna_lista(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/funcoes-atividades/"
-            "?dreCodigo=108100"
+    def test_sem_funcao_retorna_vazio(self, client, db):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/"
         )
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_com_funcoes_e_dre(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/funcoes-atividades/"
-            "?funcoesAtividades=1&funcoesAtividades=2&dreCodigo=108100"
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/"
         )
-        assert resp.status_code == 200
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# EP-28 — Funcionários por função externa específica
+# EP-27-B — Funcionários de uma UE por lista de funções de atividade (query)
 # ---------------------------------------------------------------------------
 
 
-
-class TestEP28FuncaoExterna:
-    def test_retorna_lista(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/funcoes-externas/10/"
+class TestEP27BFuncionariosFuncoesAtividadesQuery:
+    def test_retorna_funcionario_com_funcao(self, client, funcao_atividade):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/"
+            "?funcoesAtividades=1&funcoesAtividades=2"
         )
-        assert resp.status_code == 200
-        data = _json(resp)
-        assert isinstance(data, list)
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
 
-    def test_campos_externos(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/funcoes-externas/10/"
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/"
         )
-        item = _json(resp)[0]
-        for campo in ("cpf", "nomeServidor", "codigoEscola"):
-            assert campo in item
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# EP-28-B — Funcionários por lista de funções externas (query)
+# EP-28 — Funcionários de uma UE por função externa
 # ---------------------------------------------------------------------------
 
 
-
-class TestEP28BFuncoesExternasQuery:
-    def test_retorna_lista(self, authed):
-        resp = authed.get("/api/escolas/000532/funcionarios/funcoes-externas/")
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
-
-    def test_com_funcoes_query(self, authed):
-        resp = authed.get(
-            "/api/escolas/000532/funcionarios/funcoes-externas/"
-            "?funcoes=10&funcoes=11"
+class TestEP28FuncionariosFuncaoExterna:
+    def test_funcao_correta_retorna_externo(self, client, contrato_externo):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/5/"
         )
-        assert resp.status_code == 200
+        assert res.status_code == 200
+        assert any(f["cpf"] == "98765432100" for f in res.data)
+
+    def test_funcao_errada_retorna_vazio(self, client, contrato_externo):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/999/"
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/5/"
+        )
+        assert res.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# EP-28-B — Funcionários de uma UE por lista de funções externas (query)
+# ---------------------------------------------------------------------------
+
+
+class TestEP28BFuncionariosFuncoesExternasQuery:
+    def test_funcao_na_lista_retorna_externo(self, client, contrato_externo):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/?funcoes=5&funcoes=6"
+        )
+        assert res.status_code == 200
+        assert any(f["cpf"] == "98765432100" for f in res.data)
+
+    def test_lista_sem_match_retorna_vazio(self, client, contrato_externo):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/?funcoes=999"
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/"
+        )
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -196,22 +179,21 @@ class TestEP28BFuncoesExternasQuery:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP29CargosFuncionario:
-    def test_retorna_lista(self, authed):
-        resp = authed.get(_URL_CARGO_RF)
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+    def test_retorna_cargo_do_servidor(self, client, cargo_base):
+        res = client.get(f"{_BASE}/funcionarios/cargo/7654321/")
+        assert res.status_code == 200
+        assert len(res.data) >= 1
+        assert res.data[0]["codigoRf"] == "7654321"
 
-    def test_campos_cargo(self, authed):
-        resp = authed.get(_URL_CARGO_RF)
-        item = _json(resp)[0]
-        for campo in ("codigoRf", "nomeServidor", "cargo", "dataInicio"):
-            assert campo in item
+    def test_sem_cargo_retorna_lista_vazia(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/cargo/7654321/")
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_rf_diferente_retorna_200(self, authed):
-        resp = authed.get("/api/funcionarios/cargo/9999999/")
-        assert resp.status_code == 200
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/cargo/7654321/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -219,22 +201,19 @@ class TestEP29CargosFuncionario:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP30FuncionarioExternoPorCpf:
-    def test_retorna_dados(self, authed):
-        resp = authed.get(
-            "/api/funcionarios/funcionario-externo/987.654.321-00/"
-        )
-        assert resp.status_code == 200
-        data = _json(resp)
-        for campo in ("cpf", "nome", "codigoUe"):
-            assert campo in data
+    def test_encontrado_retorna_dados(self, client, contrato_externo):
+        res = client.get(f"{_BASE}/funcionarios/funcionario-externo/98765432100/")
+        assert res.status_code == 200
+        assert res.data["cpf"] == "98765432100"
 
-    def test_cpf_diferente_retorna_200(self, authed):
-        resp = authed.get(
-            "/api/funcionarios/funcionario-externo/000.000.000-00/"
-        )
-        assert resp.status_code == 200
+    def test_nao_encontrado_retorna_404(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/funcionario-externo/00000000000/")
+        assert res.status_code == 404
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/funcionario-externo/98765432100/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -242,18 +221,21 @@ class TestEP30FuncionarioExternoPorCpf:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP31NomeServidor:
-    def test_retorna_nome_e_cpf(self, authed):
-        resp = authed.get(_URL_NOME_SERVIDOR)
-        assert resp.status_code == 200
-        data = _json(resp)
-        for campo in ("codigoRf", "nome", "cpf"):
-            assert campo in data
+    def test_encontrado_retorna_nome_e_cpf(self, client, professor):
+        res = client.get(f"{_BASE}/funcionarios/nome-servidor/7654321/")
+        assert res.status_code == 200
+        assert res.data["codigoRf"] == "7654321"
+        assert res.data["nome"] == "Ana Silva"
+        assert res.data["cpf"] == "12345678900"
 
-    def test_rf_diferente_retorna_200(self, authed):
-        resp = authed.get("/api/funcionarios/nome-servidor/9999999/")
-        assert resp.status_code == 200
+    def test_nao_encontrado_retorna_404(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/nome-servidor/0000000/")
+        assert res.status_code == 404
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/nome-servidor/7654321/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -261,14 +243,26 @@ class TestEP31NomeServidor:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP32DreUeAtribuicao:
-    def test_retorna_dre_ue(self, authed):
-        resp = authed.get(_URL_NOME_USUARIO_EOL)
-        assert resp.status_code == 200
-        data = _json(resp)
-        for campo in ("codigoRf", "nome", "codigoDre", "codigoUe"):
-            assert campo in data
+    def test_com_lotacao_retorna_dre_e_ue(self, client, lotacao, ue):
+        res = client.get(f"{_BASE}/funcionarios/nome-usuario-eol/7654321/")
+        assert res.status_code == 200
+        assert res.data["codigoRf"] == "7654321"
+        assert res.data["codigoUe"] == "000532"
+        assert res.data["codigoDre"] == "108100"
+
+    def test_sem_lotacao_retorna_campos_nulos(self, client, professor):
+        res = client.get(f"{_BASE}/funcionarios/nome-usuario-eol/7654321/")
+        assert res.status_code == 200
+        assert res.data["codigoUe"] is None
+
+    def test_nao_encontrado_retorna_404(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/nome-usuario-eol/0000000/")
+        assert res.status_code == 404
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/nome-usuario-eol/7654321/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -276,44 +270,47 @@ class TestEP32DreUeAtribuicao:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP33ServidorAtivo:
-    def test_retorna_true(self, authed):
-        resp = authed.get(_URL_FUNCIONARIO_ATIVO)
-        assert resp.status_code == 200
-        assert _json(resp) is True
+    def test_cargo_sem_fim_retorna_true(self, client, cargo_base):
+        # dt_fim_nomeacao=None → servidor ativo
+        res = client.get(f"{_BASE}/acessos/funcionario-ativo/7654321/")
+        assert res.status_code == 200
+        assert res.data is True
 
-    def test_rf_qualquer_retorna_200(self, authed):
-        resp = authed.get("/api/acessos/funcionario-ativo/9999999/")
-        assert resp.status_code == 200
+    def test_sem_cargo_retorna_false(self, client, db):
+        res = client.get(f"{_BASE}/acessos/funcionario-ativo/7654321/")
+        assert res.status_code == 200
+        assert res.data is False
 
-    def test_sem_api_key_retorna_403(self, settings):
-        settings.API_KEY = API_KEY
-        resp = Client().get(_URL_FUNCIONARIO_ATIVO)
-        assert resp.status_code == 403
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/acessos/funcionario-ativo/7654321/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# EP-34 — DRE/UE do funcionário por cargo
+# EP-34 — DRE/UE do funcionário por cargo específico
 # ---------------------------------------------------------------------------
-
 
 
 class TestEP34DreUeAtribuicaoCargo:
-    def test_retorna_dre_ue_cargo(self, authed):
-        resp = authed.get(
-            "/api/funcionarios/atribuicao/7654321/cargo/3239/"
-        )
-        assert resp.status_code == 200
-        data = _json(resp)
-        for campo in ("codigoRf", "codigoDre", "codigoUe", "cargo"):
-            assert campo in data
+    def test_cargo_com_lotacao_retorna_dre_ue(self, client, lotacao):
+        res = client.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
+        assert res.status_code == 200
+        assert res.data["codigoRf"] == "7654321"
+        assert res.data["codigoUe"] == "000532"
 
-    def test_cargo_diferente_retorna_200(self, authed):
-        resp = authed.get(
-            "/api/funcionarios/atribuicao/7654321/cargo/3247/"
-        )
-        assert resp.status_code == 200
+    def test_cargo_sem_lotacao_retorna_ue_nula(self, client, cargo_base):
+        res = client.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
+        assert res.status_code == 200
+        assert res.data["codigoUe"] is None
+
+    def test_cargo_inexistente_retorna_404(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/atribuicao/0000000/cargo/3379/")
+        assert res.status_code == 404
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -321,25 +318,34 @@ class TestEP34DreUeAtribuicaoCargo:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP35UsuariosSGP:
-    def test_retorna_lista(self, authed):
-        resp = authed.get(f"/api/funcionarios/perfis/{_PERFIL_UUID}/")
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+    def test_retorna_funcionario_com_lotacao_ativa(self, client, lotacao):
+        res = client.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
+        assert res.status_code == 200
+        assert any(u["codigoRf"] == "7654321" for u in res.data)
 
-    def test_campos_presentes(self, authed):
-        resp = authed.get(f"/api/funcionarios/perfis/{_PERFIL_UUID}/")
-        item = _json(resp)[0]
-        for campo in ("codigoRf", "nomeServidor", "codigoDre", "codigoUe"):
-            assert campo in item
-
-    def test_com_filtros_query(self, authed):
-        resp = authed.get(
-            f"/api/funcionarios/perfis/{_PERFIL_UUID}/"
-            "?CodigoDre=108100&CodigoUe=000532"
+    def test_filtro_ue_retorna_apenas_da_ue(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/?CodigoUe=000532"
         )
-        assert resp.status_code == 200
+        assert res.status_code == 200
+        assert any(u["codigoRf"] == "7654321" for u in res.data)
+
+    def test_filtro_ue_errada_retorna_vazio(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/?CodigoUe=999999"
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_lotacao_ativa_retorna_vazio(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -347,52 +353,65 @@ class TestEP35UsuariosSGP:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP36FuncionariosSGPDre:
-    def test_retorna_lista(self, authed):
-        resp = authed.get(
-            f"/api/funcionarios/perfis/{_PERFIL_UUID}/dres/{_DRE_CODIGO}/"
+    def test_retorna_funcionario_da_dre(self, client, lotacao, ue):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
         )
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+        assert res.status_code == 200
+        assert any(u["codigoRf"] == "7654321" for u in res.data)
 
-    def test_campos_presentes(self, authed):
-        resp = authed.get(
-            f"/api/funcionarios/perfis/{_PERFIL_UUID}/dres/{_DRE_CODIGO}/"
+    def test_dre_sem_funcionarios_retorna_vazio(self, client, db):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
         )
-        item = _json(resp)[0]
-        for campo in ("codigoRf", "nomeServidor"):
-            assert campo in item
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_com_filtros(self, authed):
-        resp = authed.get(
-            f"/api/funcionarios/perfis/{_PERFIL_UUID}/dres/{_DRE_CODIGO}/"
-            "?CodigoUe=000532&NomeServidor=Maria"
+    def test_filtro_rf_retorna_especifico(self, client, lotacao, ue):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
+            "?CodigoRF=7654321"
         )
-        assert resp.status_code == 200
+        assert res.status_code == 200
+        assert len(res.data) == 1
+        assert res.data[0]["codigoRf"] == "7654321"
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
+        )
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# EP-37 — Acesso à sondagem
+# EP-37 — Verificar acesso à sondagem
 # ---------------------------------------------------------------------------
-
 
 
 class TestEP37AcessoSondagem:
-    def test_retorna_true(self, authed):
-        resp = authed.get(
-            "/api/perfis/servidores/7654321"
+    def test_com_atribuicao_retorna_true(self, client, atribuicao):
+        res = client.get(
+            f"{_BASE}/perfis/servidores/7654321"
             "/VerificaSeProfessorTemAcessoAhSondagem/"
         )
-        assert resp.status_code == 200
-        assert _json(resp) is True
+        assert res.status_code == 200
+        assert res.data is True
 
-    def test_rf_diferente_retorna_200(self, authed):
-        resp = authed.get(
-            "/api/perfis/servidores/9999999"
+    def test_sem_atribuicao_retorna_false(self, client, db):
+        res = client.get(
+            f"{_BASE}/perfis/servidores/7654321"
             "/VerificaSeProfessorTemAcessoAhSondagem/"
         )
-        assert resp.status_code == 200
+        assert res.status_code == 200
+        assert res.data is False
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/perfis/servidores/7654321"
+            "/VerificaSeProfessorTemAcessoAhSondagem/"
+        )
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -400,28 +419,50 @@ class TestEP37AcessoSondagem:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP38BuscarPorListaRF:
-    def test_retorna_lista(self, authed):
-        resp = authed.post(
-            "/api/funcionarios/BuscarPorListaRF/",
-            ["7654321", "1234567"],
-        )
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
-
-    def test_campos_presentes(self, authed):
-        resp = authed.post(
-            "/api/funcionarios/BuscarPorListaRF/",
+    def test_rf_existente_retorna_funcionario(self, client, professor):
+        res = client.post(
+            f"{_BASE}/funcionarios/BuscarPorListaRF/",
             ["7654321"],
+            format="json",
         )
-        item = _json(resp)[0]
-        for campo in ("codigoRf", "nome", "cpf"):
-            assert campo in item
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
 
-    def test_lista_vazia_retorna_200(self, authed):
-        resp = authed.post("/api/funcionarios/BuscarPorListaRF/", [])
-        assert resp.status_code == 200
+    def test_rf_inexistente_retorna_vazio(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/BuscarPorListaRF/",
+            ["0000000"],
+            format="json",
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_lista_vazia_retorna_vazio(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/BuscarPorListaRF/",
+            [],
+            format="json",
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_corpo_invalido_usa_lista_vazia(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/BuscarPorListaRF/",
+            {"invalido": True},
+            format="json",
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/BuscarPorListaRF/",
+            [],
+            format="json",
+        )
+        assert res.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -429,34 +470,29 @@ class TestEP38BuscarPorListaRF:
 # ---------------------------------------------------------------------------
 
 
-
 class TestEP39BuscarPorListaLogin:
-    def test_retorna_lista(self, authed):
-        resp = authed.post(
-            "/api/funcionarios/BuscarPorListaLogin/",
-            ["login1", "login2"],
+    def test_login_existente_retorna_funcionario(self, client, professor):
+        res = client.post(
+            f"{_BASE}/funcionarios/BuscarPorListaLogin/",
+            ["7654321"],
+            format="json",
         )
-        assert resp.status_code == 200
-        assert isinstance(_json(resp), list)
+        assert res.status_code == 200
+        assert any(f["codigoRf"] == "7654321" for f in res.data)
 
-    def test_campos_presentes(self, authed):
-        resp = authed.post(
-            "/api/funcionarios/BuscarPorListaLogin/",
-            ["login1"],
+    def test_login_inexistente_retorna_vazio(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/BuscarPorListaLogin/",
+            ["0000000"],
+            format="json",
         )
-        item = _json(resp)[0]
-        for campo in ("codigoRf", "nome", "cpf"):
-            assert campo in item
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_lista_vazia_retorna_200(self, authed):
-        resp = authed.post("/api/funcionarios/BuscarPorListaLogin/", [])
-        assert resp.status_code == 200
-
-    def test_sem_api_key_retorna_403(self, settings):
-        settings.API_KEY = API_KEY
-        resp = Client().post(
-            "/api/funcionarios/BuscarPorListaLogin/",
-            json.dumps(["login1"]),
-            content_type="application/json",
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/BuscarPorListaLogin/",
+            [],
+            format="json",
         )
-        assert resp.status_code == 403
+        assert res.status_code == 403

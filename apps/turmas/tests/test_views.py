@@ -1,20 +1,10 @@
-"""Testes das views mock do domínio Turmas (EP-24)."""
+"""Testes das views do domínio Turmas (EP-24)."""
 
-import json
+import pytest
 
-from django.test import Client, SimpleTestCase, override_settings
+pytestmark = pytest.mark.django_db
 
-API_KEY = "test-key"
-HEADERS = {"HTTP_X_API_KEY": API_KEY}
-
-_URL = (
-    "/api/turmas/anos-letivos/{ano}/professor/{rf}"
-    "/turmas-historicas-geral/"
-)
-
-
-def _json(response):
-    return json.loads(response.content)
+_BASE = "/api/turmas/anos-letivos"
 
 
 # ---------------------------------------------------------------------------
@@ -22,43 +12,46 @@ def _json(response):
 # ---------------------------------------------------------------------------
 
 
-@override_settings(API_KEY=API_KEY)
-class TestEP24TurmasHistoricas(SimpleTestCase):
-    def _get(self, ano=2024, rf="7654321"):
-        return self.client.get(
-            _URL.format(ano=ano, rf=rf), **HEADERS
-        )
+class TestEP24TurmasHistoricas:
+    _url = f"{_BASE}/2024/professor/7654321/turmas-historicas-geral/"
 
-    def test_retorna_lista(self):
-        resp = self._get()
-        self.assertEqual(resp.status_code, 200)
-        data = _json(resp)
-        self.assertIsInstance(data, list)
-        self.assertGreaterEqual(len(data), 1)
+    def test_retorna_turmas_do_professor(self, client, atribuicao, turma):
+        # atribuicao liga professor 7654321 à turma 2112345 no ano 2024
+        # turma fixture cria TurmaEscola 2112345 com status="A"
+        res = client.get(self._url)
+        assert res.status_code == 200
+        assert any(t["codigoTurma"] == 2112345 for t in res.data)
 
-    def test_campos_presentes(self):
-        item = _json(self._get())[0]
-        for campo in (
-            "codigoTurma",
-            "nomeTurma",
-            "codigoEscola",
-            "anoLetivo",
-            "status",
-        ):
-            self.assertIn(campo, item)
+    def test_estrutura_dos_campos(self, client, atribuicao, turma):
+        res = client.get(self._url)
+        assert res.status_code == 200
+        assert len(res.data) >= 1
+        item = res.data[0]
+        for campo in ("codigoTurma", "nomeTurma", "codigoEscola", "anoLetivo", "status"):
+            assert campo in item
 
-    def test_inclui_turmas_extintas(self):
-        statuses = [t["status"] for t in _json(self._get())]
-        self.assertIn("E", statuses)
+    def test_sem_atribuicao_retorna_lista_vazia(self, client, db):
+        res = client.get(self._url)
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_inclui_turmas_ativas(self):
-        statuses = [t["status"] for t in _json(self._get())]
-        self.assertIn("A", statuses)
+    def test_atribuicao_sem_turma_nao_retorna_turma(self, client, atribuicao):
+        # AtribuicaoAula existe (codigo_turma_escola=2112345), mas TurmaEscola não foi criada
+        # → o JOIN com TurmaEscola falha e nenhuma turma é devolvida
+        res = client.get(self._url)
+        assert res.status_code == 200
+        assert not any(t.get("codigoTurma") == 2112345 for t in res.data)
 
-    def test_rf_diferente_retorna_200(self):
-        resp = self._get(ano=2023, rf="9999999")
-        self.assertEqual(resp.status_code, 200)
+    def test_ano_diferente_retorna_vazio(self, client, atribuicao, turma):
+        res = client.get(f"{_BASE}/2099/professor/7654321/turmas-historicas-geral/")
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_sem_api_key_retorna_403(self):
-        resp = Client().get(_URL.format(ano=2024, rf="7654321"))
-        self.assertEqual(resp.status_code, 403)
+    def test_professor_diferente_retorna_vazio(self, client, atribuicao, turma):
+        res = client.get(f"{_BASE}/2024/professor/0000000/turmas-historicas-geral/")
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(self._url)
+        assert res.status_code == 403

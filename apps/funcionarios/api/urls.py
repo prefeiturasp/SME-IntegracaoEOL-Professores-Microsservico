@@ -25,49 +25,49 @@ from apps.funcionarios.api.views import (
 urlpatterns = [
     # EP-25 — Todos os funcionários de uma UE
     path(
-        "escolas/<str:codigo_ue>/funcionarios/",
+        "escolas/<str:codigoUE>/funcionarios/",
         FuncionariosPorUEView.as_view(),
         name="funcionarios-ue",
     ),
     # EP-26 — Funcionários de uma UE por cargo específico
     path(
-        "escolas/<str:codigo_ue>/funcionarios/cargos/<int:codigo_cargo>/",
+        "escolas/<str:codigoUE>/funcionarios/cargos/<int:codigoCargo>/",
         FuncionariosPorUEView.as_view(),
         name="funcionarios-ue-cargo",
     ),
     # EP-26-B — Funcionários de uma UE por lista de cargos (query)
     path(
-        "escolas/<str:ue_codigo>/funcionarios/cargos/",
+        "escolas/<str:ueCodigo>/funcionarios/cargos/",
         FuncionariosCargosQueryView.as_view(),
         name="funcionarios-ue-cargos-lista",
     ),
     # EP-27 — Funcionários de uma UE por função de atividade específica
     path(
-        "escolas/<str:codigo_ue>/funcionarios/funcoes-atividades/<int:codigo_funcao_atividade>/",
+        "escolas/<str:codigoUE>/funcionarios/funcoes-atividades/<int:codigoFuncaoAtividade>/",
         FuncionariosFuncaoAtividadeView.as_view(),
         name="funcionarios-ue-funcao-atividade",
     ),
     # EP-27-B — Funcionários de uma UE por lista de funções de atividade
     path(
-        "escolas/<str:ue_codigo>/funcionarios/funcoes-atividades/",
+        "escolas/<str:ueCodigo>/funcionarios/funcoes-atividades/",
         FuncionariosFuncoesAtividadesQueryView.as_view(),
         name="funcionarios-ue-funcoes-atividades-lista",
     ),
     # EP-28 — Funcionários de uma UE por função externa específica
     path(
-        "escolas/<str:codigo_ue>/funcionarios/funcoes-externas/<int:codigo_funcao_externa>/",
+        "escolas/<str:codigoUE>/funcionarios/funcoes-externas/<int:codigoFuncaoExterna>/",
         FuncionariosFuncaoExternaView.as_view(),
         name="funcionarios-ue-funcao-externa",
     ),
     # EP-28-B — Funcionários de uma UE por lista de funções externas (query)
     path(
-        "escolas/<str:ue_codigo>/funcionarios/funcoes-externas/",
+        "escolas/<str:ueCodigo>/funcionarios/funcoes-externas/",
         FuncionariosFuncoesExternasQueryView.as_view(),
         name="funcionarios-ue-funcoes-externas-lista",
     ),
     # EP-29 — Cargos do funcionário por RF
     path(
-        "funcionarios/cargo/<str:registro_funcional>/",
+        "funcionarios/cargo/<str:registroFuncional>/",
         CargosFuncionarioView.as_view(),
         name="funcionarios-cargos-rf",
     ),
@@ -79,43 +79,43 @@ urlpatterns = [
     ),
     # EP-31 — Nome e CPF do servidor por RF
     path(
-        "funcionarios/nome-servidor/<str:registro_funcional>/",
+        "funcionarios/nome-servidor/<str:registroFuncional>/",
         NomeServidorView.as_view(),
         name="funcionario-nome-servidor",
     ),
     # EP-32 — DRE/UE de atribuição do funcionário (nome-usuario-eol)
     path(
-        "funcionarios/nome-usuario-eol/<str:registro_funcional>/",
+        "funcionarios/nome-usuario-eol/<str:registroFuncional>/",
         DreUeAtribuicaoFuncionarioView.as_view(),
         name="funcionario-nome-usuario-eol",
     ),
     # EP-33 — Servidor ativo
     path(
-        "acessos/funcionario-ativo/<str:registro_funcional>/",
+        "acessos/funcionario-ativo/<str:registroFuncional>/",
         ServidorAtivoView.as_view(),
         name="funcionario-ativo",
     ),
     # EP-34 — DRE/UE do funcionário por cargo
     path(
-        "funcionarios/atribuicao/<str:registro_funcional>/cargo/<int:codigo_cargo>/",
+        "funcionarios/atribuicao/<str:registroFuncional>/cargo/<int:codigoCargo>/",
         DreUeAtribuicaoCargoView.as_view(),
         name="funcionario-atribuicao-cargo",
     ),
     # EP-35 — Usuários SGP por perfil
     path(
-        "funcionarios/perfis/<str:id_perfil>/",
+        "funcionarios/perfis/<str:idPerfil>/",
         UsuariosSGPView.as_view(),
         name="funcionarios-perfil",
     ),
     # EP-36 — Funcionários SGP por DRE e perfil
     path(
-        "funcionarios/perfis/<str:id_perfil>/dres/<str:codigo_dre>/",
+        "funcionarios/perfis/<str:idPerfil>/dres/<str:codigoDre>/",
         FuncionariosSGPDreView.as_view(),
         name="funcionarios-perfil-dre",
     ),
     # EP-37 — Acesso à sondagem
     path(
-        "perfis/servidores/<str:codigo_rf>/VerificaSeProfessorTemAcessoAhSondagem/",
+        "perfis/servidores/<str:codigoRF>/VerificaSeProfessorTemAcessoAhSondagem/",
         AcessoSondagemView.as_view(),
         name="professor-acesso-sondagem",
     ),
