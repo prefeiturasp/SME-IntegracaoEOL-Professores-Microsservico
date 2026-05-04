@@ -71,6 +71,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.core.middleware.PrefixMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -117,7 +118,15 @@ TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+SCRIPT_PREFIX = os.getenv("APP_PREFIX", "")
+
+FORCE_SCRIPT_NAME = SCRIPT_PREFIX or None
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+_static_prefix = SCRIPT_PREFIX.rstrip("/") if SCRIPT_PREFIX else ""
+STATIC_URL = f"{_static_prefix}/static/"
+MEDIA_URL = f"{_static_prefix}/media/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "config.test_runner.ProfessoresTestRunner"
