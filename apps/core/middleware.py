@@ -4,6 +4,15 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 
 
+def _strip_prefix(value: str, prefix: str) -> str:
+    """Remove o prefixo apenas quando ele realmente estiver no caminho."""
+    if value == prefix:
+        return "/"
+    if value.startswith(f"{prefix}/"):
+        return value[len(prefix):] or "/"
+    return value
+
+
 class PrefixMiddleware:
     """Remove o prefixo de publicação do path antes do roteamento Django.
 
@@ -18,10 +27,12 @@ class PrefixMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         """Reescreve path e path_info removendo o prefixo de publicação."""
-        prefix: str = getattr(settings, "SCRIPT_PREFIX", "")
+        prefix: str = getattr(settings, "SCRIPT_PREFIX", "").rstrip("/")
 
-        if prefix and request.path.startswith(prefix):
-            request.path_info = request.path_info[len(prefix):] or "/"
-            request.path = request.path[len(prefix):] or "/"
+        if prefix:
+            if not prefix.startswith("/"):
+                prefix = f"/{prefix}"
+            request.path_info = _strip_prefix(request.path_info, prefix)
+            request.path = _strip_prefix(request.path, prefix)
 
         return self.get_response(request)
