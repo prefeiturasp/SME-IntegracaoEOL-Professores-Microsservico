@@ -25,7 +25,28 @@ Os modelos ETL que cada app cobre:
 
 ## Pré-requisitos
 
-- Docker e Docker Compose
+- Python 3.12+
+- Docker e Docker Compose (para rodar via container)
+
+---
+
+## Rodar localmente (sem Docker)
+
+```bash
+# 1. Copiar o .env
+cp .env.example .env
+
+# 2. Instalar dependências
+pip install -r requirements/local.txt
+
+# 3. Aplicar migrations (SQLite, apenas tabelas internas do Django)
+python manage.py migrate
+
+# 4. Rodar o servidor
+python manage.py runserver 0.0.0.0:[PORT_WEB]
+```
+
+Acesse em: http://localhost:[PORT_WEB]/api/v1/docs/
 
 ---
 
