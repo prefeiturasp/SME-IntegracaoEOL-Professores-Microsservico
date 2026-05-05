@@ -5,7 +5,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.permissions import AllowAny
 
-_API = "api/"
+_API = "api/v1/"
 
 urlpatterns = [
     path("admin/", admin.site.urls),

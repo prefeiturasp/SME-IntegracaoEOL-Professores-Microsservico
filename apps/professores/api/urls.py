@@ -33,12 +33,13 @@ _BASE_ESC = "escolas"
 urlpatterns = [
     # EP-01 — Professores da escola (sem e com anoLetivo)
     path(
-        f"{_BASE_ESC}/<str:codigoEolEscola>/{_BASE_PROF}/",
+        f"{_BASE_PROF}/{_BASE_ESC}/<str:codigoEolEscola>/{_BASE_PROF}/",
         BuscaProfessoresView.as_view(),
         name="professores-escola",
     ),
     path(
-        f"{_BASE_ESC}/<str:codigoEolEscola>/{_BASE_PROF}/<int:anoLetivo>/",
+        f"{_BASE_PROF}/{_BASE_ESC}/<str:codigoEolEscola>/"
+        f"{_BASE_PROF}/<int:anoLetivo>/",
         BuscaProfessoresView.as_view(),
         name="professores-escola-ano",
     ),

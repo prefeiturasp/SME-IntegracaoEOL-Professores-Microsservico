@@ -24,29 +24,29 @@ def _process_request(path: str, path_info: str) -> dict[str, str]:
 
 @override_settings(SCRIPT_PREFIX="")
 def test_prefix_vazio_nao_altera_caminhos():
-    result = _process_request("/api/docs/", "/api/docs/")
+    result = _process_request("/api/v1/docs/", "/api/v1/docs/")
 
-    assert result["path"] == "/api/docs/"
-    assert result["path_info"] == "/api/docs/"
+    assert result["path"] == "/api/v1/docs/"
+    assert result["path_info"] == "/api/v1/docs/"
 
 
 @override_settings(SCRIPT_PREFIX="/professores")
 def test_remove_prefix_quando_proxy_mantem_subpath():
     result = _process_request(
-        "/professores/api/docs/",
-        "/professores/api/docs/",
+        "/professores/api/v1/docs/",
+        "/professores/api/v1/docs/",
     )
 
-    assert result["path"] == "/api/docs/"
-    assert result["path_info"] == "/api/docs/"
+    assert result["path"] == "/api/v1/docs/"
+    assert result["path_info"] == "/api/v1/docs/"
 
 
 @override_settings(SCRIPT_PREFIX="/professores")
 def test_nao_corta_path_info_quando_apenas_path_tem_script_prefix():
     result = _process_request(
-        "/professores/api/professores/6576753/",
-        "/api/professores/6576753/",
+        "/professores/api/v1/professores/6576753/",
+        "/api/v1/professores/6576753/",
     )
 
-    assert result["path"] == "/api/professores/6576753/"
-    assert result["path_info"] == "/api/professores/6576753/"
+    assert result["path"] == "/api/v1/professores/6576753/"
+    assert result["path_info"] == "/api/v1/professores/6576753/"

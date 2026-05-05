@@ -4,11 +4,12 @@ from datetime import date
 
 import pytest
 
+from apps.professores.models import CargoBaseServidor
 from conftest import date_to_ticks
 
 pytestmark = pytest.mark.django_db
 
-_BASE = "/api"
+_BASE = "/api/v1"
 
 # Ticks para datas usadas nos testes
 _TICK_2024_02_02 = date_to_ticks(date(2024, 2, 2))  # após dt_atribuicao_aula
@@ -22,22 +23,22 @@ _TICK_2024_01_31 = date_to_ticks(date(2024, 1, 31))  # antes de dt_atribuicao_au
 
 class TestEP01BuscaProfessores:
     def test_com_ano_retorna_lista_com_professor(self, client, atribuicao):
-        res = client.get(f"{_BASE}/escolas/000532/professores/2024/")
+        res = client.get(f"{_BASE}/professores/escolas/000532/professores/2024/")
         assert res.status_code == 200
         assert any(p["codigoRF"] == 7654321 for p in res.data)
 
     def test_sem_ano_retorna_lista(self, client, atribuicao):
-        res = client.get(f"{_BASE}/escolas/000532/professores/")
+        res = client.get(f"{_BASE}/professores/escolas/000532/professores/")
         assert res.status_code == 200
         assert isinstance(res.data, list)
 
     def test_escola_sem_atribuicoes_retorna_lista_vazia(self, client, db):
-        res = client.get(f"{_BASE}/escolas/999999/professores/2024/")
+        res = client.get(f"{_BASE}/professores/escolas/999999/professores/2024/")
         assert res.status_code == 200
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        res = anon.get(f"{_BASE}/escolas/000532/professores/2024/")
+        res = anon.get(f"{_BASE}/professores/escolas/000532/professores/2024/")
         assert res.status_code == 403
 
 
@@ -271,10 +272,39 @@ class TestEP09BuscarPorListaRF:
 
 
 class TestEP10VerificarValidade:
-    def test_com_cargo_situacao_6_retorna_true(self, client, cargo_base):
+    def test_com_cargo_ativo_retorna_true(self, client, cargo_base):
         res = client.get(f"{_BASE}/professores/7654321/validade/")
         assert res.status_code == 200
         assert res.data is True
+
+    def test_com_cargo_ativo_situacao_diferente_de_6_retorna_true(
+        self, client, professor
+    ):
+        CargoBaseServidor.objects.create(
+            professor=professor,
+            codigo_cargo=3379,
+            situacao_funcional=1,
+            dt_posse=date(2020, 1, 1),
+        )
+
+        res = client.get(f"{_BASE}/professores/7654321/validade/")
+
+        assert res.status_code == 200
+        assert res.data is True
+
+    def test_com_cargo_encerrado_retorna_false(self, client, professor):
+        CargoBaseServidor.objects.create(
+            professor=professor,
+            codigo_cargo=3379,
+            situacao_funcional=6,
+            dt_posse=date(2020, 1, 1),
+            dt_fim_nomeacao=date(2024, 1, 1),
+        )
+
+        res = client.get(f"{_BASE}/professores/7654321/validade/")
+
+        assert res.status_code == 200
+        assert res.data is False
 
     def test_sem_cargo_retorna_false(self, client, db):
         res = client.get(f"{_BASE}/professores/7654321/validade/")
