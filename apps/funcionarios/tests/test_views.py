@@ -4,7 +4,7 @@ import pytest
 
 pytestmark = pytest.mark.django_db
 
-_BASE = "/api"
+_BASE = "/api/v1/professores"
 
 
 # ---------------------------------------------------------------------------

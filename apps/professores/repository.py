@@ -338,7 +338,8 @@ def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
 
 def verificar_validade(rf: str) -> bool:
     return CargoBaseServidor.objects.filter(
-        professor__codigo_rf=rf, situacao_funcional=6
+        professor__codigo_rf=rf,
+        dt_fim_nomeacao__isnull=True,
     ).exists()
 
 

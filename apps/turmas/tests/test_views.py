@@ -4,7 +4,7 @@ import pytest
 
 pytestmark = pytest.mark.django_db
 
-_BASE = "/api/turmas/anos-letivos"
+_BASE = "/api/v1/professores/turmas/anos-letivos"
 
 
 # ---------------------------------------------------------------------------
