@@ -17,7 +17,18 @@ from apps.professores.models import (
 )
 
 _GUID_VAZIO = "00000000-0000-0000-0000-000000000000"
+MENSAGEM_ERRO_LEGADO = (
+    "Houve um comportamento inesperado do sistema. Por favor, contate a SME."
+)
+MENSAGEM_ERRO_PERFIL_SEM_DRE_RF = (
+    "O código da Dre ou código rf/login deve ser informados."
+)
 _UE_DRE_CACHE: dict[str, str | None] = {}
+
+
+def perfil_placeholder_invalido(id_perfil: str) -> bool:
+    """Indica o GUID vazio que o legado rejeita como perfil inválido."""
+    return id_perfil.strip().lower() == _GUID_VAZIO
 
 
 def _dre_de_ue(ue_codigo: str | None) -> str | None:
@@ -149,23 +160,63 @@ def funcionarios_por_lista_funcoes_atividade(
 
 
 # ---------------------------------------------------------------------------
-# EP-28 — Funcionários por função externa (legado retorna 204 — lista vazia)
+# EP-28 — Funcionários por função externa
 # ---------------------------------------------------------------------------
 
 def funcionarios_por_funcao_externa(
-    codigo_ue: str, codigo_funcao_externa: int  # NOSONAR
+    codigo_ue: str,
+    codigo_funcao_externa: int,
 ) -> list[dict]:
-    return []
+    qs = (
+        ContratoExterno.objects
+        .filter(
+            codigo_unidade_educacao=codigo_ue,
+            codigo_tipo_funcao=codigo_funcao_externa,
+            dt_cancelamento__isnull=True,
+            codigo_motivo_desligamento__isnull=True,
+        )
+        .select_related("pessoa")
+    )
+    return [
+        {
+            "cpf": contrato.pessoa.cpf,
+            "nomeServidor": get_nome(contrato.pessoa),
+            "codigoEscola": contrato.codigo_unidade_educacao,
+            "dataInicio": None,
+        }
+        for contrato in qs
+    ]
 
 
 # ---------------------------------------------------------------------------
-# EP-28-B — Funcionários por lista de funções externas (legado retorna 500)
+# EP-28-B — Funcionários por lista de funções externas
 # ---------------------------------------------------------------------------
 
 def funcionarios_por_lista_funcoes_externas(
-    codigo_ue: str, funcoes: list[int]  # NOSONAR
+    codigo_ue: str,
+    funcoes: list[int],
 ) -> list[dict]:
-    return []
+    if not funcoes:
+        return []
+    qs = (
+        ContratoExterno.objects
+        .filter(
+            codigo_unidade_educacao=codigo_ue,
+            codigo_tipo_funcao__in=funcoes,
+            dt_cancelamento__isnull=True,
+            codigo_motivo_desligamento__isnull=True,
+        )
+        .select_related("pessoa")
+    )
+    return [
+        {
+            "cpf": contrato.pessoa.cpf,
+            "nomeServidor": get_nome(contrato.pessoa),
+            "codigoEscola": contrato.codigo_unidade_educacao,
+            "dataInicio": None,
+        }
+        for contrato in qs
+    ]
 
 
 # ---------------------------------------------------------------------------

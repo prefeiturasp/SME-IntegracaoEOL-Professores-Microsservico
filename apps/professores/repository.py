@@ -508,6 +508,25 @@ def atribuicao_turmas_lista(
                 ),
                 "dataAtribuicaoAula": fmt_iso(aa.dt_atribuicao_aula),
             })
+        ae = (
+            AtribuicaoExterno.objects.filter(
+                contrato_externo__pessoa__cpf=codigo_rf,
+                codigo_componente_curricular=disciplina_id,
+                codigo_serie_grade__in=_series_da_turma(int(codigo_turma)),
+            )
+            .filter(
+                Q(dt_disponibilizacao__isnull=True)
+                | Q(dt_disponibilizacao__gte=date.today())
+            )
+            .order_by("-dt_atribuicao")
+            .first()
+        )
+        if ae:
+            resultado.append({
+                "codigoTurma": str(codigo_turma),
+                "dataDisponibilizacaoAulas": fmt_iso(ae.dt_disponibilizacao),
+                "dataAtribuicaoAula": fmt_iso(ae.dt_atribuicao),
+            })
     return resultado
 
 
@@ -571,6 +590,40 @@ def professores_atribuidos_turma_disc(
             "disciplinaNome": None,
             "disciplinasAgrupadasIds": None,
             "nomeProfessor": get_nome(prof),
+        })
+    externas = (
+        AtribuicaoExterno.objects
+        .filter(
+            codigo_componente_curricular=disciplina_id,
+            codigo_serie_grade__in=_series_da_turma(codigo_turma),
+        )
+        .select_related("contrato_externo__pessoa")
+    )
+    if data:
+        externas = externas.filter(
+            dt_cancelamento__isnull=True,
+            dt_atribuicao__lte=data,
+        ).filter(
+            Q(dt_disponibilizacao__isnull=True)
+            | Q(dt_disponibilizacao__gte=data)
+        )
+
+    for ae in externas:
+        pessoa = ae.contrato_externo.pessoa
+        resultado.append({
+            "codigoTurma": str(codigo_turma),
+            "anoLetivo": None,
+            "nomeTurma": None,
+            "dataInicioAtribuicao": fmt_iso(ae.dt_atribuicao),
+            "dataFimAtribuicao": fmt_iso(ae.dt_disponibilizacao),
+            "dataFimTurma": fmt_iso(turma.dt_fim_turma if turma else None),
+            "anoAtribuicao": ae.ano_atribuicao,
+            "codigoRf": pessoa.cpf,
+            "disciplinaId": str(disciplina_id),
+            "disciplinaNome": None,
+            "disciplinasAgrupadasIds": None,
+            "nomeProfessor": get_nome(pessoa),
+            "atribuicaoExterna": True,
         })
     return resultado
 

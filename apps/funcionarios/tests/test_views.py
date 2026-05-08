@@ -131,7 +131,9 @@ class TestEP28FuncionariosFuncaoExterna:
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/5/"
         )
         assert res.status_code == 200
-        assert res.data == []
+        assert res.data[0]["cpf"] == "98765432100"
+        assert res.data[0]["nomeServidor"] == "João Ext"
+        assert res.data[0]["codigoEscola"] == "000532"
 
     def test_funcao_errada_retorna_vazio(self, client, contrato_externo):
         res = client.get(
@@ -158,7 +160,9 @@ class TestEP28BFuncionariosFuncoesExternasQuery:
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/?funcoes=5&funcoes=6"
         )
         assert res.status_code == 200
-        assert res.data == []
+        assert res.data[0]["cpf"] == "98765432100"
+        assert res.data[0]["nomeServidor"] == "João Ext"
+        assert res.data[0]["codigoEscola"] == "000532"
 
     def test_lista_sem_match_retorna_vazio(self, client, contrato_externo):
         res = client.get(
@@ -317,6 +321,36 @@ class TestEP34DreUeAtribuicaoCargo:
 
 
 class TestEP35UsuariosSGP:
+    def test_guid_vazio_sem_dre_ou_rf_retorna_400_como_legado(self, client):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/"
+            "00000000-0000-0000-0000-000000000000/"
+        )
+        assert res.status_code == 400
+        assert res.data == (
+            "O código da Dre ou código rf/login deve ser informados."
+        )
+
+    def test_guid_vazio_com_codigo_rf_retorna_funcionario(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/"
+            "00000000-0000-0000-0000-000000000000/?CodigoRf=7654321"
+        )
+        assert res.status_code == 200
+        assert len(res.data) == 1
+        assert res.data[0]["codigoRf"] == "7654321"
+
+    def test_guid_vazio_com_codigo_dre_retorna_400_como_legado(self, client):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/"
+            "00000000-0000-0000-0000-000000000000/?CodigoDre=108100"
+        )
+        assert res.status_code == 400
+        assert res.data == (
+            "Houve um comportamento inesperado do sistema. "
+            "Por favor, contate a SME."
+        )
+
     def test_retorna_funcionario_com_lotacao_ativa(self, client, lotacao):
         res = client.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
         assert res.status_code == 200
@@ -329,17 +363,15 @@ class TestEP35UsuariosSGP:
         assert res.status_code == 200
         assert any(u["codigoRf"] == "7654321" for u in res.data)
 
-    def test_filtro_ue_errada_retorna_vazio(self, client, lotacao):
+    def test_filtro_ue_errada_retorna_404(self, client, lotacao):
         res = client.get(
             f"{_BASE}/funcionarios/perfis/perfil-guid-123/?CodigoUe=999999"
         )
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 404
 
-    def test_sem_lotacao_ativa_retorna_vazio(self, client, db):
+    def test_sem_lotacao_ativa_retorna_404(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
@@ -352,6 +384,17 @@ class TestEP35UsuariosSGP:
 
 
 class TestEP36FuncionariosSGPDre:
+    def test_guid_vazio_retorna_400_como_legado(self, client):
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/"
+            "00000000-0000-0000-0000-000000000000/dres/108100/"
+        )
+        assert res.status_code == 400
+        assert res.data == (
+            "Houve um comportamento inesperado do sistema. "
+            "Por favor, contate a SME."
+        )
+
     def test_retorna_funcionario_da_dre(self, client, lotacao, ue):
         res = client.get(
             f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
@@ -359,12 +402,11 @@ class TestEP36FuncionariosSGPDre:
         assert res.status_code == 200
         assert any(u["codigoRf"] == "7654321" for u in res.data)
 
-    def test_dre_sem_funcionarios_retorna_vazio(self, client, db):
+    def test_dre_sem_funcionarios_retorna_404(self, client, db):
         res = client.get(
             f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
         )
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 404
 
     def test_filtro_rf_retorna_especifico(self, client, lotacao, ue):
         res = client.get(
