@@ -27,10 +27,10 @@ class TurmasHistoricasAnoProfessorView(APIView):
     def get(
         self,
         request: Request,
-        anoLetivo: int,
-        professorRf: str,
+        ano_letivo: int,
+        professor_rf: str,
     ) -> Response:
-        resultado = repository.turmas_historicas_professor(anoLetivo, professorRf)
+        resultado = repository.turmas_historicas_professor(ano_letivo, professor_rf)
         if not resultado:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
