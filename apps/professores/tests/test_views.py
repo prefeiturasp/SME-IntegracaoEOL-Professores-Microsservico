@@ -465,13 +465,12 @@ class TestEP15AtribuicaoDisciplinaDataTick:
         assert res.status_code == 200
         assert res.data is False
 
-    def test_sem_tick_retorna_resultado_sem_filtro_de_data(self, client, atribuicao):
+    def test_sem_tick_retorna_400(self, client, atribuicao):
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/datatick/"
         )
-        assert res.status_code == 200
-        assert res.data is True
+        assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
@@ -500,13 +499,12 @@ class TestEP16AtribuicaoRecorrenciaDatas:
         assert True in resultados
         assert False in resultados
 
-    def test_lista_vazia_de_ticks_retorna_vazia(self, client, atribuicao):
+    def test_sem_ticks_retorna_400(self, client, atribuicao):
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/recorrencia/verificar/datas/"
         )
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
@@ -621,6 +619,7 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
     def test_retorna_professor_atribuido(self, client, atribuicao):
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
+            f"?dataTicks={_TICK_2024_02_02}"
         )
         assert res.status_code == 200
         assert any(p["codigoRf"] == "7654321" for p in res.data)
@@ -637,6 +636,7 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
 
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
+            f"?dataTicks={_TICK_2024_02_02}"
         )
 
         assert res.status_code == 200
@@ -646,6 +646,7 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
     def test_sem_atribuicao_retorna_vazio(self, client, db):
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
+            f"?dataTicks={_TICK_2024_02_02}"
         )
         assert res.status_code == 200
         assert res.data == []

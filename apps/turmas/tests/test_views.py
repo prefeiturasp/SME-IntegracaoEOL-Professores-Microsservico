@@ -61,14 +61,15 @@ class TestEP24TurmasHistoricas:
         res = client.get(self._url)
         assert res.status_code == 404
 
-    def test_atribuicao_ativa_nao_retorna_como_historica(
+    def test_atribuicao_ativa_retorna_turma(
         self,
         client,
         atribuicao,
         turma,
     ):
         res = client.get(self._url)
-        assert res.status_code == 404
+        assert res.status_code == 200
+        assert any(t["codigo"] == 2112345 for t in res.data)
 
     def test_retorna_turma_via_serie_grade(self, client, cargo_base, ue):
         AtribuicaoAula.objects.create(
