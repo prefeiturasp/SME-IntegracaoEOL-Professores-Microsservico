@@ -1,6 +1,7 @@
 """Views do domínio Turmas (EP-24)."""
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -26,8 +27,10 @@ class TurmasHistoricasAnoProfessorView(APIView):
     def get(
         self,
         request: Request,
-        ano_letivo: int,
-        professor_rf: str,
+        anoLetivo: int,
+        professorRf: str,
     ) -> Response:
-        resultado = repository.turmas_historicas_professor(ano_letivo, professor_rf)
+        resultado = repository.turmas_historicas_professor(anoLetivo, professorRf)
+        if not resultado:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)

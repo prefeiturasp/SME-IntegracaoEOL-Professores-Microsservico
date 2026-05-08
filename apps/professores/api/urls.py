@@ -10,11 +10,13 @@ from apps.professores.api.views import (
     AtribuicaoStatusView,
     AtribuicaoTurmasListaView,
     AtribuicaoVerificarDataView,
+    BuscaProfessoresAnoLetivoView,
     AutoCompleteView,
     BuscaProfessoresView,
     BuscarPorListaRFView,
     BuscarPorRfAnoLetivoView,
     BuscarPorRfDreUeView,
+    BuscaTurmasAtribuidasProfessorEscolaView,
     BuscarTurmasAtribuidasView,
     BuscaTurmasAtribuidasEscolaView,
     EhEmeiView,
@@ -40,7 +42,7 @@ urlpatterns = [
     path(
         f"{_BASE_PROF}/{_BASE_ESC}/<str:codigoEolEscola>/"
         f"{_BASE_PROF}/<int:anoLetivo>/",
-        BuscaProfessoresView.as_view(),
+        BuscaProfessoresAnoLetivoView.as_view(),
         name="professores-escola-ano",
     ),
     # EP-02 — Turmas atribuídas (escola + ano, sem RF no path)
@@ -54,7 +56,7 @@ urlpatterns = [
     path(
         f"{_BASE_PROF}/<str:codigoRF>/escolas/<str:codigoEolEscola>"
         "/turmas/anos_letivos/<int:anoLetivo>/",
-        BuscaTurmasAtribuidasEscolaView.as_view(),
+        BuscaTurmasAtribuidasProfessorEscolaView.as_view(),
         name="turmas-atribuidas-rf-escola-ano",
     ),
     # EP-03 — Todas as turmas atribuídas

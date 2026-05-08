@@ -364,13 +364,31 @@ class UsuariosSGPView(APIView):
         responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
     )
     def get(self, request: Request, idPerfil: str) -> Response:
+        codigo_dre = request.query_params.get("CodigoDre")
+        codigo_ue = request.query_params.get("CodigoUe")
+        codigo_rf = (
+            request.query_params.get("CodigoRf")
+            or request.query_params.get("CodigoRF")
+        )
+        if repository.perfil_placeholder_invalido(idPerfil) and not codigo_rf:
+            mensagem = (
+                repository.MENSAGEM_ERRO_LEGADO
+                if codigo_dre
+                else repository.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
+            )
+            return Response(
+                mensagem,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         resultado = repository.usuarios_sgp_por_perfil(
             idPerfil,
-            codigo_dre=request.query_params.get("CodigoDre"),
-            codigo_ue=request.query_params.get("CodigoUe"),
-            codigo_rf=request.query_params.get("CodigoRf"),
+            codigo_dre=codigo_dre,
+            codigo_ue=codigo_ue,
+            codigo_rf=codigo_rf,
             nome_servidor_param=request.query_params.get("NomeServidor"),
         )
+        if not resultado:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
 
 
@@ -400,6 +418,11 @@ class FuncionariosSGPDreView(APIView):
         responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
     )
     def get(self, request: Request, idPerfil: str, codigoDre: str) -> Response:
+        if repository.perfil_placeholder_invalido(idPerfil):
+            return Response(
+                repository.MENSAGEM_ERRO_LEGADO,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         funcao_str = request.query_params.get("CodigoFuncaoAtividade")
         resultado = repository.funcionarios_sgp_dre(
             idPerfil,
@@ -409,6 +432,8 @@ class FuncionariosSGPDreView(APIView):
             nome_servidor_param=request.query_params.get("NomeServidor"),
             codigo_funcao_atividade=int(funcao_str) if funcao_str else None,
         )
+        if not resultado:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
 
 

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from apps.professores.models import CargoBaseServidor
+from apps.professores.models import CargoBaseServidor, SerieTurmaGrade
 from conftest import date_to_ticks
 
 pytestmark = pytest.mark.django_db
@@ -546,6 +546,36 @@ class TestEP17AtribuicaoTurmasLista:
         assert res.status_code == 200
         assert res.data == []
 
+    def test_turma_com_atribuicao_externa_retorna_periodo(
+        self,
+        client,
+        atribuicao_externa,
+        ue,
+    ):
+        atribuicao_externa.codigo_serie_grade = 1040353
+        atribuicao_externa.save()
+        SerieTurmaGrade.objects.create(
+            codigo_serie_grade=1040353,
+            codigo_turma=2112345,
+            codigo_escola=ue.codigo_ue,
+            codigo_escola_grade=100,
+        )
+
+        res = client.post(
+            f"{_BASE}/professores/98765432100/disciplina/138/turmas/",
+            [2112345],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "codigoTurma": "2112345",
+                "dataDisponibilizacaoAulas": None,
+                "dataAtribuicaoAula": "2024-02-01T00:00:00",
+            }
+        ]
+
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.post(
             f"{_BASE}/professores/7654321/disciplina/138/turmas/",
@@ -595,13 +625,23 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
         assert res.status_code == 200
         assert any(p["codigoRf"] == "7654321" for p in res.data)
 
-    def test_retorna_externo_atribuido(self, client, atribuicao_externa):
-        # EP-19 não consulta AtribuicaoExterno — atribuições externas não aparecem
+    def test_retorna_externo_atribuido(self, client, atribuicao_externa, ue):
+        atribuicao_externa.codigo_serie_grade = 1040353
+        atribuicao_externa.save()
+        SerieTurmaGrade.objects.create(
+            codigo_serie_grade=1040353,
+            codigo_turma=2112345,
+            codigo_escola=ue.codigo_ue,
+            codigo_escola_grade=100,
+        )
+
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
         )
+
         assert res.status_code == 200
-        assert not res.data
+        assert any(p["codigoRf"] == "98765432100" for p in res.data)
+        assert any(p["atribuicaoExterna"] is True for p in res.data)
 
     def test_sem_atribuicao_retorna_vazio(self, client, db):
         res = client.get(

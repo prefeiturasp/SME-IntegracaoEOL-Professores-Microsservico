@@ -35,6 +35,26 @@ _TAG_TITULAR = ["Professores Titulares"]
 
 
 class BuscaProfessoresView(APIView):
+    """EP-01 — Buscar professores de uma escola sem ano letivo."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Buscar professores de uma escola sem ano letivo",
+        parameters=[
+            OpenApiParameter("codigoEolEscola", str, OpenApiParameter.PATH),
+        ],
+        responses={200: ProfessorEscolaSerializer(many=True)},
+    )
+    def get(
+        self,
+        request: Request,
+        codigoEolEscola: str,
+    ) -> Response:
+        resultado = repository.buscar_professores_escola(codigoEolEscola, 0)
+        return Response(resultado)
+
+
+class BuscaProfessoresAnoLetivoView(APIView):
     """EP-01 — Buscar professores de uma escola por ano letivo."""
 
     @extend_schema(
@@ -50,15 +70,37 @@ class BuscaProfessoresView(APIView):
         self,
         request: Request,
         codigoEolEscola: str,
-        anoLetivo: int | None = None,
+        anoLetivo: int,
     ) -> Response:
-        resultado = repository.buscar_professores_escola(
-            codigoEolEscola, anoLetivo or 0
-        )
+        resultado = repository.buscar_professores_escola(codigoEolEscola, anoLetivo)
         return Response(resultado)
 
 
 class BuscaTurmasAtribuidasEscolaView(APIView):
+    """EP-02 — Turmas atribuídas em uma escola e ano."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Turmas atribuídas por escola e ano",
+        parameters=[
+            OpenApiParameter("codigoEolEscola", str, OpenApiParameter.PATH),
+            OpenApiParameter("anoLetivo", int, OpenApiParameter.PATH),
+        ],
+        responses={200: TurmaAtribuidaSerializer(many=True)},
+    )
+    def get(
+        self,
+        request: Request,
+        codigoEolEscola: str,
+        anoLetivo: int,
+    ) -> Response:
+        resultado = repository.buscar_turmas_professor_escola_ano(
+            "", codigoEolEscola, anoLetivo
+        )
+        return Response(resultado)
+
+
+class BuscaTurmasAtribuidasProfessorEscolaView(APIView):
     """EP-02 — Turmas atribuídas ao professor em uma escola e ano."""
 
     @extend_schema(
@@ -386,7 +428,7 @@ class AtribuicaoDisciplinaDataTickView(APIView):
             OpenApiParameter("codigoTurma", int, OpenApiParameter.PATH),
             OpenApiParameter("disciplinaId", int, OpenApiParameter.PATH),
             OpenApiParameter(
-                "dataConsultaTick", int, OpenApiParameter.QUERY, required=False
+                "dataConsultaTick", int, OpenApiParameter.QUERY, required=True
             ),
         ],
         responses={200: bool, 400: dict, 422: dict, 500: dict},
@@ -399,10 +441,14 @@ class AtribuicaoDisciplinaDataTickView(APIView):
         disciplinaId: int,
     ) -> Response:
         tick_str = request.query_params.get("dataConsultaTick")
-        tick = int(tick_str) if tick_str else None
+        if not tick_str:
+            return Response(
+                {"detail": "Deve ser informada uma data valida"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             repository.atribuicao_disciplina_datatick(
-                codigoRF, codigoTurma, disciplinaId, tick
+                codigoRF, codigoTurma, disciplinaId, int(tick_str)
             )
         )
 
@@ -426,7 +472,7 @@ class AtribuicaoRecorrenciaDatasView(APIView):
             OpenApiParameter("codigoTurma", int, OpenApiParameter.PATH),
             OpenApiParameter("disciplinaId", int, OpenApiParameter.PATH),
             OpenApiParameter(
-                "dataTicks", int, OpenApiParameter.QUERY, required=False, many=True
+                "dataTicks", int, OpenApiParameter.QUERY, required=True, many=True
             ),
         ],
         responses={200: AtribuicaoDataSerializer(many=True), 400: dict, 422: dict, 500: dict},
@@ -439,6 +485,11 @@ class AtribuicaoRecorrenciaDatasView(APIView):
         disciplinaId: int,
     ) -> Response:
         ticks = [int(t) for t in request.query_params.getlist("dataTicks")]
+        if not ticks:
+            return Response(
+                {"detail": "É necessário informar as datas em ticks!"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             repository.atribuicao_recorrencia_datas(
                 codigoRF, codigoTurma, disciplinaId, ticks
@@ -526,7 +577,7 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
             OpenApiParameter("codigoTurma", int, OpenApiParameter.PATH),
             OpenApiParameter("disciplinaId", int, OpenApiParameter.PATH),
             OpenApiParameter(
-                "dataTicks", int, OpenApiParameter.QUERY, required=False
+                "dataTicks", int, OpenApiParameter.QUERY, required=True
             ),
         ],
         responses={
@@ -538,10 +589,14 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
     )
     def get(self, request: Request, codigoTurma: int, disciplinaId: int) -> Response:
         tick_str = request.query_params.get("dataTicks")
-        tick = int(tick_str) if tick_str else None
+        if not tick_str:
+            return Response(
+                {"detail": "Deve ser informada uma data válida"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             repository.professores_atribuidos_turma_disc(
-                codigoTurma, disciplinaId, tick
+                codigoTurma, disciplinaId, int(tick_str)
             )
         )
 
