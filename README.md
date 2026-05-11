@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SME-IntegracaoEOL-Professores-Microsservico
 
 Microsserviço **mock** do domínio Professores para o SGP (Sistema de Gestão Pedagógica) da SME-SP.
@@ -157,3 +158,6 @@ curl -H "X-API-Key: dev-key-default" http://localhost:[PORT_WEB]/api/v1/professo
 
 - Contrato completo: `../swagger_contrato_microsservico.md`
 - Projeto ETL de referência: `../SME-SGP-MS-ETL/`
+=======
+# SME-IntegracaoEOL-Professores-Microsservico
+>>>>>>> homolog
