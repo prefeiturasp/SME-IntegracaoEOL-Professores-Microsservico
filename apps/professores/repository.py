@@ -106,25 +106,25 @@ def _turma_row(
     codigo_turma = _codigo_turma(aa, serie_map)
     turma = (turmas_map or {}).get(codigo_turma)
     return {
-        "codigoTurma": codigo_turma,
-        "nomeTurma": None,
-        "componenteCurricular": None,
-        "dataInicioAtribuicao": fmt_br(aa.dt_atribuicao_aula),
-        "dataFimAtribuicao": fmt_br(_fim_atribuicao_ou_turma(aa, turma)),
+        "codigo_turma": codigo_turma,
+        "nome_turma": None,
+        "componente_curricular": None,
+        "data_inicio_atribuicao": fmt_br(aa.dt_atribuicao_aula),
+        "data_fim_atribuicao": fmt_br(_fim_atribuicao_ou_turma(aa, turma)),
         "ano": None,
-        "etapaEnsino": None,
+        "etapa_ensino": None,
     }
 
 
 def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
     return {
-        "codigoTurma": None,
-        "nomeTurma": None,
-        "componenteCurricular": None,
-        "dataInicioAtribuicao": fmt_br(ae.dt_atribuicao),
-        "dataFimAtribuicao": fmt_br(ae.dt_disponibilizacao),
+        "codigo_turma": None,
+        "nome_turma": None,
+        "componente_curricular": None,
+        "data_inicio_atribuicao": fmt_br(ae.dt_atribuicao),
+        "data_fim_atribuicao": fmt_br(ae.dt_disponibilizacao),
         "ano": None,
-        "etapaEnsino": None,
+        "etapa_ensino": None,
     }
 
 
@@ -147,11 +147,11 @@ def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
     for aa in qs:
         prof = aa.cargo_base.professor
         resultado.append({
-            "codigoRF": int(prof.codigo_rf),
+            "codigo_rf": int(prof.codigo_rf),
             "nome": get_nome(prof),
             "cargo": None,
             "cpf": prof.cpf,
-            "dataInicioExercicio": fmt_iso(aa.cargo_base.dt_posse),
+            "data_inicio_exercicio": fmt_iso(aa.cargo_base.dt_posse),
         })
     return resultado
 
@@ -251,7 +251,7 @@ def buscar_por_rf_ano(rf: str, ano_letivo: int) -> dict | None:  # NOSONAR
     prof = Professor.objects.filter(codigo_rf=rf).first()
     if not prof:
         return None
-    return {"codigoRF": prof.codigo_rf, "nome": get_nome(prof)}
+    return {"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)}
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +262,7 @@ def buscar_por_rf_dre_ue(rf: str) -> dict | None:
     prof = Professor.objects.filter(codigo_rf=rf).first()
     if not prof:
         return None
-    return {"codigoRF": prof.codigo_rf, "nome": get_nome(prof)}
+    return {"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)}
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +290,7 @@ def autocomplete_professores(
         prof = aa.cargo_base.professor
         if prof.codigo_rf not in seen:
             seen.add(prof.codigo_rf)
-            resultado.append({"codigoRf": prof.codigo_rf, "nomeServidor": get_nome(prof)})
+            resultado.append({"codigo_rf": prof.codigo_rf, "nome_servidor": get_nome(prof)})
         if len(resultado) >= 10:
             break
 
@@ -308,7 +308,7 @@ def autocomplete_professores(
         pessoa = ae.contrato_externo.pessoa
         if pessoa.cpf not in seen:
             seen.add(pessoa.cpf)
-            resultado.append({"codigoRf": pessoa.cpf, "nomeServidor": get_nome(pessoa)})
+            resultado.append({"codigo_rf": pessoa.cpf, "nome_servidor": get_nome(pessoa)})
 
     return resultado
 
@@ -327,7 +327,7 @@ def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
         .values_list("cargo_base__professor__codigo_rf", flat=True)
     )
     return [
-        {"codigoRF": p.codigo_rf, "nome": get_nome(p)}
+        {"codigo_rf": p.codigo_rf, "nome": get_nome(p)}
         for p in Professor.objects.filter(codigo_rf__in=rfs)
     ]
 
@@ -381,18 +381,18 @@ def atribuicao_status(codigo_rf: str, codigo_turma: int) -> dict:
     )
     if not aa:
         return {
-            "anoAtribuicao": None,
-            "dataCancelamento": None,
-            "dataDisponibilizacao": None,
-            "dataFimTurma": None,
-            "codigoMotivoDisponibilizacao": None,
+            "ano_atribuicao": None,
+            "data_cancelamento": None,
+            "data_disponibilizacao": None,
+            "data_fim_turma": None,
+            "codigo_motivo_disponibilizacao": None,
         }
     return {
-        "anoAtribuicao": aa.ano_atribuicao,
-        "dataCancelamento": fmt_iso(aa.dt_cancelamento),
-        "dataDisponibilizacao": fmt_iso(_fim_atribuicao_ou_turma(aa, turma)),
-        "dataFimTurma": fmt_iso(turma.dt_fim_turma if turma else None),
-        "codigoMotivoDisponibilizacao": aa.codigo_motivo_disponibilizacao,
+        "ano_atribuicao": aa.ano_atribuicao,
+        "data_cancelamento": fmt_iso(aa.dt_cancelamento),
+        "data_disponibilizacao": fmt_iso(_fim_atribuicao_ou_turma(aa, turma)),
+        "data_fim_turma": fmt_iso(turma.dt_fim_turma if turma else None),
+        "codigo_motivo_disponibilizacao": aa.codigo_motivo_disponibilizacao,
     }
 
 
@@ -457,7 +457,7 @@ def atribuicao_disciplina_datatick(
 
 
 # ---------------------------------------------------------------------------
-# EP-16 — Recorrência de datas (campo podePersistir, igual ao legado)
+# EP-16 — Recorrência de datas (campo pode_persistir, igual ao legado)
 # ---------------------------------------------------------------------------
 
 def atribuicao_recorrencia_datas(
@@ -469,7 +469,7 @@ def atribuicao_recorrencia_datas(
     return [
         {
             "data": ticks_to_datetime_str(tick),
-            "podePersistir": atribuicao_disciplina_data(
+            "pode_persistir": atribuicao_disciplina_data(
                 codigo_rf, codigo_turma, disciplina_id, ticks_to_date(tick)
             ),
         }
@@ -502,11 +502,11 @@ def atribuicao_turmas_lista(
         )
         if aa:
             resultado.append({
-                "codigoTurma": str(codigo_turma),
-                "dataDisponibilizacaoAulas": fmt_iso(
+                "codigo_turma": str(codigo_turma),
+                "data_disponibilizacao_aulas": fmt_iso(
                     _fim_atribuicao_ou_turma(aa, turma)
                 ),
-                "dataAtribuicaoAula": fmt_iso(aa.dt_atribuicao_aula),
+                "data_atribuicao_aula": fmt_iso(aa.dt_atribuicao_aula),
             })
         ae = (
             AtribuicaoExterno.objects.filter(
@@ -523,9 +523,9 @@ def atribuicao_turmas_lista(
         )
         if ae:
             resultado.append({
-                "codigoTurma": str(codigo_turma),
-                "dataDisponibilizacaoAulas": fmt_iso(ae.dt_disponibilizacao),
-                "dataAtribuicaoAula": fmt_iso(ae.dt_atribuicao),
+                "codigo_turma": str(codigo_turma),
+                "data_disponibilizacao_aulas": fmt_iso(ae.dt_disponibilizacao),
+                "data_atribuicao_aula": fmt_iso(ae.dt_atribuicao),
             })
     return resultado
 
@@ -578,18 +578,18 @@ def professores_atribuidos_turma_disc(
     for aa in efetivas:
         prof = aa.cargo_base.professor
         resultado.append({
-            "codigoTurma": str(codigo_turma),
-            "anoLetivo": None,
-            "nomeTurma": None,
-            "dataInicioAtribuicao": fmt_iso(aa.dt_atribuicao_aula),
-            "dataFimAtribuicao": fmt_iso(_fim_atribuicao_ou_turma(aa, turma)),
-            "dataFimTurma": fmt_iso(turma.dt_fim_turma if turma else None),
-            "anoAtribuicao": aa.ano_atribuicao,
-            "codigoRf": prof.codigo_rf,
-            "disciplinaId": str(disciplina_id),
-            "disciplinaNome": None,
-            "disciplinasAgrupadasIds": None,
-            "nomeProfessor": get_nome(prof),
+            "codigo_turma": str(codigo_turma),
+            "ano_letivo": None,
+            "nome_turma": None,
+            "data_inicio_atribuicao": fmt_iso(aa.dt_atribuicao_aula),
+            "data_fim_atribuicao": fmt_iso(_fim_atribuicao_ou_turma(aa, turma)),
+            "data_fim_turma": fmt_iso(turma.dt_fim_turma if turma else None),
+            "ano_atribuicao": aa.ano_atribuicao,
+            "codigo_rf": prof.codigo_rf,
+            "disciplina_id": str(disciplina_id),
+            "disciplina_nome": None,
+            "disciplinas_agrupadas_ids": None,
+            "nome_professor": get_nome(prof),
         })
     externas = (
         AtribuicaoExterno.objects
@@ -611,19 +611,19 @@ def professores_atribuidos_turma_disc(
     for ae in externas:
         pessoa = ae.contrato_externo.pessoa
         resultado.append({
-            "codigoTurma": str(codigo_turma),
-            "anoLetivo": None,
-            "nomeTurma": None,
-            "dataInicioAtribuicao": fmt_iso(ae.dt_atribuicao),
-            "dataFimAtribuicao": fmt_iso(ae.dt_disponibilizacao),
-            "dataFimTurma": fmt_iso(turma.dt_fim_turma if turma else None),
-            "anoAtribuicao": ae.ano_atribuicao,
-            "codigoRf": pessoa.cpf,
-            "disciplinaId": str(disciplina_id),
-            "disciplinaNome": None,
-            "disciplinasAgrupadasIds": None,
-            "nomeProfessor": get_nome(pessoa),
-            "atribuicaoExterna": True,
+            "codigo_turma": str(codigo_turma),
+            "ano_letivo": None,
+            "nome_turma": None,
+            "data_inicio_atribuicao": fmt_iso(ae.dt_atribuicao),
+            "data_fim_atribuicao": fmt_iso(ae.dt_disponibilizacao),
+            "data_fim_turma": fmt_iso(turma.dt_fim_turma if turma else None),
+            "ano_atribuicao": ae.ano_atribuicao,
+            "codigo_rf": pessoa.cpf,
+            "disciplina_id": str(disciplina_id),
+            "disciplina_nome": None,
+            "disciplinas_agrupadas_ids": None,
+            "nome_professor": get_nome(pessoa),
+            "atribuicao_externa": True,
         })
     return resultado
 
@@ -649,12 +649,12 @@ def titular_por_turma_disciplina(
         return None
     prof = aa.cargo_base.professor
     return {
-        "professorRf": prof.codigo_rf,
-        "nome_Professor": get_nome(prof),
+        "professor_rf": prof.codigo_rf,
+        "nome_professor": get_nome(prof),
         "disciplina": None,
-        "disciplina_Id": str(codigo_componente),
-        "disciplinas_Id": None,
-        "turma_Id": codigo_turma,
+        "disciplina_id": str(codigo_componente),
+        "disciplinas_id": None,
+        "turma_id": codigo_turma,
     }
 
 
@@ -677,12 +677,12 @@ def titulares_por_turmas(codigos_turmas: list[int]) -> list[dict]:
         prof = aa.cargo_base.professor
         comp = str(aa.codigo_componente_curricular) if aa.codigo_componente_curricular else None
         resultado.append({
-            "professorRf": prof.codigo_rf,
-            "nome_Professor": get_nome(prof),
+            "professor_rf": prof.codigo_rf,
+            "nome_professor": get_nome(prof),
             "disciplina": None,
-            "disciplina_Id": comp,
-            "disciplinas_Id": comp,
-            "turma_Id": 0,
+            "disciplina_id": comp,
+            "disciplinas_id": comp,
+            "turma_id": 0,
         })
     return resultado
 
@@ -712,12 +712,12 @@ def titulares_por_turma_agrupamento(
             )
             for comp in componentes:
                 resultado.append({
-                    "professorRf": ag.rf_professor,
-                    "nome_Professor": None,
+                    "professor_rf": ag.rf_professor,
+                    "nome_professor": None,
                     "disciplina": None,
-                    "disciplina_Id": None,
-                    "disciplinas_Id": comp,
-                    "turma_Id": 0,
+                    "disciplina_id": None,
+                    "disciplinas_id": comp,
+                    "turma_id": 0,
                 })
         return resultado
 
@@ -731,12 +731,12 @@ def titulares_por_turma_agrupamento(
     )
     return [
         {
-            "professorRf": aa.cargo_base.professor.codigo_rf,
-            "nome_Professor": get_nome(aa.cargo_base.professor),
+            "professor_rf": aa.cargo_base.professor.codigo_rf,
+            "nome_professor": get_nome(aa.cargo_base.professor),
             "disciplina": None,
-            "disciplina_Id": None,
-            "disciplinas_Id": str(aa.codigo_componente_curricular),
-            "turma_Id": 0,
+            "disciplina_id": None,
+            "disciplinas_id": str(aa.codigo_componente_curricular),
+            "turma_id": 0,
         }
         for aa in aa_qs
     ]
@@ -763,12 +763,12 @@ def titulares_por_ue(
     serie_map = _serie_turma_map(atribuicoes)
     return [
         {
-            "professorRf": aa.cargo_base.professor.codigo_rf,
-            "nome_Professor": get_nome(aa.cargo_base.professor),
+            "professor_rf": aa.cargo_base.professor.codigo_rf,
+            "nome_professor": get_nome(aa.cargo_base.professor),
             "disciplina": None,
-            "disciplina_Id": str(aa.codigo_componente_curricular),
-            "disciplinas_Id": str(aa.codigo_componente_curricular),
-            "turma_Id": _codigo_turma(aa, serie_map) or 0,
+            "disciplina_id": str(aa.codigo_componente_curricular),
+            "disciplinas_id": str(aa.codigo_componente_curricular),
+            "turma_id": _codigo_turma(aa, serie_map) or 0,
         }
         for aa in atribuicoes
     ]

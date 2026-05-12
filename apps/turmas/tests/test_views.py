@@ -41,9 +41,9 @@ class TestEP24TurmasHistoricas:
         item = res.data[0]
         campos = (
             "codigo",
-            "nomeTurma",
-            "ueCodigo",
-            "anoLetivo",
+            "nome_turma",
+            "ue_codigo",
+            "ano_letivo",
             "ehistorico",
         )
         for campo in campos:

@@ -19,8 +19,8 @@ class TurmasHistoricasAnoProfessorView(APIView):
         tags=_TAG_TURMAS,
         summary="Buscar turmas históricas do professor por ano",
         parameters=[
-            OpenApiParameter("anoLetivo", int, OpenApiParameter.PATH),
-            OpenApiParameter("professorRf", str, OpenApiParameter.PATH),
+            OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
+            OpenApiParameter("professor_rf", str, OpenApiParameter.PATH),
         ],
         responses={200: TurmaHistoricaSerializer(many=True), 400: dict, 404: dict},
     )
