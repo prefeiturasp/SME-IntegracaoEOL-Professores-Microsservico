@@ -25,7 +25,7 @@ class TestEP01BuscaProfessores:
     def test_com_ano_retorna_lista_com_professor(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/escolas/000532/professores/2024/")
         assert res.status_code == 200
-        assert any(p["codigoRF"] == 7654321 for p in res.data)
+        assert any(p["codigo_rf"] == 7654321 for p in res.data)
 
     def test_sem_ano_retorna_lista(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/escolas/000532/professores/")
@@ -54,7 +54,7 @@ class TestEP02TurmasAtribuidasEscola:
         )
         assert res.status_code == 200
         assert len(res.data) >= 1
-        assert res.data[0]["codigoTurma"] == 2112345
+        assert res.data[0]["codigo_turma"] == 2112345
 
     def test_com_atribuicao_externa(self, client, atribuicao_externa):
         res = client.get(
@@ -96,7 +96,7 @@ class TestEP03EP04TurmasAtribuidas:
     def test_por_ano_com_atribuicao_retorna_lista(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/7654321/turmas/anos_letivos/2024/")
         assert res.status_code == 200
-        assert any(t["codigoTurma"] == 2112345 for t in res.data)
+        assert any(t["codigo_turma"] == 2112345 for t in res.data)
 
     def test_por_ano_errado_retorna_vazia(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/7654321/turmas/anos_letivos/2099/")
@@ -137,12 +137,12 @@ class TestEP06BuscarPorRf:
     def test_encontrado_retorna_200_com_rf(self, client, professor):
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRf/2024/")
         assert res.status_code == 200
-        assert res.data["codigoRF"] == "7654321"
+        assert res.data["codigo_rf"] == "7654321"
 
     def test_com_atribuicao_retorna_turma(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRf/2024/")
         assert res.status_code == 200
-        assert "codigoRF" in res.data
+        assert "codigo_rf" in res.data
 
     def test_com_lotacao_retorna_escola(self, client, professor, lotacao):
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRf/2024/")
@@ -167,21 +167,21 @@ class TestEP07BuscarPorRfDreUe:
     def test_encontrado_sem_filtro_retorna_200(self, client, professor):
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/")
         assert res.status_code == 200
-        assert res.data["codigoRF"] == "7654321"
+        assert res.data["codigo_rf"] == "7654321"
 
     def test_filtro_ue_correto_retorna_dados(self, client, atribuicao, lotacao):
         res = client.get(
-            f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ueId=000532"
+            f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ue_id=000532"
         )
         assert res.status_code == 200
-        assert res.data["codigoRF"] == "7654321"
+        assert res.data["codigo_rf"] == "7654321"
 
     def test_filtro_ue_errado_nao_encontra_atribuicao(self, client, professor, atribuicao):
         res = client.get(
-            f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ueId=999999"
+            f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ue_id=999999"
         )
         assert res.status_code == 200
-        assert res.data["codigoRF"] == "7654321"
+        assert res.data["codigo_rf"] == "7654321"
 
     def test_nao_encontrado_retorna_404(self, client, db):
         res = client.get(f"{_BASE}/professores/0000000/BuscarPorRfDreUe/2024/")
@@ -201,13 +201,13 @@ class TestEP08AutoComplete:
     def test_retorna_lista_com_professor(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/2024/AutoComplete/108100/")
         assert res.status_code == 200
-        assert any(p["codigoRf"] == "7654321" for p in res.data)
+        assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
     def test_filtro_nome_retorna_correspondente(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/2024/AutoComplete/108100/?nome=Ana")
         assert res.status_code == 200
         assert len(res.data) >= 1
-        assert res.data[0]["nomeServidor"] == "Ana Silva"
+        assert res.data[0]["nome_servidor"] == "Ana Silva"
 
     def test_filtro_nome_sem_match_retorna_vazio(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/2024/AutoComplete/108100/?nome=Zzzz")
@@ -237,7 +237,7 @@ class TestEP09BuscarPorListaRF:
             format="json",
         )
         assert res.status_code == 200
-        assert any(p["codigoRF"] == "7654321" for p in res.data)
+        assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
     def test_rf_sem_atribuicao_retorna_vazio(self, client, professor):
         res = client.post(
@@ -349,14 +349,14 @@ class TestEP12AtribuicaoStatus:
             f"{_BASE}/professores/7654321/turmas/2112345/atribuicao/status/"
         )
         assert res.status_code == 200
-        assert res.data["anoAtribuicao"] == 2024
+        assert res.data["ano_atribuicao"] == 2024
 
     def test_sem_atribuicao_retorna_false(self, client, db):
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345/atribuicao/status/"
         )
         assert res.status_code == 200
-        assert res.data["anoAtribuicao"] is None
+        assert res.data["ano_atribuicao"] is None
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
@@ -381,7 +381,7 @@ class TestEP13AtribuicaoVerificarData:
     def test_data_apos_inicio_retorna_true(self, client, atribuicao):
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345/atribuicao/verificar/data/"
-            "?dataConsulta=2024-06-01"
+            "?data_consulta=2024-06-01"
         )
         assert res.status_code == 200
         assert res.data is True
@@ -389,7 +389,7 @@ class TestEP13AtribuicaoVerificarData:
     def test_data_antes_do_inicio_retorna_false(self, client, atribuicao):
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345/atribuicao/verificar/data/"
-            "?dataConsulta=2024-01-31"
+            "?data_consulta=2024-01-31"
         )
         assert res.status_code == 200
         assert res.data is False
@@ -419,7 +419,7 @@ class TestEP14AtribuicaoDisciplinaData:
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/data/"
-            "?dataConsulta=2024-01-31"
+            "?data_consulta=2024-01-31"
         )
         assert res.status_code == 200
         assert res.data is False
@@ -428,7 +428,7 @@ class TestEP14AtribuicaoDisciplinaData:
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/data/"
-            "?territorioSaber=true"
+            "?territorio_saber=true"
         )
         assert res.status_code == 200
         assert res.data is False
@@ -451,7 +451,7 @@ class TestEP15AtribuicaoDisciplinaDataTick:
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/datatick/"
-            f"?dataConsultaTick={_TICK_2024_02_02}"
+            f"?data_consulta_tick={_TICK_2024_02_02}"
         )
         assert res.status_code == 200
         assert res.data is True
@@ -460,7 +460,7 @@ class TestEP15AtribuicaoDisciplinaDataTick:
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/datatick/"
-            f"?dataConsultaTick={_TICK_2024_01_31}"
+            f"?data_consulta_tick={_TICK_2024_01_31}"
         )
         assert res.status_code == 200
         assert res.data is False
@@ -490,12 +490,12 @@ class TestEP16AtribuicaoRecorrenciaDatas:
         url = (
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/recorrencia/verificar/datas/"
-            f"?dataTicks={_TICK_2024_02_02}&dataTicks={_TICK_2024_01_31}"
+            f"?data_ticks={_TICK_2024_02_02}&data_ticks={_TICK_2024_01_31}"
         )
         res = client.get(url)
         assert res.status_code == 200
         assert len(res.data) == 2
-        resultados = {item["podePersistir"] for item in res.data}
+        resultados = {item["pode_persistir"] for item in res.data}
         assert True in resultados
         assert False in resultados
 
@@ -529,9 +529,9 @@ class TestEP17AtribuicaoTurmasLista:
         assert res.status_code == 200
         assert res.data == [
             {
-                "codigoTurma": "2112345",
-                "dataDisponibilizacaoAulas": None,
-                "dataAtribuicaoAula": "2024-02-01T00:00:00",
+                "codigo_turma": "2112345",
+                "data_disponibilizacao_aulas": None,
+                "data_atribuicao_aula": "2024-02-01T00:00:00",
             }
         ]
 
@@ -568,9 +568,9 @@ class TestEP17AtribuicaoTurmasLista:
         assert res.status_code == 200
         assert res.data == [
             {
-                "codigoTurma": "2112345",
-                "dataDisponibilizacaoAulas": None,
-                "dataAtribuicaoAula": "2024-02-01T00:00:00",
+                "codigo_turma": "2112345",
+                "data_disponibilizacao_aulas": None,
+                "data_atribuicao_aula": "2024-02-01T00:00:00",
             }
         ]
 
@@ -619,10 +619,10 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
     def test_retorna_professor_atribuido(self, client, atribuicao):
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
-            f"?dataTicks={_TICK_2024_02_02}"
+            f"?data_ticks={_TICK_2024_02_02}"
         )
         assert res.status_code == 200
-        assert any(p["codigoRf"] == "7654321" for p in res.data)
+        assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
     def test_retorna_externo_atribuido(self, client, atribuicao_externa, ue):
         atribuicao_externa.codigo_serie_grade = 1040353
@@ -636,17 +636,17 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
 
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
-            f"?dataTicks={_TICK_2024_02_02}"
+            f"?data_ticks={_TICK_2024_02_02}"
         )
 
         assert res.status_code == 200
-        assert any(p["codigoRf"] == "98765432100" for p in res.data)
-        assert any(p["atribuicaoExterna"] is True for p in res.data)
+        assert any(p["codigo_rf"] == "98765432100" for p in res.data)
+        assert any(p["atribuicao_externa"] is True for p in res.data)
 
     def test_sem_atribuicao_retorna_vazio(self, client, db):
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
-            f"?dataTicks={_TICK_2024_02_02}"
+            f"?data_ticks={_TICK_2024_02_02}"
         )
         assert res.status_code == 200
         assert res.data == []
@@ -670,7 +670,7 @@ class TestEP20TitularPorTurmaDisciplina:
             "/componentes-curriculares/138/"
         )
         assert res.status_code == 200
-        assert res.data["professorRf"] == "7654321"
+        assert res.data["professor_rf"] == "7654321"
 
     def test_nao_encontrado_retorna_404(self, client, db):
         res = client.get(
@@ -695,14 +695,14 @@ class TestEP20TitularPorTurmaDisciplina:
 class TestEP21TitularesPorTurmas:
     def test_turma_com_atribuicao_retorna_titular(self, client, atribuicao):
         res = client.get(
-            f"{_BASE}/professores/titulares/?codigosTurmas=2112345"
+            f"{_BASE}/professores/titulares/?codigos_turmas=2112345"
         )
         assert res.status_code == 200
-        assert any(t["professorRf"] == "7654321" for t in res.data)
+        assert any(t["professor_rf"] == "7654321" for t in res.data)
 
     def test_turma_sem_atribuicao_retorna_vazio(self, client, db):
         res = client.get(
-            f"{_BASE}/professores/titulares/?codigosTurmas=2112345"
+            f"{_BASE}/professores/titulares/?codigos_turmas=2112345"
         )
         assert res.status_code == 200
         assert res.data == []
@@ -728,7 +728,7 @@ class TestEP22TitularesPorTurmaAgrupamento:
             f"{_BASE}/professores/2112345/titulares/realizaAgrupamentoComponente/false/"
         )
         assert res.status_code == 200
-        assert any(t["professorRf"] == "7654321" for t in res.data)
+        assert any(t["professor_rf"] == "7654321" for t in res.data)
 
     def test_com_agrupamento_sem_dados_retorna_vazio(self, client, db):
         res = client.get(
@@ -755,7 +755,7 @@ class TestEP23TitularesPorUe:
             f"{_BASE}/professores/titulares/ue/000532/2024-06-01/"
         )
         assert res.status_code == 200
-        assert any(t["professorRf"] == "7654321" for t in res.data)
+        assert any(t["professor_rf"] == "7654321" for t in res.data)
 
     def test_data_antes_da_atribuicao_retorna_vazio(self, client, atribuicao):
         res = client.get(
