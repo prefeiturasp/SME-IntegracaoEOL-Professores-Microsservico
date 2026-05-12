@@ -36,20 +36,20 @@ class FuncionariosPorUEView(APIView):
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de uma UE (todos ou por cargo)",
         parameters=[
-            OpenApiParameter("codigoUE", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_ue", str, OpenApiParameter.PATH),
         ],
         responses={200: FuncionarioUESerializer(many=True)},
     )
     def get(
         self,
         request: Request,
-        codigoUE: str,
-        codigoCargo: int | None = None,
+        codigo_ue: str,
+        codigo_cargo: int | None = None,
     ) -> Response:
-        if codigoCargo is not None:
-            resultado = repository.funcionarios_por_ue_cargo(codigoUE, codigoCargo)
+        if codigo_cargo is not None:
+            resultado = repository.funcionarios_por_ue_cargo(codigo_ue, codigo_cargo)
         else:
-            resultado = repository.funcionarios_por_ue(codigoUE)
+            resultado = repository.funcionarios_por_ue(codigo_ue)
         return Response(resultado)
 
 
@@ -65,22 +65,22 @@ class FuncionariosCargosQueryView(APIView):
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de uma UE por lista de cargos (query)",
         parameters=[
-            OpenApiParameter("ueCodigo", str, OpenApiParameter.PATH),
+            OpenApiParameter("ue_codigo", str, OpenApiParameter.PATH),
             OpenApiParameter(
                 "cargos", int, OpenApiParameter.QUERY, required=False, many=True
             ),
             OpenApiParameter(
-                "dreCodigo", str, OpenApiParameter.QUERY, required=False
+                "dre_codigo", str, OpenApiParameter.QUERY, required=False
             ),
         ],
         responses={200: FuncionarioUESerializer(many=True)},
     )
-    def get(self, request: Request, ueCodigo: str) -> Response:
+    def get(self, request: Request, ue_codigo: str) -> Response:
         cargos = [int(c) for c in request.query_params.getlist("cargos")]
         if cargos:
-            resultado = repository.funcionarios_por_lista_cargos(ueCodigo, cargos)
+            resultado = repository.funcionarios_por_lista_cargos(ue_codigo, cargos)
         else:
-            resultado = repository.funcionarios_por_ue(ueCodigo)
+            resultado = repository.funcionarios_por_ue(ue_codigo)
         return Response(resultado)
 
 
@@ -96,19 +96,19 @@ class FuncionariosFuncaoAtividadeView(APIView):
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de uma UE por função de atividade",
         parameters=[
-            OpenApiParameter("codigoUE", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigoFuncaoAtividade", int, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_ue", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_funcao_atividade", int, OpenApiParameter.PATH),
         ],
         responses={200: FuncionarioUESerializer(many=True)},
     )
     def get(
         self,
         request: Request,
-        codigoUE: str,
-        codigoFuncaoAtividade: int | None = None,
+        codigo_ue: str,
+        codigo_funcao_atividade: int | None = None,
     ) -> Response:
         resultado = repository.funcionarios_por_funcao_atividade(
-            codigoUE, codigoFuncaoAtividade or 0
+            codigo_ue, codigo_funcao_atividade or 0
         )
         return Response(resultado)
 
@@ -125,23 +125,23 @@ class FuncionariosFuncoesAtividadesQueryView(APIView):
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de UE por lista de funções de atividade",
         parameters=[
-            OpenApiParameter("ueCodigo", str, OpenApiParameter.PATH),
+            OpenApiParameter("ue_codigo", str, OpenApiParameter.PATH),
             OpenApiParameter(
-                "funcoesAtividades",
+                "funcoes_atividades",
                 int,
                 OpenApiParameter.QUERY,
                 required=False,
                 many=True,
             ),
             OpenApiParameter(
-                "dreCodigo", str, OpenApiParameter.QUERY, required=True
+                "dre_codigo", str, OpenApiParameter.QUERY, required=True
             ),
         ],
         responses={200: FuncionarioUESerializer(many=True)},
     )
-    def get(self, request: Request, ueCodigo: str) -> Response:
-        funcoes = [int(f) for f in request.query_params.getlist("funcoesAtividades")]
-        resultado = repository.funcionarios_por_lista_funcoes_atividade(ueCodigo, funcoes)
+    def get(self, request: Request, ue_codigo: str) -> Response:
+        funcoes = [int(f) for f in request.query_params.getlist("funcoes_atividades")]
+        resultado = repository.funcionarios_por_lista_funcoes_atividade(ue_codigo, funcoes)
         return Response(resultado)
 
 
@@ -157,19 +157,19 @@ class FuncionariosFuncaoExternaView(APIView):
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de uma UE por função externa",
         parameters=[
-            OpenApiParameter("codigoUE", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigoFuncaoExterna", int, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_ue", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_funcao_externa", int, OpenApiParameter.PATH),
         ],
         responses={200: FuncionarioFuncaoExternaSerializer(many=True)},
     )
     def get(
         self,
         request: Request,
-        codigoUE: str,
-        codigoFuncaoExterna: int | None = None,
+        codigo_ue: str,
+        codigo_funcao_externa: int | None = None,
     ) -> Response:
         resultado = repository.funcionarios_por_funcao_externa(
-            codigoUE, codigoFuncaoExterna or 0
+            codigo_ue, codigo_funcao_externa or 0
         )
         return Response(resultado)
 
@@ -186,19 +186,19 @@ class FuncionariosFuncoesExternasQueryView(APIView):
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de UE por lista de funções externas",
         parameters=[
-            OpenApiParameter("ueCodigo", str, OpenApiParameter.PATH),
+            OpenApiParameter("ue_codigo", str, OpenApiParameter.PATH),
             OpenApiParameter(
                 "funcoes", int, OpenApiParameter.QUERY, required=False, many=True
             ),
             OpenApiParameter(
-                "dreCodigo", str, OpenApiParameter.QUERY, required=False
+                "dre_codigo", str, OpenApiParameter.QUERY, required=False
             ),
         ],
         responses={200: FuncionarioFuncaoExternaSerializer(many=True)},
     )
-    def get(self, request: Request, ueCodigo: str) -> Response:
+    def get(self, request: Request, ue_codigo: str) -> Response:
         funcoes = [int(f) for f in request.query_params.getlist("funcoes")]
-        resultado = repository.funcionarios_por_lista_funcoes_externas(ueCodigo, funcoes)
+        resultado = repository.funcionarios_por_lista_funcoes_externas(ue_codigo, funcoes)
         return Response(resultado)
 
 
@@ -214,12 +214,12 @@ class CargosFuncionarioView(APIView):
         tags=_TAG_FUNC,
         summary="Obter cargos do funcionário por RF",
         parameters=[
-            OpenApiParameter("registroFuncional", str, OpenApiParameter.PATH),
+            OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
         responses={200: FuncionarioUESerializer(many=True), 400: dict, 404: dict},
     )
-    def get(self, request: Request, registroFuncional: str) -> Response:
-        return Response(repository.cargos_funcionario(registroFuncional))
+    def get(self, request: Request, registro_funcional: str) -> Response:
+        return Response(repository.cargos_funcionario(registro_funcional))
 
 
 # ---------------------------------------------------------------------------
@@ -257,12 +257,12 @@ class NomeServidorView(APIView):
         tags=_TAG_FUNC,
         summary="Obter nome e CPF do servidor por RF",
         parameters=[
-            OpenApiParameter("registroFuncional", str, OpenApiParameter.PATH),
+            OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
         responses={200: NomeServidorSerializer, 400: dict, 404: dict},
     )
-    def get(self, request: Request, registroFuncional: str) -> Response:
-        resultado = repository.nome_servidor(registroFuncional)
+    def get(self, request: Request, registro_funcional: str) -> Response:
+        resultado = repository.nome_servidor(registro_funcional)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -280,12 +280,12 @@ class DreUeAtribuicaoFuncionarioView(APIView):
         tags=_TAG_FUNC,
         summary="Obter DRE/UE de atribuição do funcionário",
         parameters=[
-            OpenApiParameter("registroFuncional", str, OpenApiParameter.PATH),
+            OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
         responses={200: DreUeAtribuicaoSerializer, 400: dict, 404: dict},
     )
-    def get(self, request: Request, registroFuncional: str) -> Response:
-        nome = repository.dre_ue_atribuicao(registroFuncional)
+    def get(self, request: Request, registro_funcional: str) -> Response:
+        nome = repository.dre_ue_atribuicao(registro_funcional)
         if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         from django.http import HttpResponse
@@ -304,12 +304,12 @@ class ServidorAtivoView(APIView):
         tags=_TAG_ACESSO,
         summary="Verificar se servidor está ativo",
         parameters=[
-            OpenApiParameter("registroFuncional", str, OpenApiParameter.PATH),
+            OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
         responses={200: bool, 400: dict, 404: dict},
     )
-    def get(self, request: Request, registroFuncional: str) -> Response:
-        return Response(repository.servidor_ativo(registroFuncional))
+    def get(self, request: Request, registro_funcional: str) -> Response:
+        return Response(repository.servidor_ativo(registro_funcional))
 
 
 # ---------------------------------------------------------------------------
@@ -324,18 +324,18 @@ class DreUeAtribuicaoCargoView(APIView):
         tags=_TAG_FUNC,
         summary="Obter DRE/UE do funcionário por cargo específico",
         parameters=[
-            OpenApiParameter("registroFuncional", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigoCargo", int, OpenApiParameter.PATH),
+            OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_cargo", int, OpenApiParameter.PATH),
         ],
         responses={200: DreUeCargoSerializer, 400: dict, 404: dict},
     )
     def get(
         self,
         request: Request,
-        registroFuncional: str,
-        codigoCargo: int,
+        registro_funcional: str,
+        codigo_cargo: int,
     ) -> Response:
-        resultado = repository.dre_ue_cargo(registroFuncional, codigoCargo)
+        resultado = repository.dre_ue_cargo(registro_funcional, codigo_cargo)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -353,24 +353,21 @@ class UsuariosSGPView(APIView):
         tags=_TAG_PERFIL,
         summary="Buscar usuários SGP por perfil",
         parameters=[
-            OpenApiParameter("idPerfil", str, OpenApiParameter.PATH),
-            OpenApiParameter("CodigoDre", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("CodigoUe", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("CodigoRf", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("id_perfil", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_dre", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("codigo_ue", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.QUERY, required=False),
             OpenApiParameter(
-                "NomeServidor", str, OpenApiParameter.QUERY, required=False
+                "nome_servidor", str, OpenApiParameter.QUERY, required=False
             ),
         ],
         responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
     )
-    def get(self, request: Request, idPerfil: str) -> Response:
-        codigo_dre = request.query_params.get("CodigoDre")
-        codigo_ue = request.query_params.get("CodigoUe")
-        codigo_rf = (
-            request.query_params.get("CodigoRf")
-            or request.query_params.get("CodigoRF")
-        )
-        if repository.perfil_placeholder_invalido(idPerfil) and not codigo_rf:
+    def get(self, request: Request, id_perfil: str) -> Response:
+        codigo_dre = request.query_params.get("codigo_dre")
+        codigo_ue = request.query_params.get("codigo_ue")
+        codigo_rf = request.query_params.get("codigo_rf")
+        if repository.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
             mensagem = (
                 repository.MENSAGEM_ERRO_LEGADO
                 if codigo_dre
@@ -381,11 +378,11 @@ class UsuariosSGPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         resultado = repository.usuarios_sgp_por_perfil(
-            idPerfil,
+            id_perfil,
             codigo_dre=codigo_dre,
             codigo_ue=codigo_ue,
             codigo_rf=codigo_rf,
-            nome_servidor_param=request.query_params.get("NomeServidor"),
+            nome_servidor_param=request.query_params.get("nome_servidor"),
         )
         if not resultado:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -404,32 +401,32 @@ class FuncionariosSGPDreView(APIView):
         tags=_TAG_PERFIL,
         summary="Buscar funcionários SGP por DRE e perfil",
         parameters=[
-            OpenApiParameter("idPerfil", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigoDre", str, OpenApiParameter.PATH),
-            OpenApiParameter("CodigoUe", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("CodigoRF", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("id_perfil", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_dre", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_ue", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.QUERY, required=False),
             OpenApiParameter(
-                "NomeServidor", str, OpenApiParameter.QUERY, required=False
+                "nome_servidor", str, OpenApiParameter.QUERY, required=False
             ),
             OpenApiParameter(
-                "CodigoFuncaoAtividade", int, OpenApiParameter.QUERY, required=False
+                "codigo_funcao_atividade", int, OpenApiParameter.QUERY, required=False
             ),
         ],
         responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
     )
-    def get(self, request: Request, idPerfil: str, codigoDre: str) -> Response:
-        if repository.perfil_placeholder_invalido(idPerfil):
+    def get(self, request: Request, id_perfil: str, codigo_dre: str) -> Response:
+        if repository.perfil_placeholder_invalido(id_perfil):
             return Response(
                 repository.MENSAGEM_ERRO_LEGADO,
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        funcao_str = request.query_params.get("CodigoFuncaoAtividade")
+        funcao_str = request.query_params.get("codigo_funcao_atividade")
         resultado = repository.funcionarios_sgp_dre(
-            idPerfil,
-            codigoDre,
-            codigo_ue=request.query_params.get("CodigoUe"),
-            codigo_rf=request.query_params.get("CodigoRF"),
-            nome_servidor_param=request.query_params.get("NomeServidor"),
+            id_perfil,
+            codigo_dre,
+            codigo_ue=request.query_params.get("codigo_ue"),
+            codigo_rf=request.query_params.get("codigo_rf"),
+            nome_servidor_param=request.query_params.get("nome_servidor"),
             codigo_funcao_atividade=int(funcao_str) if funcao_str else None,
         )
         if not resultado:
@@ -449,12 +446,12 @@ class AcessoSondagemView(APIView):
         tags=_TAG_ACESSO,
         summary="Verificar se professor tem acesso à sondagem",
         parameters=[
-            OpenApiParameter("codigoRF", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
         ],
         responses={200: bool},
     )
-    def get(self, request: Request, codigoRF: str) -> Response:
-        return Response(repository.acesso_sondagem(codigoRF))
+    def get(self, request: Request, codigo_rf: str) -> Response:
+        return Response(repository.acesso_sondagem(codigo_rf))
 
 
 # ---------------------------------------------------------------------------

@@ -43,15 +43,15 @@ def _dre_de_ue(ue_codigo: str | None) -> str | None:
 def _func_row(ls: LotacaoServidor) -> dict:
     """Linha padrão EP-25/26 — mesmo formato do legado."""
     return {
-        "codigoRF": ls.cargo_base.professor.codigo_rf,
-        "nomeServidor": get_nome(ls.cargo_base.professor),
-        "dataInicio": ls.dt_inicio.strftime("%m/%d/%Y 00:00:00") if ls.dt_inicio else None,
-        "dataFim": ls.dt_fim.strftime("%m/%d/%Y 00:00:00") if ls.dt_fim else None,
+        "codigo_rf": ls.cargo_base.professor.codigo_rf,
+        "nome_servidor": get_nome(ls.cargo_base.professor),
+        "data_inicio": ls.dt_inicio.strftime("%m/%d/%Y 00:00:00") if ls.dt_inicio else None,
+        "data_fim": ls.dt_fim.strftime("%m/%d/%Y 00:00:00") if ls.dt_fim else None,
         "cargo": None,
-        "cdTipoFuncaoAtividade": 0,
-        "estaAfastado": False,
-        "funcaoExterno": 0,
-        "tipoFuncaoExterno": 0,
+        "cd_tipo_funcao_atividade": 0,
+        "esta_afastado": False,
+        "funcao_externo": 0,
+        "tipo_funcao_externo": 0,
     }
 
 
@@ -103,9 +103,9 @@ def funcionarios_por_lista_cargos(codigo_ue: str, cargos: list[int]) -> list[dic
     )
     return [
         {
-            "funcionarioRF": ls.cargo_base.professor.codigo_rf,
-            "funcionarioNome": None,
-            "cargoId": ls.cargo_base.codigo_cargo,
+            "funcionario_rf": ls.cargo_base.professor.codigo_rf,
+            "funcionario_nome": None,
+            "cargo_id": ls.cargo_base.codigo_cargo,
         }
         for ls in qs
     ]
@@ -125,13 +125,13 @@ def funcionarios_por_funcao_atividade(
     )
     return [
         {
-            "codigoRf": fa.cargo_base.professor.codigo_rf,
+            "codigo_rf": fa.cargo_base.professor.codigo_rf,
             "login": None,
-            "nomeServidor": get_nome(fa.cargo_base.professor),
-            "cd_Cargo": fa.cargo_base.codigo_cargo,
-            "codigoFuncaoAtividade": codigo_funcao_atividade,
-            "funcaoExterno": 0,
-            "tipoFuncaoExterno": 0,
+            "nome_servidor": get_nome(fa.cargo_base.professor),
+            "cd_cargo": fa.cargo_base.codigo_cargo,
+            "codigo_funcao_atividade": codigo_funcao_atividade,
+            "funcao_externo": 0,
+            "tipo_funcao_externo": 0,
         }
         for fa in qs
     ]
@@ -151,9 +151,9 @@ def funcionarios_por_lista_funcoes_atividade(
     )
     return [
         {
-            "funcionarioRF": fa.cargo_base.professor.codigo_rf,
-            "funcionarioNome": None,
-            "funcaoAtividadeId": _funcoes[0] if _funcoes else 0,
+            "funcionario_rf": fa.cargo_base.professor.codigo_rf,
+            "funcionario_nome": None,
+            "funcao_atividade_id": _funcoes[0] if _funcoes else 0,
         }
         for fa in qs
     ]
@@ -180,9 +180,9 @@ def funcionarios_por_funcao_externa(
     return [
         {
             "cpf": contrato.pessoa.cpf,
-            "nomeServidor": get_nome(contrato.pessoa),
-            "codigoEscola": contrato.codigo_unidade_educacao,
-            "dataInicio": None,
+            "nome_servidor": get_nome(contrato.pessoa),
+            "codigo_escola": contrato.codigo_unidade_educacao,
+            "data_inicio": None,
         }
         for contrato in qs
     ]
@@ -211,9 +211,9 @@ def funcionarios_por_lista_funcoes_externas(
     return [
         {
             "cpf": contrato.pessoa.cpf,
-            "nomeServidor": get_nome(contrato.pessoa),
-            "codigoEscola": contrato.codigo_unidade_educacao,
-            "dataInicio": None,
+            "nome_servidor": get_nome(contrato.pessoa),
+            "codigo_escola": contrato.codigo_unidade_educacao,
+            "data_inicio": None,
         }
         for contrato in qs
     ]
@@ -249,27 +249,27 @@ def cargos_funcionario(registro_funcional: str) -> list[dict]:
         resultado.append({
             "rf": int(prof.codigo_rf),
             "cpf": prof.cpf,
-            "cdCargoBase": cbs.codigo_cargo,
-            "cargoBase": None,
-            "cdDreCargoBase": dre_cargo,
-            "cdUeCargoBase": ue_cargo,
-            "ueCargoBase": None,
-            "tipoVinculoCargoBase": None,
-            "dataInicioCargoBase": fmt_iso(cbs.dt_posse),
-            "cdCargoSobreposto": sobreposto.codigo_cargo if sobreposto else None,
-            "cargoSobreposto": None,
-            "cdDreCargoSobreposto": dre_sob,
-            "cdUeCargoSobreposto": ue_sob,
-            "ueCargoSobreposto": None,
-            "tipoVinculoCargoSobreposto": None,
-            "dataInicioCargoSobreposto": None,
-            "cdFuncaoAtividade": None,
-            "funcaoAtividade": None,
-            "cdDreFuncaoAtividade": dre_func,
-            "cdUeFuncaoAtividade": ue_func,
-            "ueFuncaoAtividade": None,
-            "tipoVinculoFuncaoAtividade": None,
-            "dataInicioFuncaoAtividade": None,
+            "cd_cargo_base": cbs.codigo_cargo,
+            "cargo_base": None,
+            "cd_dre_cargo_base": dre_cargo,
+            "cd_ue_cargo_base": ue_cargo,
+            "ue_cargo_base": None,
+            "tipo_vinculo_cargo_base": None,
+            "data_inicio_cargo_base": fmt_iso(cbs.dt_posse),
+            "cd_cargo_sobreposto": sobreposto.codigo_cargo if sobreposto else None,
+            "cargo_sobreposto": None,
+            "cd_dre_cargo_sobreposto": dre_sob,
+            "cd_ue_cargo_sobreposto": ue_sob,
+            "ue_cargo_sobreposto": None,
+            "tipo_vinculo_cargo_sobreposto": None,
+            "data_inicio_cargo_sobreposto": None,
+            "cd_funcao_atividade": None,
+            "funcao_atividade": None,
+            "cd_dre_funcao_atividade": dre_func,
+            "cd_ue_funcao_atividade": ue_func,
+            "ue_funcao_atividade": None,
+            "tipo_vinculo_funcao_atividade": None,
+            "data_inicio_funcao_atividade": None,
         })
     return resultado
 
@@ -290,19 +290,19 @@ def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
     for ce in qs:
         p = ce.pessoa
         resultado.append({
-            "nomePessoa": get_nome(p),
-            "nomePai": None,
-            "nomeMae": None,
-            "dataNascimento": None,
+            "nome_pessoa": get_nome(p),
+            "nome_pai": None,
+            "nome_mae": None,
+            "data_nascimento": None,
             "rg": None,
             "cpf": p.cpf,
-            "tituloEleitoral": None,
-            "pisPasep": None,
-            "codigoContratoExterno": ce.codigo_contrato,
-            "codigoUE": ce.codigo_unidade_educacao,
-            "nomeUe": None,
+            "titulo_eleitoral": None,
+            "pis_pasep": None,
+            "codigo_contrato_externo": ce.codigo_contrato,
+            "codigo_ue": ce.codigo_unidade_educacao,
+            "nome_ue": None,
             "funcao": None,
-            "tipoFuncionario": None,
+            "tipo_funcionario": None,
         })
     return resultado
 
@@ -364,9 +364,9 @@ def dre_ue_cargo(registro_funcional: str, codigo_cargo: int) -> list[dict]:
             ue = UnidadeEducacional.objects.filter(codigo_ue=ue_codigo).first()
             dre_codigo = ue.codigo_dre if ue else None
         resultado.append({
-            "codigoRf": cbs.professor.codigo_rf,
-            "codigoDre": dre_codigo,
-            "codigoUe": ue_codigo,
+            "codigo_rf": cbs.professor.codigo_rf,
+            "codigo_dre": dre_codigo,
+            "codigo_ue": ue_codigo,
             "cargo": None,
         })
     return resultado
@@ -404,10 +404,10 @@ def usuarios_sgp_por_perfil(  # NOSONAR
     }
     return [
         {
-            "codigoRf": ls.cargo_base.professor.codigo_rf,
-            "nomeServidor": get_nome(ls.cargo_base.professor),
-            "codigoDre": ues_map.get(ls.codigo_unidade_educacao),
-            "codigoUe": ls.codigo_unidade_educacao,
+            "codigo_rf": ls.cargo_base.professor.codigo_rf,
+            "nome_servidor": get_nome(ls.cargo_base.professor),
+            "codigo_dre": ues_map.get(ls.codigo_unidade_educacao),
+            "codigo_ue": ls.codigo_unidade_educacao,
         }
         for ls in lotacoes
     ]
@@ -440,10 +440,10 @@ def funcionarios_sgp_dre(  # NOSONAR
         qs = qs.filter(cargo_base__professor__nome__icontains=nome_servidor_param)
     return [
         {
-            "codigoRf": ls.cargo_base.professor.codigo_rf,
-            "nomeServidor": get_nome(ls.cargo_base.professor),
-            "codigoDre": codigo_dre,
-            "codigoUe": ls.codigo_unidade_educacao,
+            "codigo_rf": ls.cargo_base.professor.codigo_rf,
+            "nome_servidor": get_nome(ls.cargo_base.professor),
+            "codigo_dre": codigo_dre,
+            "codigo_ue": ls.codigo_unidade_educacao,
         }
         for ls in qs
     ]
@@ -465,7 +465,7 @@ def acesso_sondagem(codigo_rf: str) -> bool:
 
 def buscar_por_lista_rf_func(lista: list[str]) -> list[dict]:
     return [
-        {"nome": get_nome(p), "codigoRF": p.codigo_rf}
+        {"nome": get_nome(p), "codigo_rf": p.codigo_rf}
         for p in Professor.objects.filter(codigo_rf__in=lista)
     ]
 
@@ -478,7 +478,7 @@ def buscar_por_lista_login(lista: list[str]) -> list[dict]:
     return [
         {
             "login": p.codigo_rf,
-            "nomeServidor": get_nome(p),
+            "nome_servidor": get_nome(p),
             "perfil": _GUID_VAZIO,
         }
         for p in Professor.objects.filter(codigo_rf__in=lista)
