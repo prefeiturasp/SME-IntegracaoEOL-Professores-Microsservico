@@ -1,4 +1,4 @@
-"""Views do domínio Funcionários (EP-25 a EP-39)."""
+"""Views do domínio de funcionários."""
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
@@ -24,13 +24,8 @@ _TAG_PERFIL = ["Perfis SGP"]
 _TAG_ACESSO = ["Acessos"]
 
 
-# ---------------------------------------------------------------------------
-# EP-25 / EP-26 — Funcionários por UE (todos / por cargo)
-# ---------------------------------------------------------------------------
-
-
 class FuncionariosPorUEView(APIView):
-    """EP-25/26 — Funcionários de uma UE (todos ou por cargo)."""
+    """Lista funcionários de uma unidade educacional."""
 
     @extend_schema(
         tags=_TAG_ESCOLA_FUNC,
@@ -47,19 +42,16 @@ class FuncionariosPorUEView(APIView):
         codigo_cargo: int | None = None,
     ) -> Response:
         if codigo_cargo is not None:
-            resultado = repository.funcionarios_por_ue_cargo(codigo_ue, codigo_cargo)
+            resultado = repository.funcionarios_por_ue_cargo(
+                codigo_ue, codigo_cargo
+            )
         else:
             resultado = repository.funcionarios_por_ue(codigo_ue)
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-26-B — Funcionários por lista de cargos (query)
-# ---------------------------------------------------------------------------
-
-
 class FuncionariosCargosQueryView(APIView):
-    """EP-26-B — Funcionários de uma UE por lista de cargos (query param)."""
+    """Lista funcionários de uma unidade por cargos."""
 
     @extend_schema(
         tags=_TAG_ESCOLA_FUNC,
@@ -67,7 +59,11 @@ class FuncionariosCargosQueryView(APIView):
         parameters=[
             OpenApiParameter("ue_codigo", str, OpenApiParameter.PATH),
             OpenApiParameter(
-                "cargos", int, OpenApiParameter.QUERY, required=False, many=True
+                "cargos",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
+                many=True,
             ),
             OpenApiParameter(
                 "dre_codigo", str, OpenApiParameter.QUERY, required=False
@@ -78,26 +74,25 @@ class FuncionariosCargosQueryView(APIView):
     def get(self, request: Request, ue_codigo: str) -> Response:
         cargos = [int(c) for c in request.query_params.getlist("cargos")]
         if cargos:
-            resultado = repository.funcionarios_por_lista_cargos(ue_codigo, cargos)
+            resultado = repository.funcionarios_por_lista_cargos(
+                ue_codigo, cargos
+            )
         else:
             resultado = repository.funcionarios_por_ue(ue_codigo)
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-27 — Funcionários por função de atividade
-# ---------------------------------------------------------------------------
-
-
 class FuncionariosFuncaoAtividadeView(APIView):
-    """EP-27 — Funcionários de uma UE por função de atividade."""
+    """Lista funcionários de uma unidade por função de atividade."""
 
     @extend_schema(
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de uma UE por função de atividade",
         parameters=[
             OpenApiParameter("codigo_ue", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigo_funcao_atividade", int, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "codigo_funcao_atividade", int, OpenApiParameter.PATH
+            ),
         ],
         responses={200: FuncionarioUESerializer(many=True)},
     )
@@ -113,13 +108,8 @@ class FuncionariosFuncaoAtividadeView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-27-B — Funcionários por lista de funções de atividade (query)
-# ---------------------------------------------------------------------------
-
-
 class FuncionariosFuncoesAtividadesQueryView(APIView):
-    """EP-27-B — Funcionários por lista de funções de atividade (query)."""
+    """Lista funcionários por funções de atividade."""
 
     @extend_schema(
         tags=_TAG_ESCOLA_FUNC,
@@ -140,25 +130,26 @@ class FuncionariosFuncoesAtividadesQueryView(APIView):
         responses={200: FuncionarioUESerializer(many=True)},
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
-        funcoes = [int(f) for f in request.query_params.getlist("funcoes_atividades")]
-        resultado = repository.funcionarios_por_lista_funcoes_atividade(ue_codigo, funcoes)
+        funcoes = [
+            int(f) for f in request.query_params.getlist("funcoes_atividades")
+        ]
+        resultado = repository.funcionarios_por_lista_funcoes_atividade(
+            ue_codigo, funcoes
+        )
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-28 — Funcionários por função externa
-# ---------------------------------------------------------------------------
-
-
 class FuncionariosFuncaoExternaView(APIView):
-    """EP-28 — Funcionários de uma UE por função externa."""
+    """Lista funcionários externos de uma unidade por função."""
 
     @extend_schema(
         tags=_TAG_ESCOLA_FUNC,
         summary="Funcionários de uma UE por função externa",
         parameters=[
             OpenApiParameter("codigo_ue", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigo_funcao_externa", int, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "codigo_funcao_externa", int, OpenApiParameter.PATH
+            ),
         ],
         responses={200: FuncionarioFuncaoExternaSerializer(many=True)},
     )
@@ -174,13 +165,8 @@ class FuncionariosFuncaoExternaView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-28-B — Funcionários por lista de funções externas (query)
-# ---------------------------------------------------------------------------
-
-
 class FuncionariosFuncoesExternasQueryView(APIView):
-    """EP-28-B — Funcionários de UE por lista de funções externas (query)."""
+    """Lista funcionários externos de uma unidade por funções."""
 
     @extend_schema(
         tags=_TAG_ESCOLA_FUNC,
@@ -188,7 +174,11 @@ class FuncionariosFuncoesExternasQueryView(APIView):
         parameters=[
             OpenApiParameter("ue_codigo", str, OpenApiParameter.PATH),
             OpenApiParameter(
-                "funcoes", int, OpenApiParameter.QUERY, required=False, many=True
+                "funcoes",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
+                many=True,
             ),
             OpenApiParameter(
                 "dre_codigo", str, OpenApiParameter.QUERY, required=False
@@ -198,17 +188,14 @@ class FuncionariosFuncoesExternasQueryView(APIView):
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
         funcoes = [int(f) for f in request.query_params.getlist("funcoes")]
-        resultado = repository.funcionarios_por_lista_funcoes_externas(ue_codigo, funcoes)
+        resultado = repository.funcionarios_por_lista_funcoes_externas(
+            ue_codigo, funcoes
+        )
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-29 — Cargos do funcionário por RF
-# ---------------------------------------------------------------------------
-
-
 class CargosFuncionarioView(APIView):
-    """EP-29 — Obter cargos do funcionário por RF."""
+    """Lista cargos do funcionário por registro funcional."""
 
     @extend_schema(
         tags=_TAG_FUNC,
@@ -216,19 +203,18 @@ class CargosFuncionarioView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: FuncionarioUESerializer(many=True), 400: dict, 404: dict},
+        responses={
+            200: FuncionarioUESerializer(many=True),
+            400: dict,
+            404: dict,
+        },
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
         return Response(repository.cargos_funcionario(registro_funcional))
 
 
-# ---------------------------------------------------------------------------
-# EP-30 — Funcionário externo por CPF
-# ---------------------------------------------------------------------------
-
-
 class FuncionarioExternoPorCpfView(APIView):
-    """EP-30 — Buscar funcionário externo por CPF."""
+    """Retorna funcionário externo por CPF."""
 
     @extend_schema(
         tags=_TAG_FUNC,
@@ -245,13 +231,8 @@ class FuncionarioExternoPorCpfView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-31 — Nome e CPF do servidor por RF
-# ---------------------------------------------------------------------------
-
-
 class NomeServidorView(APIView):
-    """EP-31 — Obter nome e CPF do servidor por RF."""
+    """Retorna nome e CPF do servidor por registro funcional."""
 
     @extend_schema(
         tags=_TAG_FUNC,
@@ -268,13 +249,8 @@ class NomeServidorView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-32 — DRE/UE do funcionário (nome-usuario-eol)
-# ---------------------------------------------------------------------------
-
-
 class DreUeAtribuicaoFuncionarioView(APIView):
-    """EP-32 — Obter DRE/UE de atribuição do funcionário."""
+    """Retorna unidade de atribuição do funcionário."""
 
     @extend_schema(
         tags=_TAG_FUNC,
@@ -289,16 +265,12 @@ class DreUeAtribuicaoFuncionarioView(APIView):
         if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         from django.http import HttpResponse
+
         return HttpResponse(nome, content_type="text/plain")
 
 
-# ---------------------------------------------------------------------------
-# EP-33 — Servidor ativo
-# ---------------------------------------------------------------------------
-
-
 class ServidorAtivoView(APIView):
-    """EP-33 — Verificar se servidor está ativo."""
+    """Verifica se o servidor está ativo."""
 
     @extend_schema(
         tags=_TAG_ACESSO,
@@ -312,13 +284,8 @@ class ServidorAtivoView(APIView):
         return Response(repository.servidor_ativo(registro_funcional))
 
 
-# ---------------------------------------------------------------------------
-# EP-34 — DRE/UE do funcionário por cargo específico
-# ---------------------------------------------------------------------------
-
-
 class DreUeAtribuicaoCargoView(APIView):
-    """EP-34 — Obter DRE/UE do funcionário por cargo."""
+    """Retorna unidade do funcionário por cargo."""
 
     @extend_schema(
         tags=_TAG_FUNC,
@@ -341,22 +308,23 @@ class DreUeAtribuicaoCargoView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-35 — Usuários SGP por perfil
-# ---------------------------------------------------------------------------
-
-
 class UsuariosSGPView(APIView):
-    """EP-35 — Buscar usuários SGP por perfil."""
+    """Lista usuários SGP por perfil."""
 
     @extend_schema(
         tags=_TAG_PERFIL,
         summary="Buscar usuários SGP por perfil",
         parameters=[
             OpenApiParameter("id_perfil", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigo_dre", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("codigo_ue", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("codigo_rf", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(
+                "codigo_dre", str, OpenApiParameter.QUERY, required=False
+            ),
+            OpenApiParameter(
+                "codigo_ue", str, OpenApiParameter.QUERY, required=False
+            ),
+            OpenApiParameter(
+                "codigo_rf", str, OpenApiParameter.QUERY, required=False
+            ),
             OpenApiParameter(
                 "nome_servidor", str, OpenApiParameter.QUERY, required=False
             ),
@@ -389,13 +357,8 @@ class UsuariosSGPView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-36 — Funcionários SGP por DRE/perfil
-# ---------------------------------------------------------------------------
-
-
 class FuncionariosSGPDreView(APIView):
-    """EP-36 — Buscar funcionários SGP por DRE e perfil."""
+    """Lista funcionários SGP por DRE e perfil."""
 
     @extend_schema(
         tags=_TAG_PERFIL,
@@ -403,18 +366,27 @@ class FuncionariosSGPDreView(APIView):
         parameters=[
             OpenApiParameter("id_perfil", str, OpenApiParameter.PATH),
             OpenApiParameter("codigo_dre", str, OpenApiParameter.PATH),
-            OpenApiParameter("codigo_ue", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("codigo_rf", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(
+                "codigo_ue", str, OpenApiParameter.QUERY, required=False
+            ),
+            OpenApiParameter(
+                "codigo_rf", str, OpenApiParameter.QUERY, required=False
+            ),
             OpenApiParameter(
                 "nome_servidor", str, OpenApiParameter.QUERY, required=False
             ),
             OpenApiParameter(
-                "codigo_funcao_atividade", int, OpenApiParameter.QUERY, required=False
+                "codigo_funcao_atividade",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
             ),
         ],
         responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
     )
-    def get(self, request: Request, id_perfil: str, codigo_dre: str) -> Response:
+    def get(
+        self, request: Request, id_perfil: str, codigo_dre: str
+    ) -> Response:
         if repository.perfil_placeholder_invalido(id_perfil):
             return Response(
                 repository.MENSAGEM_ERRO_LEGADO,
@@ -434,13 +406,8 @@ class FuncionariosSGPDreView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-37 — Acesso à sondagem
-# ---------------------------------------------------------------------------
-
-
 class AcessoSondagemView(APIView):
-    """EP-37 — Verificar se professor tem acesso à sondagem."""
+    """Verifica se o professor tem acesso à sondagem."""
 
     @extend_schema(
         tags=_TAG_ACESSO,
@@ -454,13 +421,8 @@ class AcessoSondagemView(APIView):
         return Response(repository.acesso_sondagem(codigo_rf))
 
 
-# ---------------------------------------------------------------------------
-# EP-38 — Buscar por lista de RF (POST)
-# ---------------------------------------------------------------------------
-
-
 class BuscarPorListaRFView(APIView):
-    """EP-38 — Buscar resumo de funcionários por lista de RF."""
+    """Lista resumos de funcionários por registros funcionais."""
 
     @extend_schema(
         tags=_TAG_FUNC,
@@ -473,13 +435,8 @@ class BuscarPorListaRFView(APIView):
         return Response(repository.buscar_por_lista_rf_func(lista))
 
 
-# ---------------------------------------------------------------------------
-# EP-39 — Buscar por lista de login (POST)
-# ---------------------------------------------------------------------------
-
-
 class BuscarPorListaLoginView(APIView):
-    """EP-39 — Buscar resumo de funcionários por lista de login."""
+    """Lista resumos de funcionários por logins."""
 
     @extend_schema(
         tags=_TAG_FUNC,

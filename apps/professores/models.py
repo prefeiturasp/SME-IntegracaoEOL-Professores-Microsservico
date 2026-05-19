@@ -1,8 +1,4 @@
-"""Models do domínio Professores — espelha as tabelas do PROFESSORES_DB.
-
-Todos os models usam managed=False: as tabelas são criadas e gerenciadas
-pelo ETL (SME-IntegracaoEOL-MS-ETL). Este MS apenas realiza leituras.
-"""
+"""Models do domínio de professores."""
 
 from django.db import models
 
@@ -15,13 +11,8 @@ _HELP_TERR = "ID do território do saber — ref. domínio pedagógico."
 _HELP_EXP = "ID da experiência pedagógica — ref. domínio pedagógico."
 
 
-# ===========================================================================
-# TABELAS DE SUPORTE
-# ===========================================================================
-
-
 class UnidadeEducacional(models.Model):
-    """Unidade educacional — IDs para filtros por escola, DRE e tipo."""
+    """Representa uma unidade educacional."""
 
     codigo_ue = models.CharField(max_length=20, primary_key=True)
     codigo_dre = models.CharField(max_length=20, null=True, blank=True)
@@ -34,10 +25,7 @@ class UnidadeEducacional(models.Model):
 
 
 class TurmaEscola(models.Model):
-    """Turma escolar.
-
-    Status: 'O'=Aberta, 'A'=Ativa, 'E'=Extinta, 'C'=Cancelada.
-    """
+    """Representa uma turma escolar."""
 
     codigo_turma = models.BigIntegerField(primary_key=True)
     codigo_escola = models.CharField(max_length=20)
@@ -70,7 +58,7 @@ class SerieTurmaGrade(models.Model):
 
 
 class TurmaEscolaGradePrograma(models.Model):
-    """Grade/programa para turmas do tipo Programa (tipo_turma=3)."""
+    """Representa grade de programa vinculada a uma turma."""
 
     codigo = models.BigIntegerField(primary_key=True)
     codigo_turma = models.BigIntegerField(help_text=_HELP_TURMA)
@@ -114,7 +102,9 @@ class AgrupamentoAtribuicaoTerritorioSaber(models.Model):
     codigos_componentes_curriculares = models.TextField(null=True, blank=True)
     ano_letivo = models.IntegerField(null=True, blank=True)
     codigo_motivo_disponibilizacao = models.IntegerField(null=True, blank=True)
-    encerramento_atribuicao_agrupamento_atualizado = models.BooleanField(null=True, blank=True)
+    encerramento_atribuicao_agrupamento_atualizado = models.BooleanField(
+        null=True, blank=True
+    )
     criado_em = models.DateTimeField(null=True, blank=True)
     alterado_em = models.DateTimeField(null=True, blank=True)
 
@@ -122,11 +112,6 @@ class AgrupamentoAtribuicaoTerritorioSaber(models.Model):
         app_label = "professores"
         db_table = "agrupamento_atribuicao_territorio_saber"
         managed = False
-
-
-# ===========================================================================
-# SERVIDORES EFETIVOS
-# ===========================================================================
 
 
 class Professor(models.Model):
@@ -147,10 +132,7 @@ class Professor(models.Model):
 
 
 class CargoBaseServidor(models.Model):
-    """Nomeação/cargo base do servidor no quadro funcional.
-
-    dt_fim_nomeacao IS NULL = nomeação ativa.
-    """
+    """Representa nomeação ou cargo base do servidor."""
 
     id = models.BigAutoField(primary_key=True)
     professor = models.ForeignKey(
@@ -193,7 +175,7 @@ class LotacaoServidor(models.Model):
 
 
 class CargoSobrepostoServidor(models.Model):
-    """Cargo sobreposto exercido sobre o cargo base (ex: diretor, coordenador)."""
+    """Cargo sobreposto exercido sobre o cargo base."""
 
     id = models.BigAutoField(primary_key=True)
     cargo_base = models.ForeignKey(
@@ -248,11 +230,6 @@ class LaudoMedico(models.Model):
         managed = False
 
 
-# ===========================================================================
-# CONTRATADOS EXTERNOS
-# ===========================================================================
-
-
 class Pessoa(models.Model):
     """Pessoa física que atua como professor contratado (externo)."""
 
@@ -271,10 +248,7 @@ class Pessoa(models.Model):
 
 
 class ContratoExterno(models.Model):
-    """Contrato de professor externo/terceirizado.
-
-    Ativo: dt_cancelamento IS NULL AND codigo_motivo_desligamento IS NULL.
-    """
+    """Representa contrato de professor externo."""
 
     codigo_contrato = models.BigIntegerField(primary_key=True)
     pessoa = models.ForeignKey(
@@ -294,11 +268,6 @@ class ContratoExterno(models.Model):
         managed = False
 
 
-# ===========================================================================
-# ATRIBUIÇÕES DE AULAS
-# ===========================================================================
-
-
 class AtribuicaoAula(models.Model):
     """Atribuição de aulas ao professor efetivo."""
 
@@ -311,7 +280,9 @@ class AtribuicaoAula(models.Model):
     )
     codigo_unidade_educacao = models.CharField(max_length=20)
     codigo_turma_escola = models.BigIntegerField(null=True, blank=True)
-    codigo_turma_escola_grade_programa = models.BigIntegerField(null=True, blank=True)
+    codigo_turma_escola_grade_programa = models.BigIntegerField(
+        null=True, blank=True
+    )
     codigo_grade = models.IntegerField()
     codigo_componente_curricular = models.IntegerField()
     codigo_serie_grade = models.IntegerField(null=True, blank=True)
@@ -341,11 +312,15 @@ class AtribuicaoExterno(models.Model):
     codigo_grade = models.IntegerField()
     codigo_componente_curricular = models.IntegerField()
     codigo_serie_grade = models.IntegerField(null=True, blank=True)
-    codigo_turma_escola_grade_programa = models.BigIntegerField(null=True, blank=True)
+    codigo_turma_escola_grade_programa = models.BigIntegerField(
+        null=True, blank=True
+    )
     ano_atribuicao = models.IntegerField()
     dt_atribuicao = models.DateField()
     dt_disponibilizacao = models.DateField(null=True, blank=True)
-    codigo_motivo_disponibilizacao_externo = models.IntegerField(null=True, blank=True)
+    codigo_motivo_disponibilizacao_externo = models.IntegerField(
+        null=True, blank=True
+    )
     dt_cancelamento = models.DateField(null=True, blank=True)
 
     class Meta:

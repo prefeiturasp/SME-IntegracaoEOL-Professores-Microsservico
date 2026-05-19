@@ -1,4 +1,6 @@
-"""Test runner customizado para o MS Professores."""
+"""Executor de testes customizado do microsserviço."""
+
+from typing import Any
 
 from django.apps import apps
 from django.db import connections
@@ -6,9 +8,10 @@ from django.test.runner import DiscoverRunner
 
 
 class ProfessoresTestRunner(DiscoverRunner):
-    """Cria tabelas managed=False no banco de testes antes de executar os testes."""
+    """Prepara tabelas externas antes de executar os testes."""
 
-    def setup_databases(self, **kwargs):
+    def setup_databases(self, **kwargs: Any) -> Any:
+        """Configura bancos de teste e cria tabelas externas."""
         result = super().setup_databases(**kwargs)
         with connections["default"].schema_editor() as editor:
             criadas: set[str] = set()

@@ -1,4 +1,4 @@
-"""Autenticacao por API key para endpoints DRF."""
+"""Autenticação por API key para requests DRF."""
 
 import secrets
 from dataclasses import dataclass
@@ -10,7 +10,7 @@ from rest_framework.request import Request
 
 @dataclass
 class UsuarioApiKey:
-    """Representa autenticacao valida por chave de API."""
+    """Representa autenticação válida por chave de API."""
 
     username: str = "api_key_user"
     is_authenticated: bool = True
@@ -18,19 +18,17 @@ class UsuarioApiKey:
 
 
 class ApiKeyAuthentication(authentication.BaseAuthentication):
-    """Autentica requests via header de API key."""
+    """Autentica requests por header de API key."""
 
     keyword = "X-API-Key"
 
     def authenticate(
         self, request: Request
     ) -> tuple[UsuarioApiKey, None] | None:
-        """Autentica request via header de API key."""
+        """Autentica request por header de API key."""
         chave_esperada = settings.API_KEY
         if not chave_esperada:
-            raise exceptions.AuthenticationFailed(
-                "API key nao configurada"
-            )
+            raise exceptions.AuthenticationFailed("API key nao configurada")
 
         chave_recebida = request.headers.get(self.keyword)
         if not chave_recebida:

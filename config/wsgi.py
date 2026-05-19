@@ -1,4 +1,4 @@
-"""WSGI config para SME-IntegracaoEOL-Professores-Microsservico."""
+"""Configuração WSGI do projeto Django."""
 
 import os
 
