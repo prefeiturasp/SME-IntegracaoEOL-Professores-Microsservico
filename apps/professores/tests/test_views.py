@@ -1,4 +1,4 @@
-"""Testes das views do domínio Professores (EP-01 a EP-23)."""
+"""Testes das views do domínio de professores."""
 
 from datetime import date
 
@@ -11,19 +11,15 @@ pytestmark = pytest.mark.django_db
 
 _BASE = "/api/v1"
 
-# Ticks para datas usadas nos testes
-_TICK_2024_02_02 = date_to_ticks(date(2024, 2, 2))  # após dt_atribuicao_aula
-_TICK_2024_01_31 = date_to_ticks(date(2024, 1, 31))  # antes de dt_atribuicao_aula
-
-
-# ---------------------------------------------------------------------------
-# EP-01 — Professores da escola por ano letivo
-# ---------------------------------------------------------------------------
+_TICK_2024_02_02 = date_to_ticks(date(2024, 2, 2))
+_TICK_2024_01_31 = date_to_ticks(date(2024, 1, 31))
 
 
 class TestEP01BuscaProfessores:
     def test_com_ano_retorna_lista_com_professor(self, client, atribuicao):
-        res = client.get(f"{_BASE}/professores/escolas/000532/professores/2024/")
+        res = client.get(
+            f"{_BASE}/professores/escolas/000532/professores/2024/"
+        )
         assert res.status_code == 200
         assert any(p["codigo_rf"] == 7654321 for p in res.data)
 
@@ -33,18 +29,15 @@ class TestEP01BuscaProfessores:
         assert isinstance(res.data, list)
 
     def test_escola_sem_atribuicoes_retorna_lista_vazia(self, client, db):
-        res = client.get(f"{_BASE}/professores/escolas/999999/professores/2024/")
+        res = client.get(
+            f"{_BASE}/professores/escolas/999999/professores/2024/"
+        )
         assert res.status_code == 200
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/professores/escolas/000532/professores/2024/")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-02 — Turmas atribuídas (escola + RF + ano)
-# ---------------------------------------------------------------------------
 
 
 class TestEP02TurmasAtribuidasEscola:
@@ -77,11 +70,6 @@ class TestEP02TurmasAtribuidasEscola:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-03 / EP-04 — Turmas do professor (todas / por ano)
-# ---------------------------------------------------------------------------
-
-
 class TestEP03EP04TurmasAtribuidas:
     def test_todas_as_turmas_retorna_lista(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/7654321/turmas/")
@@ -94,23 +82,22 @@ class TestEP03EP04TurmasAtribuidas:
         assert res.data == []
 
     def test_por_ano_com_atribuicao_retorna_lista(self, client, atribuicao):
-        res = client.get(f"{_BASE}/professores/7654321/turmas/anos_letivos/2024/")
+        res = client.get(
+            f"{_BASE}/professores/7654321/turmas/anos_letivos/2024/"
+        )
         assert res.status_code == 200
         assert any(t["codigo_turma"] == 2112345 for t in res.data)
 
     def test_por_ano_errado_retorna_vazia(self, client, atribuicao):
-        res = client.get(f"{_BASE}/professores/7654321/turmas/anos_letivos/2099/")
+        res = client.get(
+            f"{_BASE}/professores/7654321/turmas/anos_letivos/2099/"
+        )
         assert res.status_code == 200
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/professores/7654321/turmas/")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-05 — Nome pelo RF
-# ---------------------------------------------------------------------------
 
 
 class TestEP05ObterNomePeloRF:
@@ -126,11 +113,6 @@ class TestEP05ObterNomePeloRF:
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/professores/7654321/")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-06 — BuscarPorRf (por RF e ano letivo)
-# ---------------------------------------------------------------------------
 
 
 class TestEP06BuscarPorRf:
@@ -158,25 +140,24 @@ class TestEP06BuscarPorRf:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-07 — BuscarPorRfDreUe
-# ---------------------------------------------------------------------------
-
-
 class TestEP07BuscarPorRfDreUe:
     def test_encontrado_sem_filtro_retorna_200(self, client, professor):
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/")
         assert res.status_code == 200
         assert res.data["codigo_rf"] == "7654321"
 
-    def test_filtro_ue_correto_retorna_dados(self, client, atribuicao, lotacao):
+    def test_filtro_ue_correto_retorna_dados(
+        self, client, atribuicao, lotacao
+    ):
         res = client.get(
             f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ue_id=000532"
         )
         assert res.status_code == 200
         assert res.data["codigo_rf"] == "7654321"
 
-    def test_filtro_ue_errado_nao_encontra_atribuicao(self, client, professor, atribuicao):
+    def test_filtro_ue_errado_nao_encontra_atribuicao(
+        self, client, professor, atribuicao
+    ):
         res = client.get(
             f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ue_id=999999"
         )
@@ -192,11 +173,6 @@ class TestEP07BuscarPorRfDreUe:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-08 — AutoComplete de professores
-# ---------------------------------------------------------------------------
-
-
 class TestEP08AutoComplete:
     def test_retorna_lista_com_professor(self, client, atribuicao):
         res = client.get(f"{_BASE}/professores/2024/AutoComplete/108100/")
@@ -204,13 +180,17 @@ class TestEP08AutoComplete:
         assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
     def test_filtro_nome_retorna_correspondente(self, client, atribuicao):
-        res = client.get(f"{_BASE}/professores/2024/AutoComplete/108100/?nome=Ana")
+        res = client.get(
+            f"{_BASE}/professores/2024/AutoComplete/108100/?nome=Ana"
+        )
         assert res.status_code == 200
         assert len(res.data) >= 1
         assert res.data[0]["nome_servidor"] == "Ana Silva"
 
     def test_filtro_nome_sem_match_retorna_vazio(self, client, atribuicao):
-        res = client.get(f"{_BASE}/professores/2024/AutoComplete/108100/?nome=Zzzz")
+        res = client.get(
+            f"{_BASE}/professores/2024/AutoComplete/108100/?nome=Zzzz"
+        )
         assert res.status_code == 200
         assert res.data == []
 
@@ -222,11 +202,6 @@ class TestEP08AutoComplete:
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/professores/2024/AutoComplete/108100/")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-09 — BuscarPorListaRF (POST)
-# ---------------------------------------------------------------------------
 
 
 class TestEP09BuscarPorListaRF:
@@ -264,11 +239,6 @@ class TestEP09BuscarPorListaRF:
             format="json",
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-10 — Validade do professor
-# ---------------------------------------------------------------------------
 
 
 class TestEP10VerificarValidade:
@@ -316,11 +286,6 @@ class TestEP10VerificarValidade:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-11 — EhEmei
-# ---------------------------------------------------------------------------
-
-
 class TestEP11EhEmei:
     def test_atribuicao_em_ue_emei_retorna_true(self, client, atribuicao):
         # ue fixture tem codigo_tipo_escola=4 (EMEI)
@@ -336,11 +301,6 @@ class TestEP11EhEmei:
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/professores/7654321/ehEmei/")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-12 — Status de atribuição
-# ---------------------------------------------------------------------------
 
 
 class TestEP12AtribuicaoStatus:
@@ -363,11 +323,6 @@ class TestEP12AtribuicaoStatus:
             f"{_BASE}/professores/7654321/turmas/2112345/atribuicao/status/"
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-13 — Verificar atribuição em data
-# ---------------------------------------------------------------------------
 
 
 class TestEP13AtribuicaoVerificarData:
@@ -401,11 +356,6 @@ class TestEP13AtribuicaoVerificarData:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-14 — Verificar atribuição de disciplina em data
-# ---------------------------------------------------------------------------
-
-
 class TestEP14AtribuicaoDisciplinaData:
     def test_retorna_true_quando_existe(self, client, atribuicao):
         res = client.get(
@@ -424,7 +374,9 @@ class TestEP14AtribuicaoDisciplinaData:
         assert res.status_code == 200
         assert res.data is False
 
-    def test_com_territorio_saber_sem_agrupamento_retorna_false(self, client, atribuicao):
+    def test_com_territorio_saber_sem_agrupamento_retorna_false(
+        self, client, atribuicao
+    ):
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/data/"
@@ -439,11 +391,6 @@ class TestEP14AtribuicaoDisciplinaData:
             "/disciplinas/138/atribuicao/verificar/data/"
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-15 — Verificar atribuição via dataTick
-# ---------------------------------------------------------------------------
 
 
 class TestEP15AtribuicaoDisciplinaDataTick:
@@ -480,11 +427,6 @@ class TestEP15AtribuicaoDisciplinaDataTick:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-16 — Verificar recorrência de datas
-# ---------------------------------------------------------------------------
-
-
 class TestEP16AtribuicaoRecorrenciaDatas:
     def test_retorna_lista_com_resultado_correto(self, client, atribuicao):
         url = (
@@ -512,11 +454,6 @@ class TestEP16AtribuicaoRecorrenciaDatas:
             "/disciplinas/138/atribuicao/recorrencia/verificar/datas/"
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-17 — Verificar atribuição em lista de turmas (POST)
-# ---------------------------------------------------------------------------
 
 
 class TestEP17AtribuicaoTurmasLista:
@@ -583,11 +520,6 @@ class TestEP17AtribuicaoTurmasLista:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-18 — Atribuição em período (POST)
-# ---------------------------------------------------------------------------
-
-
 class TestEP18AtribuicaoPeriodo:
     _URL = (
         f"{_BASE}/professores/7654321/turmas/2112345"
@@ -595,7 +527,9 @@ class TestEP18AtribuicaoPeriodo:
         "/inicio/2024-02-01/fim/2024-12-20/"
     )
 
-    def test_atribuicao_dentro_do_periodo_retorna_true(self, client, atribuicao):
+    def test_atribuicao_dentro_do_periodo_retorna_true(
+        self, client, atribuicao
+    ):
         res = client.post(self._URL, format="json")
         assert res.status_code == 200
         assert res.data is True
@@ -608,11 +542,6 @@ class TestEP18AtribuicaoPeriodo:
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.post(self._URL, format="json")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-19 — Professores atribuídos a turma/disciplina em data
-# ---------------------------------------------------------------------------
 
 
 class TestEP19ProfessoresAtribuidosTurmaDisc:
@@ -658,11 +587,6 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-20 — Titular por turma e componente curricular
-# ---------------------------------------------------------------------------
-
-
 class TestEP20TitularPorTurmaDisciplina:
     def test_encontrado_retorna_200_com_rf(self, client, atribuicao):
         res = client.get(
@@ -685,11 +609,6 @@ class TestEP20TitularPorTurmaDisciplina:
             "/componentes-curriculares/138/"
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-21 — Titulares por lista de turmas
-# ---------------------------------------------------------------------------
 
 
 class TestEP21TitularesPorTurmas:
@@ -717,11 +636,6 @@ class TestEP21TitularesPorTurmas:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-22 — Titulares por turma com agrupamento
-# ---------------------------------------------------------------------------
-
-
 class TestEP22TitularesPorTurmaAgrupamento:
     def test_sem_agrupamento_retorna_atribuicoes(self, client, atribuicao):
         res = client.get(
@@ -744,13 +658,10 @@ class TestEP22TitularesPorTurmaAgrupamento:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-23 — Titulares por UE e data de referência
-# ---------------------------------------------------------------------------
-
-
 class TestEP23TitularesPorUe:
-    def test_atribuicao_antes_da_data_retorna_titular(self, client, atribuicao):
+    def test_atribuicao_antes_da_data_retorna_titular(
+        self, client, atribuicao
+    ):
         res = client.get(
             f"{_BASE}/professores/titulares/ue/000532/2024-06-01/"
         )
@@ -772,7 +683,5 @@ class TestEP23TitularesPorUe:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        res = anon.get(
-            f"{_BASE}/professores/titulares/ue/000532/2024-06-01/"
-        )
+        res = anon.get(f"{_BASE}/professores/titulares/ue/000532/2024-06-01/")
         assert res.status_code == 403

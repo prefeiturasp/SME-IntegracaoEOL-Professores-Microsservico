@@ -1,15 +1,10 @@
-"""Testes das views do domínio Funcionários (EP-25 a EP-39)."""
+"""Testes das views do domínio de funcionários."""
 
 import pytest
 
 pytestmark = pytest.mark.django_db
 
 _BASE = "/api/v1/professores"
-
-
-# ---------------------------------------------------------------------------
-# EP-25 — Funcionários de uma UE (todos)
-# ---------------------------------------------------------------------------
 
 
 class TestEP25FuncionariosPorUE:
@@ -28,11 +23,6 @@ class TestEP25FuncionariosPorUE:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-26 — Funcionários de uma UE por cargo específico
-# ---------------------------------------------------------------------------
-
-
 class TestEP26FuncionariosPorUECargo:
     def test_cargo_correto_retorna_funcionario(self, client, lotacao):
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/3379/")
@@ -49,11 +39,6 @@ class TestEP26FuncionariosPorUECargo:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-26-B — Funcionários de uma UE por lista de cargos (query)
-# ---------------------------------------------------------------------------
-
-
 class TestEP26BFuncionariosCargosQuery:
     def test_cargo_na_lista_retorna_funcionario(self, client, lotacao):
         res = client.get(
@@ -68,13 +53,10 @@ class TestEP26BFuncionariosCargosQuery:
         assert any(f["codigo_rf"] == "7654321" for f in res.data)
 
     def test_sem_api_key_retorna_403(self, anon):
-        res = anon.get(f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379")
+        res = anon.get(
+            f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379"
+        )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-27 — Funcionários de uma UE por função de atividade
-# ---------------------------------------------------------------------------
 
 
 class TestEP27FuncionariosFuncaoAtividade:
@@ -99,11 +81,6 @@ class TestEP27FuncionariosFuncaoAtividade:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-27-B — Funcionários de uma UE por lista de funções de atividade (query)
-# ---------------------------------------------------------------------------
-
-
 class TestEP27BFuncionariosFuncoesAtividadesQuery:
     def test_retorna_funcionario_com_funcao(self, client, funcao_atividade):
         res = client.get(
@@ -118,11 +95,6 @@ class TestEP27BFuncionariosFuncoesAtividadesQuery:
             f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/"
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-28 — Funcionários de uma UE por função externa
-# ---------------------------------------------------------------------------
 
 
 class TestEP28FuncionariosFuncaoExterna:
@@ -149,11 +121,6 @@ class TestEP28FuncionariosFuncaoExterna:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-28-B — Funcionários de uma UE por lista de funções externas (query)
-# ---------------------------------------------------------------------------
-
-
 class TestEP28BFuncionariosFuncoesExternasQuery:
     def test_funcao_na_lista_retorna_externo(self, client, contrato_externo):
         res = client.get(
@@ -178,11 +145,6 @@ class TestEP28BFuncionariosFuncoesExternasQuery:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-29 — Cargos do funcionário por RF
-# ---------------------------------------------------------------------------
-
-
 class TestEP29CargosFuncionario:
     def test_retorna_cargo_do_servidor(self, client, cargo_base):
         res = client.get(f"{_BASE}/funcionarios/cargo/7654321/")
@@ -200,29 +162,25 @@ class TestEP29CargosFuncionario:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-30 — Funcionário externo por CPF
-# ---------------------------------------------------------------------------
-
-
 class TestEP30FuncionarioExternoPorCpf:
     def test_encontrado_retorna_dados(self, client, contrato_externo):
-        res = client.get(f"{_BASE}/funcionarios/funcionario-externo/98765432100/")
+        res = client.get(
+            f"{_BASE}/funcionarios/funcionario-externo/98765432100/"
+        )
         assert res.status_code == 200
         assert res.data[0]["cpf"] == "98765432100"
 
     def test_nao_encontrado_retorna_404(self, client, db):
-        res = client.get(f"{_BASE}/funcionarios/funcionario-externo/00000000000/")
+        res = client.get(
+            f"{_BASE}/funcionarios/funcionario-externo/00000000000/"
+        )
         assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
-        res = anon.get(f"{_BASE}/funcionarios/funcionario-externo/98765432100/")
+        res = anon.get(
+            f"{_BASE}/funcionarios/funcionario-externo/98765432100/"
+        )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-31 — Nome e CPF do servidor por RF
-# ---------------------------------------------------------------------------
 
 
 class TestEP31NomeServidor:
@@ -239,11 +197,6 @@ class TestEP31NomeServidor:
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/nome-servidor/7654321/")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-32 — DRE/UE de atribuição do funcionário
-# ---------------------------------------------------------------------------
 
 
 class TestEP32DreUeAtribuicao:
@@ -266,11 +219,6 @@ class TestEP32DreUeAtribuicao:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-33 — Servidor ativo
-# ---------------------------------------------------------------------------
-
-
 class TestEP33ServidorAtivo:
     def test_cargo_sem_fim_retorna_true(self, client, cargo_base):
         # dt_fim_nomeacao=None → servidor ativo
@@ -288,36 +236,32 @@ class TestEP33ServidorAtivo:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-34 — DRE/UE do funcionário por cargo específico
-# ---------------------------------------------------------------------------
-
-
 class TestEP34DreUeAtribuicaoCargo:
     def test_cargo_com_lotacao_retorna_dre_ue(self, client, lotacao):
-        res = client.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
+        res = client.get(
+            f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/"
+        )
         assert res.status_code == 200
         assert res.data[0]["codigo_rf"] == "7654321"
         assert res.data[0]["codigo_ue"] == "000532"
 
     def test_cargo_sem_lotacao_retorna_ue_nula(self, client, cargo_base):
-        res = client.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
+        res = client.get(
+            f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/"
+        )
         assert res.status_code == 200
         assert res.data[0]["codigo_ue"] is None
 
     def test_cargo_inexistente_retorna_404(self, client, db):
-        res = client.get(f"{_BASE}/funcionarios/atribuicao/0000000/cargo/3379/")
+        res = client.get(
+            f"{_BASE}/funcionarios/atribuicao/0000000/cargo/3379/"
+        )
         assert res.status_code == 200
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-35 — Usuários SGP por perfil
-# ---------------------------------------------------------------------------
 
 
 class TestEP35UsuariosSGP:
@@ -331,7 +275,9 @@ class TestEP35UsuariosSGP:
             "O código da Dre ou código rf/login deve ser informados."
         )
 
-    def test_guid_vazio_com_codigo_rf_retorna_funcionario(self, client, lotacao):
+    def test_guid_vazio_com_codigo_rf_retorna_funcionario(
+        self, client, lotacao
+    ):
         res = client.get(
             f"{_BASE}/funcionarios/perfis/"
             "00000000-0000-0000-0000-000000000000/?codigo_rf=7654321"
@@ -378,11 +324,6 @@ class TestEP35UsuariosSGP:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-36 — Funcionários SGP por DRE e perfil
-# ---------------------------------------------------------------------------
-
-
 class TestEP36FuncionariosSGPDre:
     def test_guid_vazio_retorna_400_como_legado(self, client):
         res = client.get(
@@ -424,11 +365,6 @@ class TestEP36FuncionariosSGPDre:
         assert res.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# EP-37 — Verificar acesso à sondagem
-# ---------------------------------------------------------------------------
-
-
 class TestEP37AcessoSondagem:
     def test_com_atribuicao_retorna_true(self, client, atribuicao):
         res = client.get(
@@ -452,11 +388,6 @@ class TestEP37AcessoSondagem:
             "/VerificaSeProfessorTemAcessoAhSondagem/"
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-38 — Buscar por lista de RF (POST)
-# ---------------------------------------------------------------------------
 
 
 class TestEP38BuscarPorListaRF:
@@ -503,11 +434,6 @@ class TestEP38BuscarPorListaRF:
             format="json",
         )
         assert res.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# EP-39 — Buscar por lista de login (POST)
-# ---------------------------------------------------------------------------
 
 
 class TestEP39BuscarPorListaLogin:

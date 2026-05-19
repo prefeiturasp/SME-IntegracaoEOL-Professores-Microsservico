@@ -1,4 +1,4 @@
-"""Views do domínio Turmas (EP-24)."""
+"""Views do domínio de turmas."""
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
@@ -13,7 +13,7 @@ _TAG_TURMAS = ["Turmas"]
 
 
 class TurmasHistoricasAnoProfessorView(APIView):
-    """EP-24 — Buscar turmas históricas do professor por ano."""
+    """Lista turmas históricas do professor por ano."""
 
     @extend_schema(
         tags=_TAG_TURMAS,
@@ -22,7 +22,11 @@ class TurmasHistoricasAnoProfessorView(APIView):
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
             OpenApiParameter("professor_rf", str, OpenApiParameter.PATH),
         ],
-        responses={200: TurmaHistoricaSerializer(many=True), 400: dict, 404: dict},
+        responses={
+            200: TurmaHistoricaSerializer(many=True),
+            400: dict,
+            404: dict,
+        },
     )
     def get(
         self,
@@ -30,7 +34,9 @@ class TurmasHistoricasAnoProfessorView(APIView):
         ano_letivo: int,
         professor_rf: str,
     ) -> Response:
-        resultado = repository.turmas_historicas_professor(ano_letivo, professor_rf)
+        resultado = repository.turmas_historicas_professor(
+            ano_letivo, professor_rf
+        )
         if not resultado:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)

@@ -1,5 +1,3 @@
-"""Configuracao do app turmas."""
-
 from django.apps import AppConfig
 
 

@@ -1,10 +1,10 @@
-"""Serializers do domínio Professores — definem o schema do Swagger."""
+"""Serializers do domínio de professores."""
 
 from rest_framework import serializers
 
 
 class ProfessorEscolaSerializer(serializers.Serializer):
-    """EP-01 — Professor de uma escola por ano letivo."""
+    """Serializa dados de professor em unidade educacional."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
@@ -22,7 +22,7 @@ class ProfessorEscolaSerializer(serializers.Serializer):
 
 
 class TurmaAtribuidaSerializer(serializers.Serializer):
-    """EP-02, EP-03, EP-04 — Turmas atribuídas ao professor."""
+    """Serializa dados de turma atribuída ao professor."""
 
     codigo_turma = serializers.IntegerField(allow_null=True)
     nome_turma = serializers.CharField(allow_null=True)
@@ -36,14 +36,14 @@ class TurmaAtribuidaSerializer(serializers.Serializer):
 
 
 class NomePorRFSerializer(serializers.Serializer):
-    """EP-05 — Nome e RF do professor."""
+    """Serializa dados de identificação do professor."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
 
 
 class ProfessorPerfilSerializer(serializers.Serializer):
-    """EP-06, EP-07 — Perfil do professor por RF e ano letivo."""
+    """Serializa dados de perfil do professor."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
@@ -57,14 +57,14 @@ class ProfessorPerfilSerializer(serializers.Serializer):
 
 
 class AutoCompleteSerializer(serializers.Serializer):
-    """EP-08 — AutoComplete de professores."""
+    """Serializa dados resumidos para busca de professores."""
 
     codigo_rf = serializers.CharField()
     nome_servidor = serializers.CharField()
 
 
 class ResumoSerializer(serializers.Serializer):
-    """EP-09, EP-38, EP-39 — Resumo básico de professor/funcionário."""
+    """Serializa dados resumidos de servidor."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
@@ -72,7 +72,7 @@ class ResumoSerializer(serializers.Serializer):
 
 
 class AtribuicaoStatusSerializer(serializers.Serializer):
-    """EP-12 — Status de atribuição na turma."""
+    """Serializa o status de atribuição na turma."""
 
     possui_atribuicao = serializers.BooleanField()
     codigo_rf = serializers.CharField()
@@ -80,21 +80,21 @@ class AtribuicaoStatusSerializer(serializers.Serializer):
 
 
 class AtribuicaoDataSerializer(serializers.Serializer):
-    """EP-16 — Atribuição por data (recorrência)."""
+    """Serializa o status de atribuição em uma data."""
 
     data = serializers.DateField()
     possui_atribuicao = serializers.BooleanField()
 
 
 class AtribuicaoTurmaSerializer(serializers.Serializer):
-    """EP-17 — Atribuição por turma."""
+    """Serializa o status de atribuição por turma."""
 
     codigo_turma = serializers.IntegerField()
     possui_atribuicao = serializers.BooleanField()
 
 
 class ProfessorAtribuidoTurmaDiscSerializer(serializers.Serializer):
-    """EP-19 — Professores atribuídos a turma/disciplina em data."""
+    """Serializa professor atribuído a turma e disciplina."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
@@ -106,7 +106,7 @@ class ProfessorAtribuidoTurmaDiscSerializer(serializers.Serializer):
 
 
 class TitularSerializer(serializers.Serializer):
-    """EP-20 — Professor titular por turma e disciplina."""
+    """Serializa dados de professor titular."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
@@ -114,7 +114,7 @@ class TitularSerializer(serializers.Serializer):
 
 
 class TitularPorTurmaSerializer(serializers.Serializer):
-    """EP-21 — Titulares por lista de turmas."""
+    """Serializa professor titular por turma."""
 
     codigo_turma = serializers.IntegerField()
     codigo_rf = serializers.CharField()
@@ -122,7 +122,7 @@ class TitularPorTurmaSerializer(serializers.Serializer):
 
 
 class TitularAgrupamentoSerializer(serializers.Serializer):
-    """EP-22, EP-23 — Titulares por turma com agrupamento."""
+    """Serializa professor titular com dados de agrupamento."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()

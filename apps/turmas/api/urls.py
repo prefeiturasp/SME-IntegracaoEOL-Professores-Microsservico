@@ -1,11 +1,10 @@
-"""Rotas da API do domínio Turmas."""
+"""Rotas da API do domínio de turmas."""
 
 from django.urls import path
 
 from apps.turmas.api.views import TurmasHistoricasAnoProfessorView
 
 urlpatterns = [
-    # EP-24 — Turmas históricas do professor por ano
     path(
         "professores/turmas/anos-letivos/<int:ano_letivo>/"
         "professor/<str:professor_rf>/turmas-historicas-geral/",

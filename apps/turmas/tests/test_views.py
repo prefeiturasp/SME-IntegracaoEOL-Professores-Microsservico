@@ -1,4 +1,4 @@
-"""Testes das views do domínio Turmas (EP-24)."""
+"""Testes das views do domínio de turmas."""
 
 from datetime import date
 
@@ -15,17 +15,10 @@ pytestmark = pytest.mark.django_db
 _BASE = "/api/v1/professores/turmas/anos-letivos"
 
 
-# ---------------------------------------------------------------------------
-# EP-24 — Turmas históricas do professor por ano
-# ---------------------------------------------------------------------------
-
-
 class TestEP24TurmasHistoricas:
     _url = f"{_BASE}/2024/professor/7654321/turmas-historicas-geral/"
 
     def test_retorna_turmas_do_professor(self, client, atribuicao, turma):
-        # atribuicao liga professor 7654321 à turma 2112345 no ano 2024
-        # turma fixture cria TurmaEscola 2112345 com status="A"
         atribuicao.dt_disponibilizacao_aulas = date(2024, 3, 1)
         atribuicao.save(update_fields=["dt_disponibilizacao_aulas"])
         res = client.get(self._url)
@@ -54,8 +47,6 @@ class TestEP24TurmasHistoricas:
         assert res.status_code == 404
 
     def test_atribuicao_sem_turma_retorna_404(self, client, atribuicao):
-        # AtribuicaoAula existe, mas TurmaEscola nao foi criada.
-        # Assim o JOIN com TurmaEscola nao devolve a turma.
         atribuicao.dt_disponibilizacao_aulas = date(2024, 3, 1)
         atribuicao.save(update_fields=["dt_disponibilizacao_aulas"])
         res = client.get(self._url)
