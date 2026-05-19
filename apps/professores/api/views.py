@@ -1,4 +1,4 @@
-"""Views do domínio Professores (EP-01 a EP-23)."""
+"""Views do domínio de professores."""
 
 from datetime import date
 
@@ -29,13 +29,8 @@ _TAG_PROF = ["Professores"]
 _TAG_TITULAR = ["Professores Titulares"]
 
 
-# ---------------------------------------------------------------------------
-# EP-01 / EP-02 — Professores de escola / Turmas atribuídas (escola+ano)
-# ---------------------------------------------------------------------------
-
-
 class BuscaProfessoresView(APIView):
-    """EP-01 — Buscar professores de uma escola sem ano letivo."""
+    """Lista professores de uma escola."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -55,7 +50,7 @@ class BuscaProfessoresView(APIView):
 
 
 class BuscaProfessoresAnoLetivoView(APIView):
-    """EP-01 — Buscar professores de uma escola por ano letivo."""
+    """Lista professores de uma escola por ano letivo."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -72,12 +67,14 @@ class BuscaProfessoresAnoLetivoView(APIView):
         codigo_eol_escola: str,
         ano_letivo: int,
     ) -> Response:
-        resultado = repository.buscar_professores_escola(codigo_eol_escola, ano_letivo)
+        resultado = repository.buscar_professores_escola(
+            codigo_eol_escola, ano_letivo
+        )
         return Response(resultado)
 
 
 class BuscaTurmasAtribuidasEscolaView(APIView):
-    """EP-02 — Turmas atribuídas em uma escola e ano."""
+    """Lista turmas atribuídas em uma escola e ano letivo."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -101,7 +98,7 @@ class BuscaTurmasAtribuidasEscolaView(APIView):
 
 
 class BuscaTurmasAtribuidasProfessorEscolaView(APIView):
-    """EP-02 — Turmas atribuídas ao professor em uma escola e ano."""
+    """Lista turmas atribuídas ao professor em uma escola."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -126,13 +123,8 @@ class BuscaTurmasAtribuidasProfessorEscolaView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-03 / EP-04 — Turmas do professor (todas / por ano)
-# ---------------------------------------------------------------------------
-
-
 class BuscarTurmasAtribuidasView(APIView):
-    """EP-03/04 — Todas as turmas atribuídas ao professor."""
+    """Lista turmas atribuídas ao professor."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -149,19 +141,16 @@ class BuscarTurmasAtribuidasView(APIView):
         ano_letivo: int | None = None,
     ) -> Response:
         if ano_letivo is not None:
-            resultado = repository.buscar_turmas_professor_ano(codigo_rf, ano_letivo)
+            resultado = repository.buscar_turmas_professor_ano(
+                codigo_rf, ano_letivo
+            )
         else:
             resultado = repository.buscar_turmas_professor(codigo_rf)
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-05 — Nome pelo RF
-# ---------------------------------------------------------------------------
-
-
 class ObterNomePeloRFView(APIView):
-    """EP-05 — Obter nome do professor pelo RF."""
+    """Retorna o nome do professor pelo registro funcional."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -176,16 +165,12 @@ class ObterNomePeloRFView(APIView):
         if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         from django.http import HttpResponse
+
         return HttpResponse(nome, content_type="text/plain")
 
 
-# ---------------------------------------------------------------------------
-# EP-06 / EP-07 — BuscarPorRf e BuscarPorRfDreUe
-# ---------------------------------------------------------------------------
-
-
 class BuscarPorRfAnoLetivoView(APIView):
-    """EP-06 — Buscar professor por RF e ano letivo."""
+    """Retorna dados do professor por registro funcional e ano."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -194,12 +179,17 @@ class BuscarPorRfAnoLetivoView(APIView):
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
             OpenApiParameter(
-                "buscar_outros_cargos", bool, OpenApiParameter.QUERY, required=False
+                "buscar_outros_cargos",
+                bool,
+                OpenApiParameter.QUERY,
+                required=False,
             ),
         ],
         responses={200: ProfessorPerfilSerializer, 404: dict},
     )
-    def get(self, request: Request, codigo_rf: str, ano_letivo: int) -> Response:
+    def get(
+        self, request: Request, codigo_rf: str, ano_letivo: int
+    ) -> Response:
         resultado = repository.buscar_por_rf_ano(codigo_rf, ano_letivo)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -207,7 +197,7 @@ class BuscarPorRfAnoLetivoView(APIView):
 
 
 class BuscarPorRfDreUeView(APIView):
-    """EP-07 — Buscar professor por RF, DRE e UE."""
+    """Retorna dados do professor por registro funcional."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -215,28 +205,32 @@ class BuscarPorRfDreUeView(APIView):
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
-            OpenApiParameter("dre_id", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("ue_id", str, OpenApiParameter.QUERY, required=False),
             OpenApiParameter(
-                "buscar_outros_cargos", bool, OpenApiParameter.QUERY, required=False
+                "dre_id", str, OpenApiParameter.QUERY, required=False
+            ),
+            OpenApiParameter(
+                "ue_id", str, OpenApiParameter.QUERY, required=False
+            ),
+            OpenApiParameter(
+                "buscar_outros_cargos",
+                bool,
+                OpenApiParameter.QUERY,
+                required=False,
             ),
         ],
         responses={200: ProfessorPerfilSerializer, 404: dict},
     )
-    def get(self, request: Request, codigo_rf: str, ano_letivo: int) -> Response:
+    def get(
+        self, request: Request, codigo_rf: str, ano_letivo: int
+    ) -> Response:
         resultado = repository.buscar_por_rf_dre_ue(codigo_rf)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-08 — AutoComplete
-# ---------------------------------------------------------------------------
-
-
 class AutoCompleteView(APIView):
-    """EP-08 — AutoComplete de professores por DRE e ano."""
+    """Lista professores para autocomplete por DRE e ano."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -244,8 +238,12 @@ class AutoCompleteView(APIView):
         parameters=[
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
             OpenApiParameter("dre_id", str, OpenApiParameter.PATH),
-            OpenApiParameter("ue_id", str, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("nome", str, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(
+                "ue_id", str, OpenApiParameter.QUERY, required=False
+            ),
+            OpenApiParameter(
+                "nome", str, OpenApiParameter.QUERY, required=False
+            ),
         ],
         responses={200: AutoCompleteSerializer(many=True)},
     )
@@ -259,13 +257,8 @@ class AutoCompleteView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-09 — BuscarPorListaRF (POST)
-# ---------------------------------------------------------------------------
-
-
 class BuscarPorListaRFView(APIView):
-    """EP-09 — Buscar professores por lista de RF e ano."""
+    """Lista professores por registros funcionais e ano."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -282,13 +275,8 @@ class BuscarPorListaRFView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-10 — Validade do professor
-# ---------------------------------------------------------------------------
-
-
 class VerificarValidadeView(APIView):
-    """EP-10 — Verificar validade do professor."""
+    """Verifica se o professor possui vínculo válido."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -302,13 +290,8 @@ class VerificarValidadeView(APIView):
         return Response(repository.verificar_validade(codigo_rf))
 
 
-# ---------------------------------------------------------------------------
-# EP-11 — EhEmei
-# ---------------------------------------------------------------------------
-
-
 class EhEmeiView(APIView):
-    """EP-11 — Verificar se professor é EMEI."""
+    """Verifica se o professor está vinculado a EMEI."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -322,13 +305,8 @@ class EhEmeiView(APIView):
         return Response(repository.eh_emei(codigo_rf))
 
 
-# ---------------------------------------------------------------------------
-# EP-12 — Status de atribuição na turma
-# ---------------------------------------------------------------------------
-
-
 class AtribuicaoStatusView(APIView):
-    """EP-12 — Verificar atribuição na turma (status)."""
+    """Verifica atribuição do professor na turma."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -339,17 +317,14 @@ class AtribuicaoStatusView(APIView):
         ],
         responses={200: AtribuicaoStatusSerializer, 422: dict, 500: dict},
     )
-    def get(self, request: Request, codigo_rf: str, codigo_turma: int) -> Response:
+    def get(
+        self, request: Request, codigo_rf: str, codigo_turma: int
+    ) -> Response:
         return Response(repository.atribuicao_status(codigo_rf, codigo_turma))
 
 
-# ---------------------------------------------------------------------------
-# EP-13 — Atribuição na turma em data
-# ---------------------------------------------------------------------------
-
-
 class AtribuicaoVerificarDataView(APIView):
-    """EP-13 — Verificar atribuição na turma em uma data."""
+    """Verifica atribuição do professor na turma em uma data."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -363,7 +338,9 @@ class AtribuicaoVerificarDataView(APIView):
         ],
         responses={200: bool, 400: dict, 422: dict, 500: dict},
     )
-    def get(self, request: Request, codigo_rf: str, codigo_turma: int) -> Response:
+    def get(
+        self, request: Request, codigo_rf: str, codigo_turma: int
+    ) -> Response:
         data_str = request.query_params.get("data_consulta")
         data: date | None = date.fromisoformat(data_str) if data_str else None
         return Response(
@@ -371,13 +348,8 @@ class AtribuicaoVerificarDataView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-14 — Atribuição na disciplina/turma em data
-# ---------------------------------------------------------------------------
-
-
 class AtribuicaoDisciplinaDataView(APIView):
-    """EP-14 — Verificar atribuição na disciplina/turma em data."""
+    """Verifica atribuição do professor na disciplina em uma data."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -390,7 +362,10 @@ class AtribuicaoDisciplinaDataView(APIView):
                 "data_consulta", str, OpenApiParameter.QUERY, required=False
             ),
             OpenApiParameter(
-                "territorio_saber", bool, OpenApiParameter.QUERY, required=False
+                "territorio_saber",
+                bool,
+                OpenApiParameter.QUERY,
+                required=False,
             ),
         ],
         responses={200: bool, 400: dict, 422: dict, 500: dict},
@@ -404,7 +379,9 @@ class AtribuicaoDisciplinaDataView(APIView):
     ) -> Response:
         data_str = request.query_params.get("data_consulta")
         data: date | None = date.fromisoformat(data_str) if data_str else None
-        territorio = request.query_params.get("territorio_saber", "").lower() == "true"
+        territorio = (
+            request.query_params.get("territorio_saber", "").lower() == "true"
+        )
         return Response(
             repository.atribuicao_disciplina_data(
                 codigo_rf, codigo_turma, disciplina_id, data, territorio
@@ -412,13 +389,8 @@ class AtribuicaoDisciplinaDataView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-15 — Atribuição via dataTick
-# ---------------------------------------------------------------------------
-
-
 class AtribuicaoDisciplinaDataTickView(APIView):
-    """EP-15 — Verificar atribuição na disciplina/turma via dataTick."""
+    """Verifica atribuição do professor usando data em ticks."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -428,7 +400,10 @@ class AtribuicaoDisciplinaDataTickView(APIView):
             OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
             OpenApiParameter("disciplina_id", int, OpenApiParameter.PATH),
             OpenApiParameter(
-                "data_consulta_tick", int, OpenApiParameter.QUERY, required=True
+                "data_consulta_tick",
+                int,
+                OpenApiParameter.QUERY,
+                required=True,
             ),
         ],
         responses={200: bool, 400: dict, 422: dict, 500: dict},
@@ -453,13 +428,8 @@ class AtribuicaoDisciplinaDataTickView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-16 — Recorrência de datas (array de ticks)
-# ---------------------------------------------------------------------------
-
-
 class AtribuicaoRecorrenciaDatasView(APIView):
-    """EP-16 — Verificar atribuição em recorrência de datas."""
+    """Lista resultados de atribuição para datas recorrentes."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -472,10 +442,19 @@ class AtribuicaoRecorrenciaDatasView(APIView):
             OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
             OpenApiParameter("disciplina_id", int, OpenApiParameter.PATH),
             OpenApiParameter(
-                "data_ticks", int, OpenApiParameter.QUERY, required=True, many=True
+                "data_ticks",
+                int,
+                OpenApiParameter.QUERY,
+                required=True,
+                many=True,
             ),
         ],
-        responses={200: AtribuicaoDataSerializer(many=True), 400: dict, 422: dict, 500: dict},
+        responses={
+            200: AtribuicaoDataSerializer(many=True),
+            400: dict,
+            422: dict,
+            500: dict,
+        },
     )
     def get(
         self,
@@ -497,13 +476,8 @@ class AtribuicaoRecorrenciaDatasView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-17 — Verificar atribuição em lista de turmas (POST)
-# ---------------------------------------------------------------------------
-
-
 class AtribuicaoTurmasListaView(APIView):
-    """EP-17 — Verificar atribuição em turmas por disciplina (POST)."""
+    """Lista resultados de atribuição em turmas por disciplina."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -515,20 +489,19 @@ class AtribuicaoTurmasListaView(APIView):
         request=list,
         responses={200: AtribuicaoTurmaSerializer(many=True)},
     )
-    def post(self, request: Request, codigo_rf: str, disciplina_id: int) -> Response:
+    def post(
+        self, request: Request, codigo_rf: str, disciplina_id: int
+    ) -> Response:
         codigos_turma = request.data if isinstance(request.data, list) else []
         return Response(
-            repository.atribuicao_turmas_lista(codigo_rf, disciplina_id, codigos_turma)
+            repository.atribuicao_turmas_lista(
+                codigo_rf, disciplina_id, codigos_turma
+            )
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-18 — Atribuição em período (POST)
-# ---------------------------------------------------------------------------
-
-
 class AtribuicaoPeriodoView(APIView):
-    """EP-18 — Verificar atribuição do professor em período."""
+    """Verifica atribuição do professor em período."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -536,8 +509,12 @@ class AtribuicaoPeriodoView(APIView):
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
-            OpenApiParameter("componente_curricular_id", int, OpenApiParameter.PATH),
-            OpenApiParameter("data_inicio_periodo", str, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "componente_curricular_id", int, OpenApiParameter.PATH
+            ),
+            OpenApiParameter(
+                "data_inicio_periodo", str, OpenApiParameter.PATH
+            ),
             OpenApiParameter("data_fim_periodo", str, OpenApiParameter.PATH),
         ],
         responses={200: bool, 400: dict, 422: dict, 500: dict},
@@ -562,13 +539,8 @@ class AtribuicaoPeriodoView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-19 — Professores atribuídos a turma/disciplina em data
-# ---------------------------------------------------------------------------
-
-
 class ObterProfessoresAtribuidosTurmaDiscView(APIView):
-    """EP-19 — Obter professores atribuídos a turma/disciplina em data."""
+    """Lista professores atribuídos a turma e disciplina em data."""
 
     @extend_schema(
         tags=_TAG_PROF,
@@ -587,7 +559,9 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
             500: dict,
         },
     )
-    def get(self, request: Request, codigo_turma: int, disciplina_id: int) -> Response:
+    def get(
+        self, request: Request, codigo_turma: int, disciplina_id: int
+    ) -> Response:
         tick_str = request.query_params.get("data_ticks")
         if not tick_str:
             return Response(
@@ -601,13 +575,8 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-20 — Titular por turma e disciplina
-# ---------------------------------------------------------------------------
-
-
 class TitularPorTurmaDisciplinaView(APIView):
-    """EP-20 — Buscar professor titular por turma e disciplina."""
+    """Retorna professor titular por turma e disciplina."""
 
     @extend_schema(
         tags=_TAG_TITULAR,
@@ -634,13 +603,8 @@ class TitularPorTurmaDisciplinaView(APIView):
         return Response(resultado)
 
 
-# ---------------------------------------------------------------------------
-# EP-21 — Titulares por lista de turmas
-# ---------------------------------------------------------------------------
-
-
 class TitularesPorTurmasView(APIView):
-    """EP-21 — Buscar professores titulares por lista de turmas."""
+    """Lista professores titulares por turmas."""
 
     @extend_schema(
         tags=_TAG_TITULAR,
@@ -657,24 +621,23 @@ class TitularesPorTurmasView(APIView):
         responses={200: TitularPorTurmaSerializer(many=True)},
     )
     def get(self, request: Request) -> Response:
-        codigos = [int(c) for c in request.query_params.getlist("codigos_turmas")]
+        codigos = [
+            int(c) for c in request.query_params.getlist("codigos_turmas")
+        ]
         return Response(repository.titulares_por_turmas(codigos))
 
 
-# ---------------------------------------------------------------------------
-# EP-22 — Titulares por turma com agrupamento
-# ---------------------------------------------------------------------------
-
-
 class TitularesPorTurmaAgrupamentoView(APIView):
-    """EP-22 — Buscar professores titulares por turma com agrupamento."""
+    """Lista professores titulares por turma com agrupamento."""
 
     @extend_schema(
         tags=_TAG_TITULAR,
         summary="Buscar professores titulares por turma com agrupamento",
         parameters=[
             OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
-            OpenApiParameter("realiza_agrupamento", str, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "realiza_agrupamento", str, OpenApiParameter.PATH
+            ),
             OpenApiParameter(
                 "codigo_rf", str, OpenApiParameter.QUERY, required=False
             ),
@@ -703,13 +666,8 @@ class TitularesPorTurmaAgrupamentoView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# EP-23 — Titulares por UE e data de referência
-# ---------------------------------------------------------------------------
-
-
 class TitularesPorUeView(APIView):
-    """EP-23 — Buscar professores titulares por UE e data de referência."""
+    """Lista professores titulares por unidade e data de referência."""
 
     @extend_schema(
         tags=_TAG_TITULAR,

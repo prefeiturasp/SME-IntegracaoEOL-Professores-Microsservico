@@ -1,7 +1,8 @@
-"""Configuracoes Django do SME-IntegracaoEOL-Professores-Microsservico."""
+"""Configurações Django do microsserviço de professores."""
 
 import os
 import secrets
+import sys as _sys
 import urllib.parse
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,7 @@ _POOL_OPTIONS = {
 
 
 def _parse_db_url(url: Any) -> dict:
-    """Faz o parse de uma URL postgres para dict de configuração Django."""
+    """Retorna configuração Django a partir de uma URL Postgres."""
     if not url:
         return {
             "ENGINE": "django.db.backends.sqlite3",
@@ -41,6 +42,7 @@ def _parse_db_url(url: Any) -> dict:
         "PORT": str(parsed.port or 5432),
         "POOL_OPTIONS": _POOL_OPTIONS,
     }
+
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
@@ -100,8 +102,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
-
-import sys as _sys
 
 URL_BANCO_PROFESSORES = (
     None if "pytest" in _sys.modules else os.getenv("URL_BANCO_PROFESSORES")

@@ -1,4 +1,4 @@
-"""ASGI config para SME-IntegracaoEOL-Professores-Microsservico."""
+"""Configuração ASGI do projeto Django."""
 
 import os
 

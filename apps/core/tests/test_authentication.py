@@ -9,22 +9,23 @@ from apps.core.authentication import ApiKeyAuthentication, UsuarioApiKey
 
 @pytest.fixture()
 def auth():
+    """Retorna autenticador de API key."""
     return ApiKeyAuthentication()
 
 
 @pytest.fixture()
 def factory():
+    """Retorna factory de requests Django."""
     return RequestFactory()
 
 
 def _make_drf_request(factory, headers=None):
-    """Cria um request DRF a partir de um request Django com headers opcionais."""
+    """Cria request DRF com headers opcionais."""
     from rest_framework.request import Request
 
     django_request = factory.get("/")
     if headers:
         for key, value in headers.items():
-            # Django transforma headers em META com prefixo HTTP_
             meta_key = "HTTP_" + key.upper().replace("-", "_")
             django_request.META[meta_key] = value
     return Request(django_request)

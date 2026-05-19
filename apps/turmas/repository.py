@@ -1,7 +1,4 @@
-"""Queries do domínio Turmas (EP-24).
-
-Importa models de apps.professores pois compartilham o mesmo banco.
-"""
+"""Queries do domínio de turmas."""
 
 from apps.professores.models import (
     AtribuicaoAula,
@@ -16,24 +13,27 @@ def turmas_historicas_professor(
     ano_letivo: int,
     professor_rf: str,
 ) -> list[dict]:
-    """EP-24 — Turmas históricas no formato TurmaDTO."""
+    """Lista turmas históricas do professor por ano letivo."""
     atribuicoes = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf=professor_rf,
         ano_atribuicao=ano_letivo,
         dt_cancelamento__isnull=True,
     )
     codigos = set(
-        atribuicoes.exclude(codigo_turma_escola__isnull=True)
-        .values_list("codigo_turma_escola", flat=True)
+        atribuicoes.exclude(codigo_turma_escola__isnull=True).values_list(
+            "codigo_turma_escola", flat=True
+        )
     )
     series = set(
-        atribuicoes.exclude(codigo_serie_grade__isnull=True)
-        .values_list("codigo_serie_grade", flat=True)
+        atribuicoes.exclude(codigo_serie_grade__isnull=True).values_list(
+            "codigo_serie_grade", flat=True
+        )
     )
     if series:
         codigos.update(
-            SerieTurmaGrade.objects.filter(codigo_serie_grade__in=series)
-            .values_list("codigo_turma", flat=True)
+            SerieTurmaGrade.objects.filter(
+                codigo_serie_grade__in=series
+            ).values_list("codigo_turma", flat=True)
         )
 
     if not codigos:

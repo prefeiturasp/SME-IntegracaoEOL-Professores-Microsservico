@@ -1,10 +1,10 @@
-"""Serializers do domínio Funcionários — definem o schema do Swagger."""
+"""Serializers do domínio de funcionários."""
 
 from rest_framework import serializers
 
 
 class FuncionarioUESerializer(serializers.Serializer):
-    """EP-25, EP-26, EP-27, EP-29 — Funcionário por UE."""
+    """Serializa dados de funcionário em unidade educacional."""
 
     codigo_rf = serializers.CharField()
     nome_servidor = serializers.CharField()
@@ -14,7 +14,7 @@ class FuncionarioUESerializer(serializers.Serializer):
 
 
 class FuncionarioFuncaoExternaSerializer(serializers.Serializer):
-    """EP-28 — Funcionário externo por UE e função externa."""
+    """Serializa dados de funcionário externo por função."""
 
     cpf = serializers.CharField()
     nome_servidor = serializers.CharField()
@@ -23,7 +23,7 @@ class FuncionarioFuncaoExternaSerializer(serializers.Serializer):
 
 
 class FuncionarioExternoCpfSerializer(serializers.Serializer):
-    """EP-30 — Funcionário externo por CPF."""
+    """Serializa dados de funcionário externo."""
 
     cpf = serializers.CharField()
     nome = serializers.CharField()
@@ -32,7 +32,7 @@ class FuncionarioExternoCpfSerializer(serializers.Serializer):
 
 
 class NomeServidorSerializer(serializers.Serializer):
-    """EP-31 — Nome e CPF do servidor por RF."""
+    """Serializa dados de identificação do servidor."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
@@ -40,7 +40,7 @@ class NomeServidorSerializer(serializers.Serializer):
 
 
 class DreUeAtribuicaoSerializer(serializers.Serializer):
-    """EP-32 — DRE/UE de atribuição do funcionário."""
+    """Serializa dados de atribuição do funcionário."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
@@ -49,7 +49,7 @@ class DreUeAtribuicaoSerializer(serializers.Serializer):
 
 
 class DreUeCargoSerializer(serializers.Serializer):
-    """EP-34 — DRE/UE do funcionário por cargo específico."""
+    """Serializa dados de cargo do funcionário."""
 
     codigo_rf = serializers.CharField()
     codigo_dre = serializers.CharField(allow_null=True)
@@ -58,7 +58,7 @@ class DreUeCargoSerializer(serializers.Serializer):
 
 
 class UsuarioSGPSerializer(serializers.Serializer):
-    """EP-35, EP-36 — Usuário SGP."""
+    """Serializa dados de usuário SGP."""
 
     codigo_rf = serializers.CharField()
     nome_servidor = serializers.CharField()
@@ -67,7 +67,7 @@ class UsuarioSGPSerializer(serializers.Serializer):
 
 
 class ResumoFuncionarioSerializer(serializers.Serializer):
-    """EP-38, EP-39 — Resumo de funcionário por lista de RF/login."""
+    """Serializa dados resumidos de funcionário."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()

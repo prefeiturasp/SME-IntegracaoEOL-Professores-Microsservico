@@ -1,6 +1,6 @@
 """Fixtures globais de teste."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from rest_framework.test import APIClient
@@ -19,18 +19,18 @@ from apps.professores.models import (
 )
 
 _API_KEY = "test-key"
-_DOTNET_EPOCH = datetime(1, 1, 1, tzinfo=timezone.utc)
+_DOTNET_EPOCH = datetime(1, 1, 1, tzinfo=UTC)
 
 
 def date_to_ticks(d: date) -> int:
-    """Converte date Python para .NET ticks (100ns desde 0001-01-01)."""
-    dt = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+    """Retorna data em ticks .NET."""
+    dt = datetime(d.year, d.month, d.day, tzinfo=UTC)
     return int((dt - _DOTNET_EPOCH).total_seconds() * 10_000_000)
 
 
 @pytest.fixture(scope="session")
 def django_db_setup(django_test_environment, django_db_blocker):
-    """Cria tabelas managed=False no banco SQLite em memória antes dos testes."""
+    """Prepara tabelas externas no banco SQLite antes dos testes."""
     from django.apps import apps
     from django.db import connections
     from django.test.utils import setup_databases, teardown_databases
@@ -54,7 +54,7 @@ def django_db_setup(django_test_environment, django_db_blocker):
 
 @pytest.fixture
 def client(settings) -> APIClient:
-    """APIClient autenticado com a API Key de teste."""
+    """Retorna APIClient autenticado com API key de teste."""
     settings.API_KEY = _API_KEY
     c = APIClient()
     c.credentials(HTTP_X_API_KEY=_API_KEY)
@@ -74,6 +74,7 @@ def anon() -> APIClient:
 
 @pytest.fixture
 def professor(db) -> Professor:
+    """Cria professor para os testes."""
     return Professor.objects.create(
         codigo_rf="7654321", nome="Ana Silva", cpf="12345678900"
     )
@@ -81,6 +82,7 @@ def professor(db) -> Professor:
 
 @pytest.fixture
 def ue(db) -> UnidadeEducacional:
+    """Cria unidade educacional para os testes."""
     return UnidadeEducacional.objects.create(
         codigo_ue="000532", codigo_dre="108100", codigo_tipo_escola=4
     )
@@ -88,6 +90,7 @@ def ue(db) -> UnidadeEducacional:
 
 @pytest.fixture
 def cargo_base(professor) -> CargoBaseServidor:
+    """Cria cargo base de servidor para os testes."""
     return CargoBaseServidor.objects.create(
         professor=professor,
         codigo_cargo=3379,
@@ -98,6 +101,7 @@ def cargo_base(professor) -> CargoBaseServidor:
 
 @pytest.fixture
 def lotacao(cargo_base, ue) -> LotacaoServidor:
+    """Cria lotacao de servidor para os testes."""
     return LotacaoServidor.objects.create(
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
@@ -107,6 +111,7 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
 
 @pytest.fixture
 def turma(db) -> TurmaEscola:
+    """Cria turma escola para os testes."""
     return TurmaEscola.objects.create(
         codigo_turma=2112345,
         codigo_escola="000532",
@@ -117,6 +122,7 @@ def turma(db) -> TurmaEscola:
 
 @pytest.fixture
 def atribuicao(cargo_base, ue) -> AtribuicaoAula:
+    """Cria atribuição de aula para os testes."""
     return AtribuicaoAula.objects.create(
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
@@ -130,6 +136,7 @@ def atribuicao(cargo_base, ue) -> AtribuicaoAula:
 
 @pytest.fixture
 def pessoa(db) -> Pessoa:
+    """Cria pessoa para os testes."""
     return Pessoa.objects.create(
         codigo_pessoa=1, cpf="98765432100", nome="João Ext"
     )
@@ -137,6 +144,7 @@ def pessoa(db) -> Pessoa:
 
 @pytest.fixture
 def contrato_externo(pessoa, ue) -> ContratoExterno:
+    """Cria contrato externo para os testes."""
     return ContratoExterno.objects.create(
         codigo_contrato=1,
         pessoa=pessoa,
@@ -147,6 +155,7 @@ def contrato_externo(pessoa, ue) -> ContratoExterno:
 
 @pytest.fixture
 def atribuicao_externa(contrato_externo, ue) -> AtribuicaoExterno:
+    """Cria atribuição externa para os testes."""
     return AtribuicaoExterno.objects.create(
         contrato_externo=contrato_externo,
         codigo_unidade_educacao=ue.codigo_ue,
@@ -159,6 +168,7 @@ def atribuicao_externa(contrato_externo, ue) -> AtribuicaoExterno:
 
 @pytest.fixture
 def funcao_atividade(cargo_base, ue) -> FuncaoAtividadeCargoServidor:
+    """Cria função de atividade de cargo para os testes."""
     return FuncaoAtividadeCargoServidor.objects.create(
         cargo_base=cargo_base,
         codigo_unidade_local_servico=ue.codigo_ue,

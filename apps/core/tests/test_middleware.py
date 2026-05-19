@@ -24,6 +24,7 @@ def _process_request(path: str, path_info: str) -> dict[str, str]:
 
 @override_settings(SCRIPT_PREFIX="")
 def test_prefix_vazio_nao_altera_caminhos():
+    """Verifica path sem prefixo configurado."""
     result = _process_request("/api/v1/docs/", "/api/v1/docs/")
 
     assert result["path"] == "/api/v1/docs/"
@@ -32,6 +33,7 @@ def test_prefix_vazio_nao_altera_caminhos():
 
 @override_settings(SCRIPT_PREFIX="/professores")
 def test_remove_prefix_quando_proxy_mantem_subpath():
+    """Verifica remoção de prefixo publicado."""
     result = _process_request(
         "/professores/api/v1/docs/",
         "/professores/api/v1/docs/",
@@ -43,6 +45,7 @@ def test_remove_prefix_quando_proxy_mantem_subpath():
 
 @override_settings(SCRIPT_PREFIX="/professores")
 def test_nao_corta_path_info_quando_apenas_path_tem_script_prefix():
+    """Verifica preservação quando path_info já vem sem prefixo."""
     result = _process_request(
         "/professores/api/v1/professores/6576753/",
         "/api/v1/professores/6576753/",
