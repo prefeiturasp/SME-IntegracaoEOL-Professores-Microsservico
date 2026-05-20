@@ -426,8 +426,8 @@ class BuscarPorListaRFView(APIView):
 
     @extend_schema(
         tags=_TAG_FUNC,
-        summary="Buscar resumo de funcionários por lista de RF (POST)",
-        request=list,
+        summary="Buscar resumo de funcionários por lista de RF",
+        request=list[str],
         responses={200: ResumoFuncionarioSerializer(many=True)},
     )
     def post(self, request: Request) -> Response:
@@ -440,7 +440,7 @@ class BuscarPorListaLoginView(APIView):
 
     @extend_schema(
         tags=_TAG_FUNC,
-        summary="Buscar resumo de funcionários por lista de login (POST)",
+        summary="Buscar resumo de funcionários por lista de login",
         request=list,
         responses={200: ResumoFuncionarioSerializer(many=True)},
     )

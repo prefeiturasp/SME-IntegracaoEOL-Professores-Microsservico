@@ -262,15 +262,15 @@ class BuscarPorListaRFView(APIView):
 
     @extend_schema(
         tags=_TAG_PROF,
-        summary="Buscar professores por lista de RF e ano (POST)",
+        summary="Buscar professores por lista de RF e ano",
         parameters=[
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
         ],
-        request=list,
+        request=list[str],
         responses={200: ResumoSerializer(many=True)},
     )
     def post(self, request: Request, ano_letivo: int) -> Response:
-        lista_rf = request.data if isinstance(request.data, list) else []
+        lista_rf: list[str] = request.data if isinstance(request.data, list) else []
         resultado = repository.buscar_por_lista_rf(ano_letivo, lista_rf)
         return Response(resultado)
 
@@ -481,7 +481,7 @@ class AtribuicaoTurmasListaView(APIView):
 
     @extend_schema(
         tags=_TAG_PROF,
-        summary="Verificar atribuição em turmas por disciplina (POST)",
+        summary="Verificar atribuição em turmas por disciplina",
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("disciplina_id", int, OpenApiParameter.PATH),
@@ -505,7 +505,7 @@ class AtribuicaoPeriodoView(APIView):
 
     @extend_schema(
         tags=_TAG_PROF,
-        summary="Verificar atribuição do professor em período (POST)",
+        summary="Verificar atribuição do professor em período",
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),

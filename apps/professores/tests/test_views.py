@@ -41,6 +41,14 @@ class TestEP01BuscaProfessores:
 
 
 class TestEP02TurmasAtribuidasEscola:
+    def test_sem_rf_retorna_turma_efetiva(self, client, atribuicao):
+        res = client.get(
+            f"{_BASE}/professores/escolas/000532/turmas/anos_letivos/2024/"
+        )
+        assert res.status_code == 200
+        assert len(res.data) >= 1
+        assert res.data[0]["codigo_turma"] == 2112345
+
     def test_com_rf_retorna_turma_efetiva(self, client, atribuicao):
         res = client.get(
             f"{_BASE}/professores/7654321/escolas/000532/turmas/anos_letivos/2024/"
@@ -579,6 +587,12 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
         )
         assert res.status_code == 200
         assert res.data == []
+
+    def test_sem_data_ticks_retorna_400(self, client):
+        res = client.get(
+            f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
+        )
+        assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
