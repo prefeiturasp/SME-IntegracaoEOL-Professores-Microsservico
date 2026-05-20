@@ -50,7 +50,7 @@ def _func_row(ls: LotacaoServidor) -> dict:
         "data_fim": (
             ls.dt_fim.strftime("%m/%d/%Y 00:00:00") if ls.dt_fim else None
         ),
-        "cargo": None,
+        "cargo": ls.cargo_base.descricao_cargo,
         "cd_tipo_funcao_atividade": 0,
         "esta_afastado": False,
         "funcao_externo": 0,
