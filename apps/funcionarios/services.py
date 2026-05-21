@@ -26,7 +26,15 @@ def funcionarios_por_lista_cargos(
     ue_codigo: str,
     cargos_param: list[str],
 ) -> list[dict]:
-    """Lista funcionarios de uma unidade por cargos."""
+    """Lista funcionarios de uma unidade por cargos.
+
+    Args:
+        ue_codigo: Codigo da unidade educacional.
+        cargos_param: Codigos de cargos recebidos como texto.
+
+    Returns:
+        Funcionarios encontrados para os cargos informados.
+    """
     cargos = [int(cargo) for cargo in cargos_param]
     if cargos:
         return repository.funcionarios_por_lista_cargos(ue_codigo, cargos)
@@ -119,7 +127,18 @@ def usuarios_sgp_por_perfil(
     codigo_rf: str | None = None,
     nome_servidor: str | None = None,
 ) -> ResultadoServico:
-    """Lista usuarios SGP por perfil."""
+    """Lista usuarios SGP por perfil.
+
+    Args:
+        id_perfil: Identificador do perfil SGP.
+        codigo_dre: Codigo da DRE usado como filtro.
+        codigo_ue: Codigo da unidade educacional usado como filtro.
+        codigo_rf: Registro funcional usado como filtro.
+        nome_servidor: Nome do servidor usado como filtro.
+
+    Returns:
+        Resultado com payload e status HTTP definido pela regra legado.
+    """
     if repository.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
         mensagem = (
             repository.MENSAGEM_ERRO_LEGADO
@@ -148,7 +167,19 @@ def funcionarios_sgp_dre(
     nome_servidor: str | None = None,
     codigo_funcao_atividade: str | None = None,
 ) -> ResultadoServico:
-    """Lista funcionarios SGP por DRE e perfil."""
+    """Lista funcionarios SGP por DRE e perfil.
+
+    Args:
+        id_perfil: Identificador do perfil SGP.
+        codigo_dre: Codigo da DRE.
+        codigo_ue: Codigo da unidade educacional usado como filtro.
+        codigo_rf: Registro funcional usado como filtro.
+        nome_servidor: Nome do servidor usado como filtro.
+        codigo_funcao_atividade: Codigo de funcao de atividade como texto.
+
+    Returns:
+        Resultado com payload e status HTTP definido pela regra legado.
+    """
     if repository.perfil_placeholder_invalido(id_perfil):
         return ResultadoServico(repository.MENSAGEM_ERRO_LEGADO, 400)
 
