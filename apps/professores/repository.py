@@ -143,7 +143,15 @@ def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
 
 
 def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
-    """Lista professores de uma escola por ano letivo."""
+    """Lista professores de uma escola por ano letivo.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        ano_letivo: Ano letivo usado no filtro de atribuições.
+
+    Returns:
+        Lista de professores vinculados à escola no ano informado.
+    """
     qs = _vigentes_em(
         AtribuicaoAula.objects.filter(
             codigo_unidade_educacao=codigo_ue,
@@ -169,7 +177,16 @@ def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
 def buscar_turmas_professor_escola_ano(
     codigo_rf: str, codigo_ue: str, ano_letivo: int
 ) -> list[dict]:
-    """Lista turmas do professor em uma escola por ano."""
+    """Lista turmas do professor em uma escola por ano.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        codigo_ue: CodigoEOL da unidade educacional.
+        ano_letivo: Ano letivo usado no filtro de atribuições.
+
+    Returns:
+        Lista de turmas efetivas e externas do professor.
+    """
     efetivas_qs = AtribuicaoAula.objects.filter(
         codigo_unidade_educacao=codigo_ue,
         ano_atribuicao=ano_letivo,
@@ -200,7 +217,14 @@ def buscar_turmas_professor_escola_ano(
 
 
 def buscar_turmas_professor(codigo_rf: str) -> list[dict]:
-    """Lista turmas atribuídas ao professor."""
+    """Lista turmas atribuídas ao professor.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+
+    Returns:
+        Lista de turmas efetivas e externas atribuídas ao professor.
+    """
     efetivas = list(
         _vigentes_em(
             AtribuicaoAula.objects.filter(
@@ -220,7 +244,15 @@ def buscar_turmas_professor(codigo_rf: str) -> list[dict]:
 
 
 def buscar_turmas_professor_ano(codigo_rf: str, ano_letivo: int) -> list[dict]:
-    """Lista turmas atribuídas ao professor por ano."""
+    """Lista turmas atribuídas ao professor por ano.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        ano_letivo: Ano letivo usado no filtro de atribuições.
+
+    Returns:
+        Lista de turmas atribuídas ao professor no ano informado.
+    """
     efetivas = list(
         _vigentes_em(
             AtribuicaoAula.objects.filter(
@@ -242,7 +274,14 @@ def buscar_turmas_professor_ano(codigo_rf: str, ano_letivo: int) -> list[dict]:
 
 
 def obter_nome_rf(rf: str) -> str | None:
-    """Retorna nome do professor por RF."""
+    """Retorna nome do professor por RF.
+
+    Args:
+        rf: Registro funcional do professor.
+
+    Returns:
+        Nome do professor encontrado ou ``None``.
+    """
     prof = Professor.objects.filter(codigo_rf=rf).first()
     if not prof:
         return None
@@ -250,7 +289,15 @@ def obter_nome_rf(rf: str) -> str | None:
 
 
 def buscar_por_rf_ano(rf: str, ano_letivo: int) -> dict | None:  # NOSONAR
-    """Retorna dados básicos do professor por RF e ano."""
+    """Retorna dados básicos do professor por RF e ano.
+
+    Args:
+        rf: Registro funcional do professor.
+        ano_letivo: Ano letivo recebido pelo contrato legado.
+
+    Returns:
+        Dados básicos do professor encontrado ou ``None``.
+    """
     prof = Professor.objects.filter(codigo_rf=rf).first()
     if not prof:
         return None
@@ -258,7 +305,14 @@ def buscar_por_rf_ano(rf: str, ano_letivo: int) -> dict | None:  # NOSONAR
 
 
 def buscar_por_rf_dre_ue(rf: str) -> dict | None:
-    """Retorna dados básicos do professor por RF."""
+    """Retorna dados básicos do professor por RF.
+
+    Args:
+        rf: Registro funcional do professor.
+
+    Returns:
+        Dados básicos do professor encontrado ou ``None``.
+    """
     prof = Professor.objects.filter(codigo_rf=rf).first()
     if not prof:
         return None
@@ -271,7 +325,17 @@ def autocomplete_professores(
     ue_id: str | None = None,
     nome: str | None = None,
 ) -> list[dict]:
-    """Lista professores para autocomplete."""
+    """Lista professores para autocomplete.
+
+    Args:
+        ano_letivo: Ano letivo usado no filtro de atribuições.
+        dre_id: Código da Diretoria Regional de Educação.
+        ue_id: Código opcional da unidade educacional.
+        nome: Trecho opcional do nome do professor.
+
+    Returns:
+        Lista limitada de professores encontrados para autocomplete.
+    """
     qs = AtribuicaoAula.objects.filter(
         ano_atribuicao=ano_letivo
     ).select_related("cargo_base__professor")
@@ -313,7 +377,15 @@ def autocomplete_professores(
 
 
 def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
-    """Lista professores por RFs e ano letivo."""
+    """Lista professores por RFs e ano letivo.
+
+    Args:
+        ano_letivo: Ano letivo usado no filtro de atribuições.
+        lista_rf: Lista de registros funcionais pesquisados.
+
+    Returns:
+        Lista de professores encontrados para os RFs informados.
+    """
     rfs = set(
         AtribuicaoAula.objects.filter(
             cargo_base__professor__codigo_rf__in=lista_rf,
@@ -327,7 +399,14 @@ def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
 
 
 def verificar_validade(rf: str) -> bool:
-    """Verifica se o professor possui vínculo ativo."""
+    """Verifica se o professor possui vínculo ativo.
+
+    Args:
+        rf: Registro funcional do professor.
+
+    Returns:
+        ``True`` quando existe cargo ativo para o professor.
+    """
     return bool(
         CargoBaseServidor.objects.filter(
             professor__codigo_rf=rf,
@@ -340,7 +419,14 @@ _TIPOS_EMEI = [4, 16, 48, 6]
 
 
 def eh_emei(codigo_rf: str) -> bool:
-    """Verifica se o professor está vinculado a EMEI."""
+    """Verifica se o professor está vinculado a EMEI.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+
+    Returns:
+        ``True`` quando o professor possui atribuição em unidade EMEI.
+    """
     ues_emei = UnidadeEducacional.objects.filter(
         codigo_tipo_escola__in=_TIPOS_EMEI
     ).values_list("codigo_ue", flat=True)
@@ -353,7 +439,15 @@ def eh_emei(codigo_rf: str) -> bool:
 
 
 def atribuicao_status(codigo_rf: str, codigo_turma: int) -> dict:
-    """Retorna status de atribuição do professor na turma."""
+    """Retorna status de atribuição do professor na turma.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        codigo_turma: CodigoEOL da turma.
+
+    Returns:
+        Dados de status da atribuição mais recente na turma.
+    """
     turma = TurmaEscola.objects.filter(codigo_turma=codigo_turma).first()
     aa = (
         AtribuicaoAula.objects.filter(
@@ -389,7 +483,16 @@ def atribuicao_verificar_data(
     codigo_turma: int,
     data_consulta: date | None = None,
 ) -> bool:
-    """Verifica atribuição do professor em uma data."""
+    """Verifica atribuição do professor em uma data.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        codigo_turma: CodigoEOL da turma.
+        data_consulta: Data opcional usada para validar vigência.
+
+    Returns:
+        ``True`` quando existe atribuição compatível com os filtros.
+    """
     qs = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf=codigo_rf,
     ).filter(_filtro_turma(codigo_turma))
@@ -405,7 +508,18 @@ def atribuicao_disciplina_data(
     data_consulta: date | None = None,
     territorio_saber: bool = False,
 ) -> bool:
-    """Verifica atribuição do professor em turma e disciplina."""
+    """Verifica atribuição do professor em turma e disciplina.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        codigo_turma: CodigoEOL da turma.
+        disciplina_id: Código do componente curricular.
+        data_consulta: Data opcional usada para validar vigência.
+        territorio_saber: Indica consulta em território do saber.
+
+    Returns:
+        ``True`` quando existe atribuição para turma e disciplina.
+    """
     if territorio_saber:
         qs = AgrupamentoAtribuicaoTerritorioSaber.objects.filter(
             rf_professor=codigo_rf,
@@ -430,7 +544,17 @@ def atribuicao_disciplina_datatick(
     disciplina_id: int,
     data_tick: int | None = None,
 ) -> bool:
-    """Verifica atribuição usando data em ticks."""
+    """Verifica atribuição usando data em ticks.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        codigo_turma: CodigoEOL da turma.
+        disciplina_id: Código do componente curricular.
+        data_tick: Data opcional em ticks.
+
+    Returns:
+        ``True`` quando existe atribuição vigente na data informada.
+    """
     data = ticks_to_date(data_tick) if data_tick else None
     return atribuicao_disciplina_data(
         codigo_rf, codigo_turma, disciplina_id, data
@@ -443,7 +567,17 @@ def atribuicao_recorrencia_datas(
     disciplina_id: int,
     data_ticks: list[int],
 ) -> list[dict]:
-    """Lista resultados de atribuição para datas recorrentes."""
+    """Lista resultados de atribuição para datas recorrentes.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        codigo_turma: CodigoEOL da turma.
+        disciplina_id: Código do componente curricular.
+        data_ticks: Lista de datas em ticks para validação.
+
+    Returns:
+        Lista com o resultado de persistência para cada data.
+    """
     return [
         {
             "data": ticks_to_datetime_str(tick),
@@ -458,7 +592,16 @@ def atribuicao_recorrencia_datas(
 def atribuicao_turmas_lista(
     codigo_rf: str, disciplina_id: int, codigos_turma: list[int]
 ) -> list[dict]:
-    """Lista status de atribuição para turmas informadas."""
+    """Lista status de atribuição para turmas informadas.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        disciplina_id: Código do componente curricular.
+        codigos_turma: Lista de códigos EOL das turmas.
+
+    Returns:
+        Lista de períodos de atribuição por turma encontrada.
+    """
     resultado = []
     for codigo_turma in codigos_turma:
         turma = TurmaEscola.objects.filter(
@@ -520,7 +663,18 @@ def atribuicao_periodo(
     dt_inicio: date,
     dt_fim: date,
 ) -> bool:
-    """Verifica atribuição do professor em período."""
+    """Verifica atribuição do professor em período.
+
+    Args:
+        codigo_rf: Registro funcional do professor.
+        codigo_turma: CodigoEOL da turma.
+        componente_id: Código do componente curricular.
+        dt_inicio: Data inicial do período consultado.
+        dt_fim: Data final do período consultado.
+
+    Returns:
+        ``True`` quando existe atribuição sobreposta ao período.
+    """
     base = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf=codigo_rf,
         codigo_componente_curricular=componente_id,
@@ -537,7 +691,16 @@ def professores_atribuidos_turma_disc(
     disciplina_id: int,
     data_tick: int | None = None,
 ) -> list[dict]:
-    """Lista professores atribuídos à turma e disciplina."""
+    """Lista professores atribuídos à turma e disciplina.
+
+    Args:
+        codigo_turma: CodigoEOL da turma.
+        disciplina_id: Código do componente curricular.
+        data_tick: Data opcional em ticks usada para validar vigência.
+
+    Returns:
+        Lista de professores efetivos e externos atribuídos.
+    """
     data = ticks_to_date(data_tick) if data_tick else None
     turma = TurmaEscola.objects.filter(codigo_turma=codigo_turma).first()
     efetivas = (
@@ -613,7 +776,15 @@ def professores_atribuidos_turma_disc(
 def titular_por_turma_disciplina(
     codigo_turma: int, codigo_componente: int
 ) -> dict | None:
-    """Retorna professor titular por turma e componente."""
+    """Retorna professor titular por turma e componente.
+
+    Args:
+        codigo_turma: CodigoEOL da turma.
+        codigo_componente: Código do componente curricular.
+
+    Returns:
+        Dados do professor titular encontrado ou ``None``.
+    """
     aa = (
         AtribuicaoAula.objects.filter(
             codigo_componente_curricular=codigo_componente,
@@ -637,7 +808,14 @@ def titular_por_turma_disciplina(
 
 
 def titulares_por_turmas(codigos_turmas: list[int]) -> list[dict]:
-    """Lista professores titulares por turmas."""
+    """Lista professores titulares por turmas.
+
+    Args:
+        codigos_turmas: Lista de códigos EOL das turmas.
+
+    Returns:
+        Lista de professores titulares das turmas informadas.
+    """
     qs = (
         _vigentes_em(AtribuicaoAula.objects, date.today())
         .select_related("cargo_base__professor")
@@ -674,7 +852,17 @@ def titulares_por_turma_agrupamento(
     codigo_rf: str | None = None,
     data_referencia: date | None = None,
 ) -> list[dict]:
-    """Lista titulares por turma com opção de agrupamento."""
+    """Lista titulares por turma com opção de agrupamento.
+
+    Args:
+        codigo_turma: CodigoEOL da turma.
+        realiza_agrupamento: Indica se deve consultar agrupamentos.
+        codigo_rf: Registro funcional opcional do professor.
+        data_referencia: Data opcional usada para validar vigência.
+
+    Returns:
+        Lista de professores titulares conforme os filtros informados.
+    """
     if realiza_agrupamento:
         qs = AgrupamentoAtribuicaoTerritorioSaber.objects.filter(
             codigo_turma=codigo_turma
@@ -732,7 +920,15 @@ def titulares_por_ue(
     ue_codigo: str,
     data_referencia: date,
 ) -> list[dict]:
-    """Lista titulares por unidade educacional."""
+    """Lista titulares por unidade educacional.
+
+    Args:
+        ue_codigo: CodigoEOL da unidade educacional.
+        data_referencia: Data usada para validar atribuições.
+
+    Returns:
+        Lista de professores titulares da unidade educacional.
+    """
     qs = AtribuicaoAula.objects.filter(
         codigo_unidade_educacao=ue_codigo,
         dt_cancelamento__isnull=True,

@@ -22,6 +22,7 @@ def _cria_professor_com_atribuicao(
     codigo_turma: int,
     codigo_ue: str = "000532",
 ) -> None:
+    """Cria professor com atribuicao para testes de repository."""
     professor = Professor.objects.create(
         codigo_rf=codigo_rf,
         nome=f"Professor {codigo_rf}",
