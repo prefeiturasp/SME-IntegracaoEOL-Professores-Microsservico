@@ -190,11 +190,12 @@ class TestEP27FuncionariosFuncaoAtividade:
         )
         assert res.status_code == 404
 
-    def test_rota_por_path_sem_dados_nao_existe(self, client, db):
+    def test_filtro_por_query_sem_dados_retorna_vazio(self, client, db):
         res = client.get(
-            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/"
+            f"{_BASE}/escolas/000532/funcionarios/?funcoes_atividades=1"
         )
-        assert res.status_code == 404
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_rota_por_path_sem_api_key_retorna_404(self, anon):
         res = anon.get(
