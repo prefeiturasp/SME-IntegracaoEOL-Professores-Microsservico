@@ -259,6 +259,21 @@ class TestEP34DreUeAtribuicaoCargo:
         assert res.status_code == 200
         assert res.data == []
 
+    def test_repository_none_retorna_404(self, client, monkeypatch):
+        from apps.funcionarios.api import views
+
+        monkeypatch.setattr(
+            views.repository,
+            "dre_ue_cargo",
+            lambda registro_funcional, codigo_cargo: None,
+        )
+
+        res = client.get(
+            f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/"
+        )
+
+        assert res.status_code == 404
+
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
         assert res.status_code == 403

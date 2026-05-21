@@ -43,6 +43,15 @@ def test_remove_prefix_quando_proxy_mantem_subpath():
     assert result["path_info"] == "/api/v1/docs/"
 
 
+@override_settings(SCRIPT_PREFIX="professores")
+def test_normaliza_prefixo_sem_barra_inicial():
+    """Verifica normalizacao do prefixo configurado sem barra."""
+    result = _process_request("/professores", "/professores")
+
+    assert result["path"] == "/"
+    assert result["path_info"] == "/"
+
+
 @override_settings(SCRIPT_PREFIX="/professores")
 def test_nao_corta_path_info_quando_apenas_path_tem_script_prefix():
     """Verifica preservação quando path_info já vem sem prefixo."""

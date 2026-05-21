@@ -93,6 +93,19 @@ curl -H "X-API-Key: dev-key-default" http://localhost:[PORT_WEB]/api/v1/professo
 
 ---
 
+## Documentação (Sphinx)
+
+Gera a documentação HTML a partir dos arquivos em `docs/`:
+
+```bash
+docker compose -f docker-compose-dev.yml run --rm professores \
+  sphinx-build -b html docs docs/_build
+```
+
+O resultado fica em `docs/_build/index.html` (acessível no host via volume).
+
+---
+
 ## Endpoints implementados
 
 ### Professores (EP-01 a EP-23)

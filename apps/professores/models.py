@@ -143,6 +143,7 @@ class CargoBaseServidor(models.Model):
         db_constraint=False,
     )
     codigo_cargo = models.IntegerField()
+    descricao_cargo = models.CharField(max_length=100)
     situacao_funcional = models.IntegerField(null=True, blank=True)
     dt_posse = models.DateField(null=True, blank=True)
     dt_fim_nomeacao = models.DateField(null=True, blank=True)

@@ -25,7 +25,18 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
     def authenticate(
         self, request: Request
     ) -> tuple[UsuarioApiKey, None] | None:
-        """Autentica request por header de API key."""
+        """Autentica request por header de API key.
+
+        Args:
+            request: Request DRF com headers da chamada.
+
+        Returns:
+            Usuário autenticado e credencial nula, ou ``None`` sem header.
+
+        Raises:
+            AuthenticationFailed: Quando a API key não está configurada ou é
+                inválida.
+        """
         chave_esperada = settings.API_KEY
         if not chave_esperada:
             raise exceptions.AuthenticationFailed("API key nao configurada")
