@@ -151,6 +151,10 @@ def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
 
     Returns:
         Lista de professores vinculados à escola no ano informado.
+
+    Raises:
+        ValueError: Quando o RF cadastrado não pode ser convertido para
+            número inteiro.
     """
     qs = _vigentes_em(
         AtribuicaoAula.objects.filter(
@@ -554,6 +558,9 @@ def atribuicao_disciplina_datatick(
 
     Returns:
         ``True`` quando existe atribuição vigente na data informada.
+
+    Raises:
+        OverflowError: Quando os ticks informados excedem uma data válida.
     """
     data = ticks_to_date(data_tick) if data_tick else None
     return atribuicao_disciplina_data(
@@ -577,6 +584,9 @@ def atribuicao_recorrencia_datas(
 
     Returns:
         Lista com o resultado de persistência para cada data.
+
+    Raises:
+        OverflowError: Quando algum tick informado excede uma data válida.
     """
     return [
         {
@@ -601,6 +611,10 @@ def atribuicao_turmas_lista(
 
     Returns:
         Lista de períodos de atribuição por turma encontrada.
+
+    Raises:
+        ValueError: Quando algum código de turma não pode ser convertido para
+            número inteiro.
     """
     resultado = []
     for codigo_turma in codigos_turma:
@@ -700,6 +714,9 @@ def professores_atribuidos_turma_disc(
 
     Returns:
         Lista de professores efetivos e externos atribuídos.
+
+    Raises:
+        OverflowError: Quando os ticks informados excedem uma data válida.
     """
     data = ticks_to_date(data_tick) if data_tick else None
     turma = TurmaEscola.objects.filter(codigo_turma=codigo_turma).first()
