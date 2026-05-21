@@ -558,10 +558,9 @@ class TestEP17AtribuicaoTurmasLista:
             [],
             format="json",
         )
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 400
 
-    def test_turma_com_atribuicao_externa_retorna_periodo(
+    def test_atribuicao_externa_sem_codigo_turma_direto_retorna_vazio(
         self,
         client,
         atribuicao_externa,
@@ -584,13 +583,33 @@ class TestEP17AtribuicaoTurmasLista:
         )
 
         assert res.status_code == 200
-        assert res.data == [
-            {
-                "codigo_turma": "2112345",
-                "data_disponibilizacao_aulas": None,
-                "data_atribuicao_aula": "2024-02-01T00:00:00",
-            }
-        ]
+        assert res.data == []
+
+    def test_codigo_turma_invalido_retorna_lista_vazia(
+        self,
+        client,
+        atribuicao,
+    ):
+        """Verifica codigo_turma invalido retorna lista vazia."""
+        res = client.post(
+            f"{_BASE}/professores/7654321/disciplina/138/turmas/",
+            ["string"],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_payload_nao_lista_retorna_lista_vazia(self, client, atribuicao):
+        """Verifica payload fora do formato de lista retorna vazio."""
+        res = client.post(
+            f"{_BASE}/professores/7654321/disciplina/138/turmas/",
+            {"codigo_turma": 2112345},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica sem API key retorna 403."""

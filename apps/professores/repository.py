@@ -616,58 +616,26 @@ def atribuicao_turmas_lista(
         ValueError: Quando algum código de turma não pode ser convertido para
             número inteiro.
     """
-    resultado = []
-    for codigo_turma in codigos_turma:
-        turma = TurmaEscola.objects.filter(
-            codigo_turma=int(codigo_turma)
-        ).first()
-        aa = (
-            AtribuicaoAula.objects.filter(
-                cargo_base__professor__codigo_rf=codigo_rf,
-                codigo_componente_curricular=disciplina_id,
-            )
-            .filter(_filtro_turma(int(codigo_turma)))
-            .filter(
-                Q(dt_disponibilizacao_aulas__isnull=True)
-                | Q(dt_disponibilizacao_aulas__gte=date.today())
-            )
-            .order_by("-dt_atribuicao_aula")
-            .first()
-        )
-        if aa:
-            resultado.append(
-                {
-                    "codigo_turma": str(codigo_turma),
-                    "data_disponibilizacao_aulas": fmt_iso(
-                        _fim_atribuicao_ou_turma(aa, turma)
-                    ),
-                    "data_atribuicao_aula": fmt_iso(aa.dt_atribuicao_aula),
-                }
-            )
-        ae = (
-            AtribuicaoExterno.objects.filter(
-                contrato_externo__pessoa__cpf=codigo_rf,
-                codigo_componente_curricular=disciplina_id,
-                codigo_serie_grade__in=_series_da_turma(int(codigo_turma)),
-            )
-            .filter(
-                Q(dt_disponibilizacao__isnull=True)
-                | Q(dt_disponibilizacao__gte=date.today())
-            )
-            .order_by("-dt_atribuicao")
-            .first()
-        )
-        if ae:
-            resultado.append(
-                {
-                    "codigo_turma": str(codigo_turma),
-                    "data_disponibilizacao_aulas": fmt_iso(
-                        ae.dt_disponibilizacao
-                    ),
-                    "data_atribuicao_aula": fmt_iso(ae.dt_atribuicao),
-                }
-            )
-    return resultado
+    codigos = [int(codigo_turma) for codigo_turma in codigos_turma]
+    qs = AtribuicaoAula.objects.filter(
+        cargo_base__professor__codigo_rf=codigo_rf,
+        codigo_componente_curricular=disciplina_id,
+        codigo_turma_escola__in=codigos,
+    ).filter(
+        Q(dt_disponibilizacao_aulas__isnull=True)
+        | Q(dt_disponibilizacao_aulas__gte=date.today())
+    )
+
+    return [
+        {
+            "codigo_turma": str(aa.codigo_turma_escola),
+            "data_disponibilizacao_aulas": fmt_iso(
+                aa.dt_disponibilizacao_aulas
+            ),
+            "data_atribuicao_aula": fmt_iso(aa.dt_atribuicao_aula),
+        }
+        for aa in qs.order_by("codigo_turma_escola", "-dt_atribuicao_aula")
+    ]
 
 
 def atribuicao_periodo(

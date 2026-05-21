@@ -8,6 +8,7 @@ from apps.professores.models import (
     CargoBaseServidor,
     ContratoExterno,
     FuncaoAtividadeCargoServidor,
+    FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Professor,
     UnidadeEducacional,
@@ -37,24 +38,33 @@ def _dre_de_ue(ue_codigo: str | None) -> str | None:
     return _UE_DRE_CACHE[ue_codigo]
 
 
-def _func_row(ls: LotacaoServidor) -> dict:
+def _nome_funcionario(funcionario: FuncionarioUnidadeEducacional) -> str:
+    nome_social = funcionario.nome_social
+    if nome_social and nome_social.strip():
+        return str(nome_social)
+    return str(funcionario.nome)
+
+
+def _fmt_data_funcionario(valor: Any) -> str | None:
+    if valor is None:
+        return None
+    return str(valor.strftime("%d/%m/%Y 00:00:00"))
+
+
+def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
     """Monta dados de funcionário lotado."""
     return {
-        "codigo_rf": ls.cargo_base.professor.codigo_rf,
-        "nome_servidor": get_nome(ls.cargo_base.professor),
-        "data_inicio": (
-            ls.dt_inicio.strftime("%m/%d/%Y 00:00:00")
-            if ls.dt_inicio
-            else None
+        "codigo_rf": funcionario.codigo_rf,
+        "nome": _nome_funcionario(funcionario),
+        "data_inicio": _fmt_data_funcionario(funcionario.data_inicio),
+        "data_fim": _fmt_data_funcionario(funcionario.data_fim),
+        "cargo": funcionario.cargo,
+        "codigo_tipo_funcao_atividade": (
+            funcionario.codigo_tipo_funcao_atividade or 0
         ),
-        "data_fim": (
-            ls.dt_fim.strftime("%m/%d/%Y 00:00:00") if ls.dt_fim else None
-        ),
-        "cargo": ls.cargo_base.descricao_cargo,
-        "cd_tipo_funcao_atividade": 0,
-        "esta_afastado": False,
-        "funcao_externo": 0,
-        "tipo_funcao_externo": 0,
+        "esta_afastado": funcionario.esta_afastado,
+        "funcao_externo": funcionario.funcao_externo,
+        "tipo_funcao_externo": funcionario.tipo_funcao_externo,
     }
 
 
@@ -62,27 +72,35 @@ def _lotacoes_ativas() -> Any:
     return LotacaoServidor.objects.filter(dt_fim__isnull=True)
 
 
-def funcionarios_por_ue(codigo_ue: str) -> list[dict]:
+def funcionarios_por_ue(
+    codigo_ue: str, filtros: dict[str, Any] | None = None
+) -> list[dict]:
     """Lista funcionários ativos de uma unidade educacional."""
-    qs = (
-        _lotacoes_ativas()
-        .filter(codigo_unidade_educacao=codigo_ue)
-        .select_related("cargo_base__professor")
+    qs = FuncionarioUnidadeEducacional.objects.filter(
+        codigo_ue=codigo_ue,
+        data_fim__isnull=True,
     )
-    return [_func_row(ls) for ls in qs]
+    filtros = filtros or {}
+    if cargos := filtros.get("cargos"):
+        qs = qs.filter(codigo_cargo__in=[str(cargo) for cargo in cargos])
+    if funcoes_atividades := filtros.get("funcoes_atividades"):
+        qs = qs.filter(
+            codigo_tipo_funcao_atividade__in=funcoes_atividades
+        )
+    if funcoes_externas := filtros.get("funcoes_externas"):
+        qs = qs.filter(funcao_externo__in=funcoes_externas)
+    return sorted(
+        (_func_row(funcionario) for funcionario in qs),
+        key=lambda item: item["nome"],
+    )
 
 
 def funcionarios_por_ue_cargo(codigo_ue: str, codigo_cargo: int) -> list[dict]:
     """Lista funcionários ativos de uma unidade por cargo."""
-    qs = (
-        _lotacoes_ativas()
-        .filter(
-            codigo_unidade_educacao=codigo_ue,
-            cargo_base__codigo_cargo=codigo_cargo,
-        )
-        .select_related("cargo_base__professor")
+    return funcionarios_por_ue(
+        codigo_ue,
+        filtros={"cargos": [codigo_cargo]},
     )
-    return [_func_row(ls) for ls in qs]
 
 
 def funcionarios_por_lista_cargos(
@@ -285,16 +303,30 @@ def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
     return resultado
 
 
-def nome_servidor(registro_funcional: str) -> dict | None:
+def nome_cpf_servidor(registro_funcional: str) -> dict | None:
     """Retorna nome e CPF do servidor."""
+    func = FuncionarioUnidadeEducacional.objects.filter(
+        codigo_rf=registro_funcional,
+        funcao_externo=0,
+    ).first()
+    if func:
+        return {"nome": get_nome(func), "cpf": func.cpf}
+
     prof = Professor.objects.filter(codigo_rf=registro_funcional).first()
     if not prof:
         return None
     return {"nome": get_nome(prof), "cpf": prof.cpf}
 
 
-def dre_ue_atribuicao(registro_funcional: str) -> str | None:
+def nome_servidor(registro_funcional: str) -> str | None:
     """Retorna nome do funcionário."""
+    func = FuncionarioUnidadeEducacional.objects.filter(
+        codigo_rf=registro_funcional,
+        funcao_externo=0,
+    ).first()
+    if func:
+        return get_nome(func)
+
     prof = Professor.objects.filter(codigo_rf=registro_funcional).first()
     if not prof:
         return None
@@ -434,7 +466,9 @@ def buscar_por_lista_rf_func(lista: list[str]) -> list[dict]:
     """Lista funcionários por registros funcionais."""
     return [
         {"nome": get_nome(p), "codigo_rf": p.codigo_rf}
-        for p in Professor.objects.filter(codigo_rf__in=lista)
+        for p in FuncionarioUnidadeEducacional.objects.filter(
+            codigo_rf__in=lista
+        )
     ]
 
 

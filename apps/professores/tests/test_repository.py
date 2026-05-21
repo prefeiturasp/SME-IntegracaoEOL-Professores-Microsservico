@@ -4,6 +4,8 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.professores import repository
 from apps.professores.models import (
@@ -210,3 +212,27 @@ def test_titulares_por_turma_agrupamento_sem_componentes():
     resultado = repository.titulares_por_turma_agrupamento(2112345, True)
 
     assert resultado[0]["disciplinas_id"] is None
+
+
+def test_atribuicao_turmas_lista_sem_turmas_retorna_vazio(
+    atribuicao,
+):
+    """Verifica retorno vazio sem lista de turmas informada."""
+    resultado = repository.atribuicao_turmas_lista("7654321", 138, [])
+
+    assert resultado == []
+
+
+def test_atribuicao_turmas_lista_nao_consulta_tabelas_inexistentes(
+    atribuicao,
+):
+    """Verifica ausencia de dependencias de tabelas fora do DB."""
+    with CaptureQueriesContext(connection) as queries:
+        repository.atribuicao_turmas_lista("7654321", 138, [2112345])
+
+    sql = "\n".join(query["sql"].lower() for query in queries)
+
+    assert 'from "turma_escola"' not in sql
+    assert 'join "turma_escola"' not in sql
+    assert 'from "serie_turma_grade"' not in sql
+    assert 'join "serie_turma_grade"' not in sql

@@ -89,8 +89,19 @@ class AtribuicaoDataSerializer(serializers.Serializer):
 class AtribuicaoTurmaSerializer(serializers.Serializer):
     """Serializa o status de atribuição por turma."""
 
-    codigo_turma = serializers.IntegerField()
-    possui_atribuicao = serializers.BooleanField()
+    codigo_turma = serializers.BigIntegerField()
+    data_disponibilizacao_aulas = serializers.DateField(allow_null=True)
+    data_atribuicao_aula = serializers.DateField(allow_null=True)
+
+
+class AtribuicaoTurmasListaRequestSerializer(serializers.ListSerializer):
+    """Valida a lista de códigos de turma para consulta."""
+
+    child = serializers.RegexField(
+        regex=r"^\d+$",
+        error_messages={"invalid": "Informe apenas códigos de turma."},
+    )
+    allow_empty = False
 
 
 class ProfessorAtribuidoTurmaDiscSerializer(serializers.Serializer):

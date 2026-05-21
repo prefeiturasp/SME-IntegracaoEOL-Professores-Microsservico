@@ -8,16 +8,11 @@ from apps.funcionarios.api.views import (
     BuscarPorListaRFView,
     CargosFuncionarioView,
     DreUeAtribuicaoCargoView,
-    DreUeAtribuicaoFuncionarioView,
+    NomeUsuarioEOLView,
     FuncionarioExternoPorCpfView,
-    FuncionariosCargosQueryView,
-    FuncionariosFuncaoAtividadeView,
-    FuncionariosFuncaoExternaView,
-    FuncionariosFuncoesAtividadesQueryView,
-    FuncionariosFuncoesExternasQueryView,
     FuncionariosPorUEView,
     FuncionariosSGPDreView,
-    NomeServidorView,
+    NomeCPFServidorView,
     ServidorAtivoView,
     UsuariosSGPView,
 )
@@ -34,39 +29,6 @@ urlpatterns = [
         name="funcionarios-ue",
     ),
     path(
-        f"{_BASE_ESCOLAS}/<str:codigo_ue>/funcionarios/"
-        "cargos/<int:codigo_cargo>/",
-        FuncionariosPorUEView.as_view(),
-        name="funcionarios-ue-cargo",
-    ),
-    path(
-        f"{_BASE_ESCOLAS}/<str:ue_codigo>/funcionarios/cargos/",
-        FuncionariosCargosQueryView.as_view(),
-        name="funcionarios-ue-cargos-lista",
-    ),
-    path(
-        f"{_BASE_ESCOLAS}/<str:codigo_ue>/funcionarios/"
-        "funcoes-atividades/<int:codigo_funcao_atividade>/",
-        FuncionariosFuncaoAtividadeView.as_view(),
-        name="funcionarios-ue-funcao-atividade",
-    ),
-    path(
-        f"{_BASE_ESCOLAS}/<str:ue_codigo>/funcionarios/funcoes-atividades/",
-        FuncionariosFuncoesAtividadesQueryView.as_view(),
-        name="funcionarios-ue-funcoes-atividades-lista",
-    ),
-    path(
-        f"{_BASE_ESCOLAS}/<str:codigo_ue>/funcionarios/"
-        "funcoes-externas/<int:codigo_funcao_externa>/",
-        FuncionariosFuncaoExternaView.as_view(),
-        name="funcionarios-ue-funcao-externa",
-    ),
-    path(
-        f"{_BASE_ESCOLAS}/<str:ue_codigo>/funcionarios/funcoes-externas/",
-        FuncionariosFuncoesExternasQueryView.as_view(),
-        name="funcionarios-ue-funcoes-externas-lista",
-    ),
-    path(
         f"{_BASE_FUNCIONARIOS}/cargo/<str:registro_funcional>/",
         CargosFuncionarioView.as_view(),
         name="funcionarios-cargos-rf",
@@ -78,12 +40,12 @@ urlpatterns = [
     ),
     path(
         f"{_BASE_FUNCIONARIOS}/nome-servidor/<str:registro_funcional>/",
-        NomeServidorView.as_view(),
+        NomeCPFServidorView.as_view(),
         name="funcionario-nome-servidor",
     ),
     path(
         f"{_BASE_FUNCIONARIOS}/nome-usuario-eol/<str:registro_funcional>/",
-        DreUeAtribuicaoFuncionarioView.as_view(),
+        NomeUsuarioEOLView.as_view(),
         name="funcionario-nome-usuario-eol",
     ),
     path(

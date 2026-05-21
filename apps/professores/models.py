@@ -175,6 +175,46 @@ class LotacaoServidor(models.Model):
         managed = False
 
 
+class FuncionarioUnidadeEducacional(models.Model):
+    """Funcionario consolidado para consulta por unidade educacional."""
+
+    codigo_rf = models.CharField(max_length=20, primary_key=True)
+    nome = models.CharField(max_length=200)
+    nome_social = models.CharField(max_length=200, null=True, blank=True)
+    cpf = models.CharField(max_length=14, null=True, blank=True)
+    codigo_ue = models.CharField(max_length=20)
+    data_inicio = models.DateTimeField(null=True, blank=True)
+    data_fim = models.DateTimeField(null=True, blank=True)
+    codigo_cargo = models.CharField(max_length=20, null=True, blank=True)
+    cargo = models.CharField(max_length=100, null=True, blank=True)
+    codigo_tipo_funcao_atividade = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    eh_professor = models.BooleanField(default=False)
+    esta_afastado = models.BooleanField(default=False)
+    funcao_externo = models.IntegerField(default=0)
+    tipo_funcao_externo = models.IntegerField(default=0)
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_unidade_educacional"
+        verbose_name = "funcionario"
+        verbose_name_plural = "funcionarios"
+        managed = False
+        indexes = [
+            models.Index(fields=["codigo_ue"], name="idx_funcionario_ue"),
+            models.Index(
+                fields=["codigo_cargo"], name="idx_funcionario_cargo"
+            ),
+            models.Index(fields=["codigo_rf"], name="idx_funcionario_rf"),
+            models.Index(
+                fields=["codigo_ue", "codigo_cargo"],
+                name="idx_funcionario_ue_cargo",
+            ),
+        ]
+
+
 class CargoSobrepostoServidor(models.Model):
     """Cargo sobreposto exercido sobre o cargo base."""
 

@@ -1,14 +1,12 @@
 """Views do domínio de professores."""
 
-from datetime import date
-
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.professores import repository
+from apps.professores import services
 from apps.professores.serializers import (
     AtribuicaoDataSerializer,
     AtribuicaoStatusSerializer,
@@ -45,7 +43,7 @@ class BuscaProfessoresView(APIView):
         request: Request,
         codigo_eol_escola: str,
     ) -> Response:
-        resultado = repository.buscar_professores_escola(codigo_eol_escola, 0)
+        resultado = services.buscar_professores_escola(codigo_eol_escola)
         return Response(resultado)
 
 
@@ -67,7 +65,7 @@ class BuscaProfessoresAnoLetivoView(APIView):
         codigo_eol_escola: str,
         ano_letivo: int,
     ) -> Response:
-        resultado = repository.buscar_professores_escola(
+        resultado = services.buscar_professores_escola(
             codigo_eol_escola, ano_letivo
         )
         return Response(resultado)
@@ -91,8 +89,8 @@ class BuscaTurmasAtribuidasEscolaView(APIView):
         codigo_eol_escola: str,
         ano_letivo: int,
     ) -> Response:
-        resultado = repository.buscar_turmas_professor_escola_ano(
-            "", codigo_eol_escola, ano_letivo
+        resultado = services.buscar_turmas_professor_escola_ano(
+            codigo_eol_escola, ano_letivo
         )
         return Response(resultado)
 
@@ -117,8 +115,8 @@ class BuscaTurmasAtribuidasProfessorEscolaView(APIView):
         ano_letivo: int,
         codigo_rf: str | None = None,
     ) -> Response:
-        resultado = repository.buscar_turmas_professor_escola_ano(
-            codigo_rf or "", codigo_eol_escola, ano_letivo
+        resultado = services.buscar_turmas_professor_escola_ano(
+            codigo_eol_escola, ano_letivo, codigo_rf
         )
         return Response(resultado)
 
@@ -140,12 +138,7 @@ class BuscarTurmasAtribuidasView(APIView):
         codigo_rf: str,
         ano_letivo: int | None = None,
     ) -> Response:
-        if ano_letivo is not None:
-            resultado = repository.buscar_turmas_professor_ano(
-                codigo_rf, ano_letivo
-            )
-        else:
-            resultado = repository.buscar_turmas_professor(codigo_rf)
+        resultado = services.buscar_turmas_professor(codigo_rf, ano_letivo)
         return Response(resultado)
 
 
@@ -161,7 +154,7 @@ class ObterNomePeloRFView(APIView):
         responses={200: NomePorRFSerializer, 404: dict},
     )
     def get(self, request: Request, rf_professor: str) -> Response:
-        nome = repository.obter_nome_rf(rf_professor)
+        nome = services.obter_nome_rf(rf_professor)
         if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         from django.http import HttpResponse
@@ -190,7 +183,7 @@ class BuscarPorRfAnoLetivoView(APIView):
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
-        resultado = repository.buscar_por_rf_ano(codigo_rf, ano_letivo)
+        resultado = services.buscar_por_rf_ano(codigo_rf, ano_letivo)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -223,7 +216,7 @@ class BuscarPorRfDreUeView(APIView):
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
-        resultado = repository.buscar_por_rf_dre_ue(codigo_rf)
+        resultado = services.buscar_por_rf_dre_ue(codigo_rf)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -248,7 +241,7 @@ class AutoCompleteView(APIView):
         responses={200: AutoCompleteSerializer(many=True)},
     )
     def get(self, request: Request, ano_letivo: int, dre_id: str) -> Response:
-        resultado = repository.autocomplete_professores(
+        resultado = services.autocomplete_professores(
             ano_letivo,
             dre_id,
             ue_id=request.query_params.get("ue_id"),
@@ -270,8 +263,7 @@ class BuscarPorListaRFView(APIView):
         responses={200: ResumoSerializer(many=True)},
     )
     def post(self, request: Request, ano_letivo: int) -> Response:
-        lista_rf: list[str] = request.data if isinstance(request.data, list) else []
-        resultado = repository.buscar_por_lista_rf(ano_letivo, lista_rf)
+        resultado = services.buscar_por_lista_rf(ano_letivo, request.data)
         return Response(resultado)
 
 
@@ -287,7 +279,7 @@ class VerificarValidadeView(APIView):
         responses={200: bool},
     )
     def get(self, request: Request, codigo_rf: str) -> Response:
-        return Response(repository.verificar_validade(codigo_rf))
+        return Response(services.verificar_validade(codigo_rf))
 
 
 class EhEmeiView(APIView):
@@ -302,7 +294,7 @@ class EhEmeiView(APIView):
         responses={200: bool, 400: dict},
     )
     def get(self, request: Request, codigo_rf: str) -> Response:
-        return Response(repository.eh_emei(codigo_rf))
+        return Response(services.eh_emei(codigo_rf))
 
 
 class AtribuicaoStatusView(APIView):
@@ -320,7 +312,7 @@ class AtribuicaoStatusView(APIView):
     def get(
         self, request: Request, codigo_rf: str, codigo_turma: int
     ) -> Response:
-        return Response(repository.atribuicao_status(codigo_rf, codigo_turma))
+        return Response(services.atribuicao_status(codigo_rf, codigo_turma))
 
 
 class AtribuicaoVerificarDataView(APIView):
@@ -341,10 +333,12 @@ class AtribuicaoVerificarDataView(APIView):
     def get(
         self, request: Request, codigo_rf: str, codigo_turma: int
     ) -> Response:
-        data_str = request.query_params.get("data_consulta")
-        data: date | None = date.fromisoformat(data_str) if data_str else None
         return Response(
-            repository.atribuicao_verificar_data(codigo_rf, codigo_turma, data)
+            services.atribuicao_verificar_data(
+                codigo_rf,
+                codigo_turma,
+                request.query_params.get("data_consulta"),
+            )
         )
 
 
@@ -377,14 +371,13 @@ class AtribuicaoDisciplinaDataView(APIView):
         codigo_turma: int,
         disciplina_id: int,
     ) -> Response:
-        data_str = request.query_params.get("data_consulta")
-        data: date | None = date.fromisoformat(data_str) if data_str else None
-        territorio = (
-            request.query_params.get("territorio_saber", "").lower() == "true"
-        )
         return Response(
-            repository.atribuicao_disciplina_data(
-                codigo_rf, codigo_turma, disciplina_id, data, territorio
+            services.atribuicao_disciplina_data(
+                codigo_rf,
+                codigo_turma,
+                disciplina_id,
+                request.query_params.get("data_consulta"),
+                request.query_params.get("territorio_saber"),
             )
         )
 
@@ -415,17 +408,13 @@ class AtribuicaoDisciplinaDataTickView(APIView):
         codigo_turma: int,
         disciplina_id: int,
     ) -> Response:
-        tick_str = request.query_params.get("data_consulta_tick")
-        if not tick_str:
-            return Response(
-                {"detail": "Deve ser informada uma data valida"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        return Response(
-            repository.atribuicao_disciplina_datatick(
-                codigo_rf, codigo_turma, disciplina_id, int(tick_str)
-            )
+        resultado = services.atribuicao_disciplina_datatick(
+            codigo_rf,
+            codigo_turma,
+            disciplina_id,
+            request.query_params.get("data_consulta_tick"),
         )
+        return Response(resultado.payload, status=resultado.status_code)
 
 
 class AtribuicaoRecorrenciaDatasView(APIView):
@@ -463,17 +452,13 @@ class AtribuicaoRecorrenciaDatasView(APIView):
         codigo_turma: int,
         disciplina_id: int,
     ) -> Response:
-        ticks = [int(t) for t in request.query_params.getlist("data_ticks")]
-        if not ticks:
-            return Response(
-                {"detail": "É necessário informar as datas em ticks!"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        return Response(
-            repository.atribuicao_recorrencia_datas(
-                codigo_rf, codigo_turma, disciplina_id, ticks
-            )
+        resultado = services.atribuicao_recorrencia_datas(
+            codigo_rf,
+            codigo_turma,
+            disciplina_id,
+            request.query_params.getlist("data_ticks"),
         )
+        return Response(resultado.payload, status=resultado.status_code)
 
 
 class AtribuicaoTurmasListaView(APIView):
@@ -486,18 +471,18 @@ class AtribuicaoTurmasListaView(APIView):
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("disciplina_id", int, OpenApiParameter.PATH),
         ],
-        request=list,
-        responses={200: AtribuicaoTurmaSerializer(many=True)},
+        request=list[int],
+        responses={200: AtribuicaoTurmaSerializer(many=True), 400: dict},
     )
     def post(
         self, request: Request, codigo_rf: str, disciplina_id: int
     ) -> Response:
-        codigos_turma = request.data if isinstance(request.data, list) else []
-        return Response(
-            repository.atribuicao_turmas_lista(
-                codigo_rf, disciplina_id, codigos_turma
-            )
+        resultado = services.atribuicao_turmas_lista(
+            codigo_rf,
+            disciplina_id,
+            request.data,
         )
+        return Response(resultado.payload, status=resultado.status_code)
 
 
 class AtribuicaoPeriodoView(APIView):
@@ -529,12 +514,12 @@ class AtribuicaoPeriodoView(APIView):
         data_fim_periodo: str,
     ) -> Response:
         return Response(
-            repository.atribuicao_periodo(
+            services.atribuicao_periodo(
                 codigo_rf,
                 codigo_turma,
                 componente_curricular_id,
-                date.fromisoformat(data_inicio_periodo),
-                date.fromisoformat(data_fim_periodo),
+                data_inicio_periodo,
+                data_fim_periodo,
             )
         )
 
@@ -562,17 +547,12 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
     def get(
         self, request: Request, codigo_turma: int, disciplina_id: int
     ) -> Response:
-        tick_str = request.query_params.get("data_ticks")
-        if not tick_str:
-            return Response(
-                {"detail": "Deve ser informada uma data válida"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        return Response(
-            repository.professores_atribuidos_turma_disc(
-                codigo_turma, disciplina_id, int(tick_str)
-            )
+        resultado = services.professores_atribuidos_turma_disc(
+            codigo_turma,
+            disciplina_id,
+            request.query_params.get("data_ticks"),
         )
+        return Response(resultado.payload, status=resultado.status_code)
 
 
 class TitularPorTurmaDisciplinaView(APIView):
@@ -595,7 +575,7 @@ class TitularPorTurmaDisciplinaView(APIView):
         codigo_turma: int,
         codigo_componente_curricular: int,
     ) -> Response:
-        resultado = repository.titular_por_turma_disciplina(
+        resultado = services.titular_por_turma_disciplina(
             codigo_turma, codigo_componente_curricular
         )
         if resultado is None:
@@ -621,10 +601,11 @@ class TitularesPorTurmasView(APIView):
         responses={200: TitularPorTurmaSerializer(many=True)},
     )
     def get(self, request: Request) -> Response:
-        codigos = [
-            int(c) for c in request.query_params.getlist("codigos_turmas")
-        ]
-        return Response(repository.titulares_por_turmas(codigos))
+        return Response(
+            services.titulares_por_turmas(
+                request.query_params.getlist("codigos_turmas")
+            )
+        )
 
 
 class TitularesPorTurmaAgrupamentoView(APIView):
@@ -653,15 +634,12 @@ class TitularesPorTurmaAgrupamentoView(APIView):
         codigo_turma: int,
         realiza_agrupamento: str,
     ) -> Response:
-        agrupamento = realiza_agrupamento.lower() == "true"
-        data_str = request.query_params.get("data_referencia")
-        data: date | None = date.fromisoformat(data_str) if data_str else None
         return Response(
-            repository.titulares_por_turma_agrupamento(
+            services.titulares_por_turma_agrupamento(
                 codigo_turma,
-                agrupamento,
+                realiza_agrupamento,
                 codigo_rf=request.query_params.get("codigo_rf"),
-                data_referencia=data,
+                data_referencia=request.query_params.get("data_referencia"),
             )
         )
 
@@ -691,8 +669,8 @@ class TitularesPorUeView(APIView):
         data_referencia: str,
     ) -> Response:
         return Response(
-            repository.titulares_por_ue(
+            services.titulares_por_ue(
                 ue_codigo,
-                date.fromisoformat(data_referencia),
+                data_referencia,
             )
         )
