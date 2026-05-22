@@ -8,7 +8,7 @@ from apps.funcionarios import repository
 
 @dataclass(frozen=True)
 class ResultadoServico:
-    """Representa payload e status definidos por regra de negocio."""
+    """Representa o resultado produzido pela camada de serviço."""
 
     payload: Any
     status_code: int = 200
@@ -137,7 +137,7 @@ def usuarios_sgp_por_perfil(
         nome_servidor: Nome do servidor usado como filtro.
 
     Returns:
-        Resultado com payload e status HTTP definido pela regra legado.
+        Resultado da consulta conforme as regras de serviço.
     """
     if repository.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
         mensagem = (
@@ -178,7 +178,7 @@ def funcionarios_sgp_dre(
         codigo_funcao_atividade: Codigo de funcao de atividade como texto.
 
     Returns:
-        Resultado com payload e status HTTP definido pela regra legado.
+        Resultado da consulta conforme as regras de serviço.
     """
     if repository.perfil_placeholder_invalido(id_perfil):
         return ResultadoServico(repository.MENSAGEM_ERRO_LEGADO, 400)

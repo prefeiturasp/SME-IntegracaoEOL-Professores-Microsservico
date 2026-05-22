@@ -26,7 +26,6 @@ _API_KEY = "test-key"
 
 
 def _request(settings, path: str):
-    """Cria request autenticado para view chamada diretamente."""
     settings.API_KEY = _API_KEY
     return APIRequestFactory().get(path, HTTP_X_API_KEY=_API_KEY)
 
@@ -598,7 +597,15 @@ class TestEP37AcessoSondagem:
 
 
 class TestEP38BuscarPorListaRF:
-    def test_rf_existente_retorna_funcionario(self, client, lotacao):
+    def test_rf_existente_retorna_funcionario(self, client, monkeypatch):
+        from apps.funcionarios.api import views
+
+        monkeypatch.setattr(
+            views.services,
+            "buscar_por_lista_rf",
+            lambda lista: [{"nome": "Ana Silva", "codigo_rf": lista[0]}],
+        )
+
         res = client.post(
             f"{_BASE}/funcionarios/BuscarPorListaRF/",
             ["7654321"],
@@ -607,7 +614,15 @@ class TestEP38BuscarPorListaRF:
         assert res.status_code == 200
         assert any(f["codigo_rf"] == "7654321" for f in res.data)
 
-    def test_rf_inexistente_retorna_vazio(self, client, db):
+    def test_rf_inexistente_retorna_vazio(self, client, monkeypatch):
+        from apps.funcionarios.api import views
+
+        monkeypatch.setattr(
+            views.services,
+            "buscar_por_lista_rf",
+            lambda _lista: [],
+        )
+
         res = client.post(
             f"{_BASE}/funcionarios/BuscarPorListaRF/",
             ["0000000"],

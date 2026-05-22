@@ -22,7 +22,14 @@ _POOL_OPTIONS = {
 
 
 def _parse_db_url(url: Any) -> dict:
-    """Retorna configuração Django a partir de uma URL Postgres."""
+    """Retorna configuração Django a partir de uma URL Postgres.
+
+    Args:
+        url: URL de conexão com o banco Postgres.
+
+    Returns:
+        Configuração de banco compatível com Django.
+    """
     if not url:
         return {
             "ENGINE": "django.db.backends.sqlite3",

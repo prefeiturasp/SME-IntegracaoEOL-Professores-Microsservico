@@ -350,6 +350,7 @@ class AtribuicaoExterno(models.Model):
         db_constraint=False,
     )
     codigo_unidade_educacao = models.CharField(max_length=20)
+    codigo_turma_escola = models.BigIntegerField(null=True, blank=True)
     codigo_grade = models.IntegerField()
     codigo_componente_curricular = models.IntegerField()
     codigo_serie_grade = models.IntegerField(null=True, blank=True)

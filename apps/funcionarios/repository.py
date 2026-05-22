@@ -52,7 +52,6 @@ def _fmt_data_funcionario(valor: Any) -> str | None:
 
 
 def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
-    """Monta dados de funcionário lotado."""
     return {
         "codigo_rf": funcionario.codigo_rf,
         "nome": _nome_funcionario(funcionario),
@@ -468,7 +467,7 @@ def buscar_por_lista_rf_func(lista: list[str]) -> list[dict]:
         {"nome": get_nome(p), "codigo_rf": p.codigo_rf}
         for p in FuncionarioUnidadeEducacional.objects.filter(
             codigo_rf__in=lista
-        )
+        ).distinct("codigo_rf")
     ]
 
 

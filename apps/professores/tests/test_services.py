@@ -105,7 +105,7 @@ def test_atribuicao_recorrencia_datas_sem_ticks_retorna_400():
 
 @pytest.mark.parametrize("payload", [[], {"codigo_turma": 2112345}])
 def test_atribuicao_turmas_lista_payload_invalido(payload):
-    """Verifica payload invalido de turmas."""
+    """Verifica entrada inválida de turmas."""
     resultado = services.atribuicao_turmas_lista("7654321", 138, payload)
 
     if payload == []:

@@ -9,7 +9,7 @@ from apps.professores import repository
 
 @dataclass(frozen=True)
 class ResultadoServico:
-    """Representa payload e status definidos por regra de negocio."""
+    """Representa o resultado produzido pela camada de serviço."""
 
     payload: Any
     status_code: int = 200
@@ -54,9 +54,13 @@ def obter_nome_rf(rf_professor: str) -> str | None:
     return repository.obter_nome_rf(rf_professor)
 
 
-def buscar_por_rf_ano(codigo_rf: str, ano_letivo: int) -> dict | None:
-    """Retorna dados do professor por registro funcional e ano."""
-    return repository.buscar_por_rf_ano(codigo_rf, ano_letivo)
+def buscar_professor_com_atribuicao_aula_ano_letivo(
+    codigo_rf: str, ano_letivo: int
+) -> dict | None:
+    """Retorna dados do professor com atribuicao de aula no ano letivo."""
+    return repository.buscar_professor_com_atribuicao_aula_ano_letivo(
+        codigo_rf, ano_letivo
+    )
 
 
 def buscar_por_rf_dre_ue(codigo_rf: str) -> dict | None:
@@ -79,9 +83,17 @@ def autocomplete_professores(
     )
 
 
-def buscar_por_lista_rf(ano_letivo: int, payload: Any) -> list[dict]:
-    """Lista professores a partir de payload legado de RFs."""
-    lista_rf = payload if isinstance(payload, list) else []
+def buscar_por_lista_rf(ano_letivo: int, dados: Any) -> list[dict]:
+    """Lista professores por registros funcionais.
+
+    Args:
+        ano_letivo: Ano letivo usado na consulta.
+        dados: Dados recebidos para extração dos registros funcionais.
+
+    Returns:
+        Professores encontrados para os registros informados.
+    """
+    lista_rf = dados if isinstance(dados, list) else []
     return repository.buscar_por_lista_rf(ano_letivo, lista_rf)
 
 

@@ -23,6 +23,9 @@ from apps.professores.models import (
     UnidadeEducacional,
 )
 
+_CD_MOTIVO_DISPONIBILIZACAO = 34
+_CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO = 3
+
 
 def _filtrar_localizacao(
     qs: Any, ue_id: str | None, dre_id: str | None
@@ -292,20 +295,41 @@ def obter_nome_rf(rf: str) -> str | None:
     return get_nome(prof)
 
 
-def buscar_por_rf_ano(rf: str, ano_letivo: int) -> dict | None:  # NOSONAR
-    """Retorna dados básicos do professor por RF e ano.
+def buscar_professor_com_atribuicao_aula_ano_letivo(
+    codigo_rf: str, ano_letivo: int
+) -> dict | None:
+    """Retorna professor com atribuição de aula.
 
     Args:
-        rf: Registro funcional do professor.
-        ano_letivo: Ano letivo recebido pelo contrato legado.
+        codigo_rf: Registro funcional do professor.
+        ano_letivo: Ano letivo da data de atribuição de aula.
 
     Returns:
         Dados básicos do professor encontrado ou ``None``.
     """
-    prof = Professor.objects.filter(codigo_rf=rf).first()
-    if not prof:
+    atribuicao = (
+        AtribuicaoAula.objects.filter(
+            cargo_base__professor__codigo_rf=codigo_rf,
+            dt_cancelamento__isnull=True,
+            dt_atribuicao_aula__lte=date.today(),
+        )
+        .filter(
+            Q(dt_disponibilizacao_aulas__isnull=True)
+            | Q(dt_disponibilizacao_aulas__year=ano_letivo)
+        )
+        .select_related("cargo_base__professor")
+        .first()
+    )
+
+    if not atribuicao:
         return None
-    return {"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)}
+
+    prof = atribuicao.cargo_base.professor
+
+    return {
+        "codigo_rf": prof.codigo_rf,
+        "nome": get_nome(prof),
+    }
 
 
 def buscar_por_rf_dre_ue(rf: str) -> dict | None:
@@ -617,25 +641,71 @@ def atribuicao_turmas_lista(
             número inteiro.
     """
     codigos = [int(codigo_turma) for codigo_turma in codigos_turma]
-    qs = AtribuicaoAula.objects.filter(
-        cargo_base__professor__codigo_rf=codigo_rf,
-        codigo_componente_curricular=disciplina_id,
-        codigo_turma_escola__in=codigos,
-    ).filter(
-        Q(dt_disponibilizacao_aulas__isnull=True)
-        | Q(dt_disponibilizacao_aulas__gte=date.today())
+
+    resultado = []
+
+    aa = (
+        AtribuicaoAula.objects.filter(
+            cargo_base__professor__codigo_rf=codigo_rf,
+            codigo_componente_curricular=disciplina_id,
+            codigo_turma_escola__in=codigos,
+        )
+        .filter(
+            Q(dt_disponibilizacao_aulas__isnull=False)
+            | (
+                Q(dt_cancelamento__isnull=True)
+                & Q(dt_disponibilizacao_aulas__isnull=True)
+            )
+        )
+        .filter(codigo_motivo_disponibilizacao=_CD_MOTIVO_DISPONIBILIZACAO)
+        .order_by("dt_disponibilizacao_aulas")
     )
 
-    return [
-        {
-            "codigo_turma": str(aa.codigo_turma_escola),
-            "data_disponibilizacao_aulas": fmt_iso(
-                aa.dt_disponibilizacao_aulas
-            ),
-            "data_atribuicao_aula": fmt_iso(aa.dt_atribuicao_aula),
-        }
-        for aa in qs.order_by("codigo_turma_escola", "-dt_atribuicao_aula")
-    ]
+    if aa:
+        for atribuicao in aa:
+            resultado.append(
+                {
+                    "codigo_turma": str(atribuicao.codigo_turma_escola),
+                    "data_disponibilizacao_aulas": fmt_iso(
+                        atribuicao.dt_disponibilizacao_aulas
+                    ),
+                    "data_atribuicao_aula": fmt_iso(
+                        atribuicao.dt_atribuicao_aula
+                    ),
+                }
+            )
+
+    ae = (
+        AtribuicaoExterno.objects.filter(
+            contrato_externo__pessoa__cpf=codigo_rf,
+            codigo_componente_curricular=disciplina_id,
+            codigo_turma_escola__in=codigos,
+        )
+        .filter(
+            Q(dt_disponibilizacao__isnull=False)
+            | (
+                Q(dt_cancelamento__isnull=True)
+                & Q(dt_disponibilizacao__isnull=True)
+            )
+        )
+        .filter(
+            codigo_motivo_disponibilizacao_externo=_CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO
+        )
+        .order_by("dt_disponibilizacao")
+    )
+
+    for atribuicao in ae:
+        resultado.append(
+            {
+                "codigo_turma": str(atribuicao.codigo_turma_escola),
+                "data_disponibilizacao_aulas": fmt_iso(
+                    atribuicao.dt_disponibilizacao
+                ),
+                "data_atribuicao_aula": fmt_iso(atribuicao.dt_atribuicao),
+            }
+        )
+
+    return resultado
 
 
 def atribuicao_periodo(

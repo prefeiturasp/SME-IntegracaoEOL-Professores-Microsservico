@@ -163,27 +163,23 @@ class ObterNomePeloRFView(APIView):
 
 
 class BuscarPorRfAnoLetivoView(APIView):
-    """Retorna dados do professor por registro funcional e ano."""
+    """Retorna dados do professor com atribuicao de aula por ano letivo."""
 
     @extend_schema(
         tags=_TAG_PROF,
-        summary="Buscar professor por RF e ano letivo",
+        summary="Buscar professor com atribuicao de aula por ano letivo.",
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
-            OpenApiParameter(
-                "buscar_outros_cargos",
-                bool,
-                OpenApiParameter.QUERY,
-                required=False,
-            ),
         ],
         responses={200: ProfessorPerfilSerializer, 404: dict},
     )
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
-        resultado = services.buscar_por_rf_ano(codigo_rf, ano_letivo)
+        resultado = services.buscar_professor_com_atribuicao_aula_ano_letivo(
+            codigo_rf, ano_letivo
+        )
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -423,8 +419,7 @@ class AtribuicaoRecorrenciaDatasView(APIView):
     @extend_schema(
         tags=_TAG_PROF,
         summary=(
-            "Verificar atribuição na disciplina/turma"
-            " em recorrência de datas"
+            "Verificar atribuição na disciplina/turma em recorrência de datas"
         ),
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),

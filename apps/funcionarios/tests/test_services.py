@@ -6,7 +6,7 @@ from apps.funcionarios import services
 
 
 def test_funcionarios_por_lista_cargos_sem_cargos_usa_ue(monkeypatch):
-    """Verifica fallback para funcionarios por UE."""
+    """Verifica consulta da unidade quando cargos não são informados."""
     chamadas = {}
 
     def fake(codigo_ue):
@@ -119,7 +119,7 @@ def test_funcionarios_sgp_dre_converte_funcao(monkeypatch):
     ],
 )
 def test_payload_invalido_usa_lista_vazia(monkeypatch, funcao, metodo):
-    """Verifica payload invalido como lista vazia."""
+    """Verifica retorno vazio para entrada inválida."""
     chamadas = {}
 
     def fake(lista):

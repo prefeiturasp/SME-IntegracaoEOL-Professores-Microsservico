@@ -24,7 +24,6 @@ def _cria_professor_com_atribuicao(
     codigo_turma: int,
     codigo_ue: str = "000532",
 ) -> None:
-    """Cria professor com atribuicao para testes de repository."""
     professor = Professor.objects.create(
         codigo_rf=codigo_rf,
         nome=f"Professor {codigo_rf}",
@@ -221,6 +220,34 @@ def test_atribuicao_turmas_lista_sem_turmas_retorna_vazio(
     resultado = repository.atribuicao_turmas_lista("7654321", 138, [])
 
     assert resultado == []
+
+
+def test_atribuicao_turmas_lista_inclui_atribuicao_externa(
+    atribuicao_externa,
+):
+    """Verifica retorno de atribuicao externa com motivo esperado."""
+    atribuicao_externa.codigo_turma_escola = 2112345
+    atribuicao_externa.codigo_motivo_disponibilizacao_externo = 3
+    atribuicao_externa.save(
+        update_fields=[
+            "codigo_turma_escola",
+            "codigo_motivo_disponibilizacao_externo",
+        ]
+    )
+
+    resultado = repository.atribuicao_turmas_lista(
+        "98765432100",
+        138,
+        [2112345],
+    )
+
+    assert resultado == [
+        {
+            "codigo_turma": "2112345",
+            "data_disponibilizacao_aulas": None,
+            "data_atribuicao_aula": "2024-02-01T00:00:00",
+        }
+    ]
 
 
 def test_atribuicao_turmas_lista_nao_consulta_tabelas_inexistentes(
