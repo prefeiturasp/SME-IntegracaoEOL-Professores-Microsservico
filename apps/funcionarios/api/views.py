@@ -6,20 +6,20 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.funcionarios import repository
+from apps.funcionarios import services
 from apps.funcionarios.serializers import (
-    DreUeAtribuicaoSerializer,
     DreUeCargoSerializer,
     FuncionarioExternoCpfSerializer,
     FuncionarioFuncaoExternaSerializer,
+    FuncionariosUEQuerySerializer,
     FuncionarioUESerializer,
-    NomeServidorSerializer,
+    NomeCPFServidorSerializer,
     ResumoFuncionarioSerializer,
     UsuarioSGPSerializer,
 )
 
-_TAG_FUNC = ["Funcionários"]
-_TAG_ESCOLA_FUNC = ["Funcionários por Escola"]
+_TAG_FUNC = ["Funcionarios"]
+_TAG_ESCOLA_FUNC = ["FuncionariosUnidadeEducacional"]
 _TAG_PERFIL = ["Perfis SGP"]
 _TAG_ACESSO = ["Acessos"]
 
@@ -29,24 +29,44 @@ class FuncionariosPorUEView(APIView):
 
     @extend_schema(
         tags=_TAG_ESCOLA_FUNC,
-        summary="Funcionários de uma UE (todos ou por cargo)",
+        summary="Funcionarios de uma UE",
         parameters=[
             OpenApiParameter("codigo_ue", str, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "cargos",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
+                many=True,
+            ),
+            OpenApiParameter(
+                "funcoes_atividades",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
+                many=True,
+            ),
+            OpenApiParameter(
+                "funcoes_externas",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
+                many=True,
+            ),
         ],
-        responses={200: FuncionarioUESerializer(many=True)},
+        responses={200: FuncionarioUESerializer(many=True), 400: dict},
     )
-    def get(
-        self,
-        request: Request,
-        codigo_ue: str,
-        codigo_cargo: int | None = None,
-    ) -> Response:
-        if codigo_cargo is not None:
-            resultado = repository.funcionarios_por_ue_cargo(
-                codigo_ue, codigo_cargo
+    def get(self, request: Request, codigo_ue: str) -> Response:
+        serializer = FuncionariosUEQuerySerializer(data=request.query_params)
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        else:
-            resultado = repository.funcionarios_por_ue(codigo_ue)
+        resultado = services.funcionarios_por_ue(
+            codigo_ue,
+            filtros=serializer.validated_data,
+        )
         return Response(resultado)
 
 
@@ -72,13 +92,10 @@ class FuncionariosCargosQueryView(APIView):
         responses={200: FuncionarioUESerializer(many=True)},
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
-        cargos = [int(c) for c in request.query_params.getlist("cargos")]
-        if cargos:
-            resultado = repository.funcionarios_por_lista_cargos(
-                ue_codigo, cargos
-            )
-        else:
-            resultado = repository.funcionarios_por_ue(ue_codigo)
+        resultado = services.funcionarios_por_lista_cargos(
+            ue_codigo,
+            request.query_params.getlist("cargos"),
+        )
         return Response(resultado)
 
 
@@ -102,7 +119,7 @@ class FuncionariosFuncaoAtividadeView(APIView):
         codigo_ue: str,
         codigo_funcao_atividade: int | None = None,
     ) -> Response:
-        resultado = repository.funcionarios_por_funcao_atividade(
+        resultado = services.funcionarios_por_funcao_atividade(
             codigo_ue, codigo_funcao_atividade or 0
         )
         return Response(resultado)
@@ -130,11 +147,9 @@ class FuncionariosFuncoesAtividadesQueryView(APIView):
         responses={200: FuncionarioUESerializer(many=True)},
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
-        funcoes = [
-            int(f) for f in request.query_params.getlist("funcoes_atividades")
-        ]
-        resultado = repository.funcionarios_por_lista_funcoes_atividade(
-            ue_codigo, funcoes
+        resultado = services.funcionarios_por_lista_funcoes_atividade(
+            ue_codigo,
+            request.query_params.getlist("funcoes_atividades"),
         )
         return Response(resultado)
 
@@ -159,7 +174,7 @@ class FuncionariosFuncaoExternaView(APIView):
         codigo_ue: str,
         codigo_funcao_externa: int | None = None,
     ) -> Response:
-        resultado = repository.funcionarios_por_funcao_externa(
+        resultado = services.funcionarios_por_funcao_externa(
             codigo_ue, codigo_funcao_externa or 0
         )
         return Response(resultado)
@@ -187,9 +202,9 @@ class FuncionariosFuncoesExternasQueryView(APIView):
         responses={200: FuncionarioFuncaoExternaSerializer(many=True)},
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
-        funcoes = [int(f) for f in request.query_params.getlist("funcoes")]
-        resultado = repository.funcionarios_por_lista_funcoes_externas(
-            ue_codigo, funcoes
+        resultado = services.funcionarios_por_lista_funcoes_externas(
+            ue_codigo,
+            request.query_params.getlist("funcoes"),
         )
         return Response(resultado)
 
@@ -210,7 +225,7 @@ class CargosFuncionarioView(APIView):
         },
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
-        return Response(repository.cargos_funcionario(registro_funcional))
+        return Response(services.cargos_funcionario(registro_funcional))
 
 
 class FuncionarioExternoPorCpfView(APIView):
@@ -225,13 +240,13 @@ class FuncionarioExternoPorCpfView(APIView):
         responses={200: FuncionarioExternoCpfSerializer, 400: dict, 404: dict},
     )
     def get(self, request: Request, cpf: str) -> Response:
-        resultado = repository.funcionario_externo_por_cpf(cpf)
+        resultado = services.funcionario_externo_por_cpf(cpf)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
 
 
-class NomeServidorView(APIView):
+class NomeCPFServidorView(APIView):
     """Retorna nome e CPF do servidor por registro funcional."""
 
     @extend_schema(
@@ -240,28 +255,28 @@ class NomeServidorView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: NomeServidorSerializer, 400: dict, 404: dict},
+        responses={200: NomeCPFServidorSerializer, 400: dict, 404: dict},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
-        resultado = repository.nome_servidor(registro_funcional)
+        resultado = services.nome_cpf_servidor(registro_funcional)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
 
 
-class DreUeAtribuicaoFuncionarioView(APIView):
-    """Retorna unidade de atribuição do funcionário."""
+class NomeUsuarioEOLView(APIView):
+    """Retorna nome usuario EOL do servidor."""
 
     @extend_schema(
         tags=_TAG_FUNC,
-        summary="Obter DRE/UE de atribuição do funcionário",
+        summary="Obter nome usuario EOL do servidor por RF",
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: DreUeAtribuicaoSerializer, 400: dict, 404: dict},
+        responses={200: str, 400: dict, 404: dict},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
-        nome = repository.dre_ue_atribuicao(registro_funcional)
+        nome = services.nome_servidor(registro_funcional)
         if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         from django.http import HttpResponse
@@ -281,7 +296,7 @@ class ServidorAtivoView(APIView):
         responses={200: bool, 400: dict, 404: dict},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
-        return Response(repository.servidor_ativo(registro_funcional))
+        return Response(services.servidor_ativo(registro_funcional))
 
 
 class DreUeAtribuicaoCargoView(APIView):
@@ -302,7 +317,7 @@ class DreUeAtribuicaoCargoView(APIView):
         registro_funcional: str,
         codigo_cargo: int,
     ) -> Response:
-        resultado = repository.dre_ue_cargo(registro_funcional, codigo_cargo)
+        resultado = services.dre_ue_cargo(registro_funcional, codigo_cargo)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -332,29 +347,16 @@ class UsuariosSGPView(APIView):
         responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
     )
     def get(self, request: Request, id_perfil: str) -> Response:
-        codigo_dre = request.query_params.get("codigo_dre")
-        codigo_ue = request.query_params.get("codigo_ue")
-        codigo_rf = request.query_params.get("codigo_rf")
-        if repository.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
-            mensagem = (
-                repository.MENSAGEM_ERRO_LEGADO
-                if codigo_dre
-                else repository.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
-            )
-            return Response(
-                mensagem,
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        resultado = repository.usuarios_sgp_por_perfil(
+        resultado = services.usuarios_sgp_por_perfil(
             id_perfil,
-            codigo_dre=codigo_dre,
-            codigo_ue=codigo_ue,
-            codigo_rf=codigo_rf,
-            nome_servidor_param=request.query_params.get("nome_servidor"),
+            codigo_dre=request.query_params.get("codigo_dre"),
+            codigo_ue=request.query_params.get("codigo_ue"),
+            codigo_rf=request.query_params.get("codigo_rf"),
+            nome_servidor=request.query_params.get("nome_servidor"),
         )
-        if not resultado:
+        if resultado.status_code == status.HTTP_404_NOT_FOUND:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(resultado)
+        return Response(resultado.payload, status=resultado.status_code)
 
 
 class FuncionariosSGPDreView(APIView):
@@ -387,23 +389,19 @@ class FuncionariosSGPDreView(APIView):
     def get(
         self, request: Request, id_perfil: str, codigo_dre: str
     ) -> Response:
-        if repository.perfil_placeholder_invalido(id_perfil):
-            return Response(
-                repository.MENSAGEM_ERRO_LEGADO,
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        funcao_str = request.query_params.get("codigo_funcao_atividade")
-        resultado = repository.funcionarios_sgp_dre(
+        resultado = services.funcionarios_sgp_dre(
             id_perfil,
             codigo_dre,
             codigo_ue=request.query_params.get("codigo_ue"),
             codigo_rf=request.query_params.get("codigo_rf"),
-            nome_servidor_param=request.query_params.get("nome_servidor"),
-            codigo_funcao_atividade=int(funcao_str) if funcao_str else None,
+            nome_servidor=request.query_params.get("nome_servidor"),
+            codigo_funcao_atividade=request.query_params.get(
+                "codigo_funcao_atividade"
+            ),
         )
-        if not resultado:
+        if resultado.status_code == status.HTTP_404_NOT_FOUND:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(resultado)
+        return Response(resultado.payload, status=resultado.status_code)
 
 
 class AcessoSondagemView(APIView):
@@ -418,7 +416,7 @@ class AcessoSondagemView(APIView):
         responses={200: bool},
     )
     def get(self, request: Request, codigo_rf: str) -> Response:
-        return Response(repository.acesso_sondagem(codigo_rf))
+        return Response(services.acesso_sondagem(codigo_rf))
 
 
 class BuscarPorListaRFView(APIView):
@@ -431,8 +429,7 @@ class BuscarPorListaRFView(APIView):
         responses={200: ResumoFuncionarioSerializer(many=True)},
     )
     def post(self, request: Request) -> Response:
-        lista = request.data if isinstance(request.data, list) else []
-        return Response(repository.buscar_por_lista_rf_func(lista))
+        return Response(services.buscar_por_lista_rf(request.data))
 
 
 class BuscarPorListaLoginView(APIView):
@@ -445,5 +442,4 @@ class BuscarPorListaLoginView(APIView):
         responses={200: ResumoFuncionarioSerializer(many=True)},
     )
     def post(self, request: Request) -> Response:
-        lista = request.data if isinstance(request.data, list) else []
-        return Response(repository.buscar_por_lista_login(lista))
+        return Response(services.buscar_por_lista_login(request.data))

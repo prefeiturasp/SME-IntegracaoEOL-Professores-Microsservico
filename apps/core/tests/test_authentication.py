@@ -20,7 +20,6 @@ def factory():
 
 
 def _make_drf_request(factory, headers=None):
-    """Cria request DRF com headers opcionais."""
     from rest_framework.request import Request
 
     django_request = factory.get("/")

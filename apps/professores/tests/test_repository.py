@@ -4,6 +4,8 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.professores import repository
 from apps.professores.models import (
@@ -22,7 +24,6 @@ def _cria_professor_com_atribuicao(
     codigo_turma: int,
     codigo_ue: str = "000532",
 ) -> None:
-    """Cria professor com atribuicao para testes de repository."""
     professor = Professor.objects.create(
         codigo_rf=codigo_rf,
         nome=f"Professor {codigo_rf}",
@@ -210,3 +211,55 @@ def test_titulares_por_turma_agrupamento_sem_componentes():
     resultado = repository.titulares_por_turma_agrupamento(2112345, True)
 
     assert resultado[0]["disciplinas_id"] is None
+
+
+def test_atribuicao_turmas_lista_sem_turmas_retorna_vazio(
+    atribuicao,
+):
+    """Verifica retorno vazio sem lista de turmas informada."""
+    resultado = repository.atribuicao_turmas_lista("7654321", 138, [])
+
+    assert resultado == []
+
+
+def test_atribuicao_turmas_lista_inclui_atribuicao_externa(
+    atribuicao_externa,
+):
+    """Verifica retorno de atribuicao externa com motivo esperado."""
+    atribuicao_externa.codigo_turma_escola = 2112345
+    atribuicao_externa.codigo_motivo_disponibilizacao_externo = 3
+    atribuicao_externa.save(
+        update_fields=[
+            "codigo_turma_escola",
+            "codigo_motivo_disponibilizacao_externo",
+        ]
+    )
+
+    resultado = repository.atribuicao_turmas_lista(
+        "98765432100",
+        138,
+        [2112345],
+    )
+
+    assert resultado == [
+        {
+            "codigo_turma": "2112345",
+            "data_disponibilizacao_aulas": None,
+            "data_atribuicao_aula": "2024-02-01T00:00:00",
+        }
+    ]
+
+
+def test_atribuicao_turmas_lista_nao_consulta_tabelas_inexistentes(
+    atribuicao,
+):
+    """Verifica ausencia de dependencias de tabelas fora do DB."""
+    with CaptureQueriesContext(connection) as queries:
+        repository.atribuicao_turmas_lista("7654321", 138, [2112345])
+
+    sql = "\n".join(query["sql"].lower() for query in queries)
+
+    assert 'from "turma_escola"' not in sql
+    assert 'join "turma_escola"' not in sql
+    assert 'from "serie_turma_grade"' not in sql
+    assert 'join "serie_turma_grade"' not in sql
