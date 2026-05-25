@@ -2,62 +2,155 @@ import { Given, When, Then } from 'cypress-cucumber-preprocessor/steps'
 
 let response
 
-// =====================
-// ACESSO API
-// =====================
+function getEnvOrFail(key) {
+  const value = Cypress.env(key)
 
-Given('que possuo acesso à API de professores', () => {
-  expect(Cypress.env('API_URL')).to.exist
-  expect(Cypress.env('APP_PREFIX')).to.exist
+  expect(value, `Variável ${key} não definida`).to.exist
+  expect(String(value).trim(), `${key} vazia`).to.not.be.empty
+
+  return value
+}
+
+// ======================================================
+// PROFESSOR POR RF E ANO LETIVO
+// ======================================================
+
+Given('que possuo acesso à API de professores por RF', () => {
+
+  getEnvOrFail('API_URL_NOVA')
+  getEnvOrFail('API_KEY_NOVA')
+  getEnvOrFail('CODIGO_RF')
+  getEnvOrFail('ANO_LETIVO')
+
 })
 
-// =====================
-// WHEN (ações)
-// =====================
+When('envio uma requisição GET para buscar professor por RF e ano letivo', () => {
 
-When('realizo consulta de professores por escola e ano letivo', () => {
-  return cy.getProfessoresPorEscola().then((res) => {
+  const apiUrl = getEnvOrFail('API_URL_NOVA')
+  const apiKey = getEnvOrFail('API_KEY_NOVA')
+
+  const codigoRf = getEnvOrFail('CODIGO_RF')
+  const anoLetivo = getEnvOrFail('ANO_LETIVO')
+
+  const endpoint =
+    `${apiUrl}/api/professores/${codigoRf}/BuscarPorRf/${anoLetivo}/`
+
+  cy.log(`Endpoint => ${endpoint}`)
+
+  return cy.request({
+    method: 'GET',
+    url: endpoint,
+    qs: {
+      buscar_outros_cargos: false,
+    },
+    headers: {
+      accept: 'application/json',
+      'X-API-Key': apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+
     response = res
+
+    cy.log(`STATUS => ${res.status}`)
+    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+
   })
+
 })
 
-When('realizo consulta de turmas por escola', () => {
-  return cy.getTurmasPorEscola().then((res) => {
+// ======================================================
+// VALIDAR PROFESSOR POR RF
+// ======================================================
+
+Given('que possuo acesso à API de validação de professor', () => {
+
+  getEnvOrFail('API_URL_NOVA')
+  getEnvOrFail('API_KEY_NOVA')
+  getEnvOrFail('CODIGO_RF')
+
+})
+
+When('envio uma requisição GET para validar professor por RF', () => {
+
+  const apiUrl = getEnvOrFail('API_URL_NOVA')
+  const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const codigoRf = getEnvOrFail('CODIGO_RF')
+
+  const endpoint =
+    `${apiUrl}/api/professores/${codigoRf}/validade/`
+
+  cy.log(`Endpoint => ${endpoint}`)
+
+  return cy.request({
+    method: 'GET',
+    url: endpoint,
+    headers: {
+      accept: 'application/json',
+      'X-API-Key': apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+
     response = res
+
+    cy.log(`STATUS => ${res.status}`)
+    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+
   })
+
 })
 
-When('realizo consulta de professor por RF', () => {
-  return cy.getProfessorPorRf().then((res) => {
+// ======================================================
+// CONSULTAR NOME DO PROFESSOR POR RF
+// ======================================================
+
+Given('que possuo acesso à API de consulta de nome do professor', () => {
+
+  getEnvOrFail('API_URL_NOVA')
+  getEnvOrFail('API_KEY_NOVA')
+  getEnvOrFail('CODIGO_RF')
+
+})
+
+When('envio uma requisição GET para consultar nome do professor por RF', () => {
+
+  const apiUrl = getEnvOrFail('API_URL_NOVA')
+  const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const codigoRf = getEnvOrFail('CODIGO_RF')
+
+  const endpoint =
+    `${apiUrl}/api/professores/${codigoRf}/`
+
+  cy.log(`Endpoint => ${endpoint}`)
+
+  return cy.request({
+    method: 'GET',
+    url: endpoint,
+    headers: {
+      accept: 'application/json',
+      'X-API-Key': apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((res) => {
+
     response = res
+
+    cy.log(`STATUS => ${res.status}`)
+    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+
   })
+
 })
 
-When('realizo busca por lista de RF', () => {
-  return cy.postBuscarListaRF().then((res) => {
-    response = res
-  })
-})
+// ======================================================
+// THEN
+// ======================================================
 
-// =====================
-// THEN (validações)
-// =====================
+Then('a API deve responder com status 200', () => {
 
-Then('o status deve ser válido', () => {
   expect(response, 'response não pode ser undefined').to.exist
-  expect(response.status).to.be.oneOf([200, 204, 400, 404])
-})
 
-Then('o retorno deve ser válido', () => {
-  expect(response, 'response não pode ser undefined').to.exist
+  expect(response.status).to.eq(200)
 
-  if (response.body !== undefined) {
-    const body = response.body
-
-    expect(
-      typeof body === 'object' ||
-      typeof body === 'string' ||
-      body === null
-    ).to.be.true
-  }
 })
