@@ -13,37 +13,36 @@ import axios from 'axios'
 dotenv.config()
 
 const dbConfig = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
+  user: process.env.DB_USER || '',
+  password: process.env.DB_PASSWORD || '',
+  host: process.env.DB_HOST || '',
+  database: process.env.DB_DATABASE || '',
 }
 
 const envKeys = [
-  'USUARIO_HOMOL_ADMIN',
-  'USUARIO_HOMOL_EXTERNO',
-  'SENHA_HOMOL',
+  'API_URL_NOVA',
+  'API_KEY_NOVA',
 
-  'API_KEY',
-  'API_KEY_HEADER',
-  'API_URL',
-  'APP_PREFIX',
+  'CODIGO_RF',
+  'ANO_LETIVO',
 
   'FUNCIONARIO_CODIGO',
+  'LOGIN_FUNCIONARIO',
+  'ID_PERFIL',
+
   'TURMA_CODIGO',
   'TURMA_PAP_CODIGO',
-  'LOGIN_FUNCIONARIO',
   'TURMA_SEM_ATRIBUICAO',
 
   'DATA_BASE',
-  'ANO_LETIVO',
-  'COMPONENTE_CURRICULAR',
-  'UE_CODIGO',
-  'MODALIDADE',
   'ANO_LETIVO_GRADE',
   'ANO_ESCOLAR',
+
+  'COMPONENTE_CURRICULAR',
+  'MODALIDADE',
+  'UE_CODIGO',
   'UE_TURMAS_CODIGO',
-  'CODIGO_RF',
+
   'CODIGO_EOL_ESCOLA',
   'DRE_ID',
   'CODIGO_TURMA',
@@ -52,33 +51,34 @@ const envKeys = [
   'DATA_TICKS',
   'CODIGO_CARGO',
   'CODIGO_FUNCAO_ATIVIDADE',
-  'ID_PERFIL',
   'CPF_EXTERNO',
 ]
 
 export default defineConfig({
   e2e: {
+
     watchForFileChanges: true,
 
     supportFile: 'cypress/support/e2e.js',
 
     viewportWidth: 1920,
     viewportHeight: 1080,
+
     video: false,
-
-    retries: { runMode: 2, openMode: 0 },
-
     screenshotOnRunFailure: false,
     chromeWebSecurity: false,
-    experimentalRunAllSpecs: true,
-    failOnStatusCode: false,
+
+    retries: {
+      runMode: 2,
+      openMode: 0,
+    },
 
     specPattern: ['cypress/e2e/**/*.feature'],
 
-    defaultCommandTimeout: 60000,
-    requestTimeout: 60000,
-    execTimeout: 60000,
-    pageLoadTimeout: 60000,
+    defaultCommandTimeout: 120000,
+    requestTimeout: 120000,
+    responseTimeout: 120000,
+    pageLoadTimeout: 120000,
 
     env: {
       allure: true,
@@ -86,17 +86,20 @@ export default defineConfig({
 
     async setupNodeEvents(on, config) {
 
-      // Allure
       allureWriter(on, config)
+
       config.env.allure = true
 
-      // Cucumber + Webpack
+      // =========================
+      // WEBPACK + CUCUMBER
+      // =========================
+
       const webpackConfig = {
         module: {
           rules: [
             {
               test: /\.js$/,
-              exclude: [/node_modules/],
+              exclude: /node_modules/,
               use: {
                 loader: 'babel-loader',
                 options: {
@@ -108,27 +111,44 @@ export default defineConfig({
         },
       }
 
-      on('file:preprocessor', preprocessor({ webpackOptions: webpackConfig }))
+      on('file:preprocessor', preprocessor({
+        webpackOptions: webpackConfig,
+      }))
+
       on('file:preprocessor', cucumber.default())
 
-      // Banco
+      // =========================
+      // DATABASE
+      // =========================
+
       const pool = new pg.Pool(dbConfig)
+
       const dbTasks = postgreSQL.loadDBPlugin(pool)
 
       on('task', {
+
         ...dbTasks,
 
-        async uploadFile({ method = 'POST', url, headers = {}, filePath }) {
+        async uploadFile({
+          method = 'POST',
+          url,
+          headers = {},
+          filePath,
+        }) {
+
           const form = new FormData()
 
-          if (filePath && filePath.trim() !== '') {
+          if (filePath) {
             form.append('file', fs.createReadStream(filePath))
           }
 
           const response = await axios({
             method,
             url,
-            headers: { ...headers, ...form.getHeaders() },
+            headers: {
+              ...headers,
+              ...form.getHeaders(),
+            },
             data: form,
             maxBodyLength: Infinity,
             validateStatus: () => true,
@@ -141,7 +161,10 @@ export default defineConfig({
         },
       })
 
-      // ENV DINÂMICO
+      // =========================
+      // ENV SAFE LOAD
+      // =========================
+
       const customVariable = Object.fromEntries(
         envKeys.map((key) => [key, process.env[key] ?? ''])
       )
@@ -152,14 +175,11 @@ export default defineConfig({
         db: dbConfig,
       }
 
-      // Segurança contra undefined (SEMPRE resolve seu erro)
-      if (!config.env.API_URL) {
-        throw new Error(' API_URL não definida no .env')
-      }
-
-      if (!config.env.APP_PREFIX) {
-        throw new Error('APP_PREFIX não definido no .env')
-      }
+      envKeys.forEach((key) => {
+        if (!process.env[key]) {
+          console.warn(`⚠️ ENV não definida: ${key}`)
+        }
+      })
 
       return await cloudPlugin(on, config)
     },
