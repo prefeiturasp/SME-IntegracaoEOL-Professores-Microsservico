@@ -8,6 +8,7 @@ class FuncionarioUESerializer(serializers.Serializer):
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
+    cpf = serializers.CharField()
     cargo = serializers.CharField(allow_null=True)
     data_inicio = serializers.CharField(allow_null=True)
     data_fim = serializers.CharField(allow_null=True)
