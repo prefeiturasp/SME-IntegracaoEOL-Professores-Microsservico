@@ -55,6 +55,7 @@ def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
     return {
         "codigo_rf": funcionario.codigo_rf,
         "nome": _nome_funcionario(funcionario),
+        "cpf": funcionario.cpf,
         "data_inicio": _fmt_data_funcionario(funcionario.data_inicio),
         "data_fim": _fmt_data_funcionario(funcionario.data_fim),
         "cargo": funcionario.cargo,
