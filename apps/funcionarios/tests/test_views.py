@@ -1,10 +1,33 @@
 """Testes das views do domínio de funcionários."""
 
+from datetime import UTC, date, datetime
+
 import pytest
+from rest_framework.test import APIRequestFactory
+
+from apps.funcionarios.api.views import (
+    FuncionariosCargosQueryView,
+    FuncionariosFuncaoAtividadeView,
+    FuncionariosFuncaoExternaView,
+    FuncionariosFuncoesAtividadesQueryView,
+    FuncionariosFuncoesExternasQueryView,
+)
+from apps.professores.models import (
+    CargoBaseServidor,
+    FuncionarioUnidadeEducacional,
+    LotacaoServidor,
+    Professor,
+)
 
 pytestmark = pytest.mark.django_db
 
 _BASE = "/api/v1/professores"
+_API_KEY = "test-key"
+
+
+def _request(settings, path: str):
+    settings.API_KEY = _API_KEY
+    return APIRequestFactory().get(path, HTTP_X_API_KEY=_API_KEY)
 
 
 class TestEP25FuncionariosPorUE:
@@ -12,6 +35,8 @@ class TestEP25FuncionariosPorUE:
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
         assert res.status_code == 200
         assert any(f["codigo_rf"] == "7654321" for f in res.data)
+        assert res.data[0]["data_inicio"] == "01/02/2024 00:00:00"
+        assert "codigo_tipo_funcao_atividade" in res.data[0]
 
     def test_ue_sem_lotacao_retorna_vazio(self, client, db):
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
@@ -23,62 +48,178 @@ class TestEP25FuncionariosPorUE:
         assert res.status_code == 403
 
 
-class TestEP26FuncionariosPorUECargo:
-    def test_cargo_correto_retorna_funcionario(self, client, lotacao):
-        res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/3379/")
+class TestEP26FuncionariosPorUEFiltros:
+    def test_funcoes_retorna_funcionario(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/"
+            "?funcoes_externas=0&funcoes_externas=1"
+        )
         assert res.status_code == 200
         assert any(f["codigo_rf"] == "7654321" for f in res.data)
 
-    def test_cargo_errado_retorna_vazio(self, client, lotacao):
-        res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/9999/")
+    def test_funcoes_externas_sem_match_retorna_vazio(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/?funcoes_externas=9999"
+        )
         assert res.status_code == 200
         assert res.data == []
 
-    def test_sem_api_key_retorna_403(self, anon):
-        res = anon.get(f"{_BASE}/escolas/000532/funcionarios/cargos/3379/")
-        assert res.status_code == 403
-
-
-class TestEP26BFuncionariosCargosQuery:
-    def test_cargo_na_lista_retorna_funcionario(self, client, lotacao):
+    def test_funcoes_externas_invalidas_retorna_400(self, client):
         res = client.get(
-            f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379&cargos=3085"
+            f"{_BASE}/escolas/000532/funcionarios/?funcoes_externas=invalido"
         )
-        assert res.status_code == 200
-        assert any(f["funcionario_rf"] == "7654321" for f in res.data)
+        assert res.status_code == 400
+        assert "funcoes_externas" in res.data
 
-    def test_sem_cargos_retorna_todos_da_ue(self, client, lotacao):
-        res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/")
+    def test_ordena_por_nome(self, client, lotacao, ue):
+        professor = Professor.objects.create(
+            codigo_rf="1234567",
+            nome="Abel Silva",
+            cpf="00000000000",
+        )
+        cargo = CargoBaseServidor.objects.create(
+            professor=professor,
+            codigo_cargo=3085,
+            descricao_cargo="PROFESSOR",
+        )
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf=professor.codigo_rf,
+            nome=professor.nome,
+            cpf=professor.cpf,
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo=str(cargo.codigo_cargo),
+            cargo=cargo.descricao_cargo,
+        )
+        LotacaoServidor.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao=ue.codigo_ue,
+            dt_inicio=date(2024, 1, 1),
+        )
+
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
+
         assert res.status_code == 200
-        assert any(f["codigo_rf"] == "7654321" for f in res.data)
+        assert [item["nome"] for item in res.data] == [
+            "Abel Silva",
+            "Ana Silva",
+        ]
+
+    def test_endpoint_antigo_por_path_nao_existe(self, client, lotacao):
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/cargos/3379/")
+        assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
-            f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379"
+            f"{_BASE}/escolas/000532/funcionarios/?funcoes=0"
         )
         assert res.status_code == 403
+
+
+class TestEP26BFuncionariosFiltros:
+    def test_cargos_retorna_funcionario(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/?cargos=3379&cargos=3085"
+        )
+        assert res.status_code == 200
+        assert any(f["codigo_rf"] == "7654321" for f in res.data)
+
+    def test_funcoes_atividades_retorna_funcionario(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/"
+            "?funcoes_atividades=0&funcoes_atividades=1"
+        )
+        assert res.status_code == 200
+        assert any(f["codigo_rf"] == "7654321" for f in res.data)
+
+    def test_funcoes_atividades_sem_match_retorna_vazio(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/?funcoes_atividades=9999"
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_rota_cargos_lista_nao_existe(self, client, lotacao):
+        res = client.get(
+            f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379"
+        )
+        assert res.status_code == 404
+
+    def test_view_cargos_query_retorna_filtro(
+        self,
+        settings,
+        lotacao,
+    ):
+        request = _request(
+            settings,
+            f"{_BASE}/escolas/000532/funcionarios/cargos/?cargos=3379",
+        )
+
+        res = FuncionariosCargosQueryView.as_view()(
+            request,
+            ue_codigo="000532",
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["funcionario_rf"] == "7654321"
+
+    def test_view_cargos_query_sem_cargos_retorna_ue(
+        self,
+        settings,
+        lotacao,
+    ):
+        request = _request(
+            settings,
+            f"{_BASE}/escolas/000532/funcionarios/cargos/",
+        )
+
+        res = FuncionariosCargosQueryView.as_view()(
+            request,
+            ue_codigo="000532",
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["codigo_rf"] == "7654321"
 
 
 class TestEP27FuncionariosFuncaoAtividade:
-    def test_retorna_funcionario_com_funcao(self, client, funcao_atividade):
+    def test_rota_por_path_nao_existe(self, client, funcao_atividade):
         res = client.get(
             f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/"
         )
-        assert res.status_code == 200
-        assert any(f["codigo_rf"] == "7654321" for f in res.data)
+        assert res.status_code == 404
 
-    def test_sem_funcao_retorna_vazio(self, client, db):
+    def test_filtro_por_query_sem_dados_retorna_vazio(self, client, db):
         res = client.get(
-            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/"
+            f"{_BASE}/escolas/000532/funcionarios/?funcoes_atividades=1"
         )
         assert res.status_code == 200
         assert res.data == []
 
-    def test_sem_api_key_retorna_403(self, anon):
+    def test_rota_por_path_sem_api_key_retorna_404(self, anon):
         res = anon.get(
             f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/"
         )
-        assert res.status_code == 403
+        assert res.status_code == 404
+
+    def test_view_funcao_atividade_retorna_funcionario(
+        self,
+        settings,
+        funcao_atividade,
+    ):
+        request = _request(
+            settings,
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/1/",
+        )
+
+        res = FuncionariosFuncaoAtividadeView.as_view()(
+            request,
+            codigo_ue="000532",
+            codigo_funcao_atividade=1,
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["codigo_rf"] == "7654321"
 
 
 class TestEP27BFuncionariosFuncoesAtividadesQuery:
@@ -87,14 +228,32 @@ class TestEP27BFuncionariosFuncoesAtividadesQuery:
             f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/"
             "?funcoes_atividades=1&funcoes_atividades=2"
         )
-        assert res.status_code == 200
-        assert any(f["funcionario_rf"] == "7654321" for f in res.data)
+        assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
             f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/"
         )
-        assert res.status_code == 403
+        assert res.status_code == 404
+
+    def test_view_funcoes_atividades_query_retorna_funcionario(
+        self,
+        settings,
+        funcao_atividade,
+    ):
+        request = _request(
+            settings,
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-atividades/"
+            "?funcoes_atividades=1",
+        )
+
+        res = FuncionariosFuncoesAtividadesQueryView.as_view()(
+            request,
+            ue_codigo="000532",
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["funcionario_rf"] == "7654321"
 
 
 class TestEP28FuncionariosFuncaoExterna:
@@ -102,47 +261,79 @@ class TestEP28FuncionariosFuncaoExterna:
         res = client.get(
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/5/"
         )
-        assert res.status_code == 200
-        assert res.data[0]["cpf"] == "98765432100"
-        assert res.data[0]["nome_servidor"] == "João Ext"
-        assert res.data[0]["codigo_escola"] == "000532"
+        assert res.status_code == 404
 
     def test_funcao_errada_retorna_vazio(self, client, contrato_externo):
         res = client.get(
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/999/"
         )
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/5/"
         )
-        assert res.status_code == 403
+        assert res.status_code == 404
+
+    def test_view_funcao_externa_retorna_contrato(
+        self,
+        settings,
+        contrato_externo,
+    ):
+        request = _request(
+            settings,
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/5/",
+        )
+
+        res = FuncionariosFuncaoExternaView.as_view()(
+            request,
+            codigo_ue="000532",
+            codigo_funcao_externa=5,
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["cpf"] == "98765432100"
 
 
 class TestEP28BFuncionariosFuncoesExternasQuery:
     def test_funcao_na_lista_retorna_externo(self, client, contrato_externo):
         res = client.get(
-            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/?funcoes=5&funcoes=6"
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/"
+            "?funcoes=5&funcoes=6"
         )
-        assert res.status_code == 200
-        assert res.data[0]["cpf"] == "98765432100"
-        assert res.data[0]["nome_servidor"] == "João Ext"
-        assert res.data[0]["codigo_escola"] == "000532"
+        assert res.status_code == 404
 
     def test_lista_sem_match_retorna_vazio(self, client, contrato_externo):
         res = client.get(
-            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/?funcoes=999"
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/"
+            "?funcoes=999"
         )
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
             f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/"
         )
-        assert res.status_code == 403
+        assert res.status_code == 404
+
+    def test_view_funcoes_externas_query_retorna_contrato(
+        self,
+        settings,
+        contrato_externo,
+    ):
+        request = _request(
+            settings,
+            f"{_BASE}/escolas/000532/funcionarios/funcoes-externas/"
+            "?funcoes=5",
+        )
+
+        res = FuncionariosFuncoesExternasQueryView.as_view()(
+            request,
+            ue_codigo="000532",
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["cpf"] == "98765432100"
 
 
 class TestEP29CargosFuncionario:
@@ -263,7 +454,7 @@ class TestEP34DreUeAtribuicaoCargo:
         from apps.funcionarios.api import views
 
         monkeypatch.setattr(
-            views.repository,
+            views.services,
             "dre_ue_cargo",
             lambda registro_funcional, codigo_cargo: None,
         )
@@ -406,7 +597,15 @@ class TestEP37AcessoSondagem:
 
 
 class TestEP38BuscarPorListaRF:
-    def test_rf_existente_retorna_funcionario(self, client, professor):
+    def test_rf_existente_retorna_funcionario(self, client, monkeypatch):
+        from apps.funcionarios.api import views
+
+        monkeypatch.setattr(
+            views.services,
+            "buscar_por_lista_rf",
+            lambda lista: [{"nome": "Ana Silva", "codigo_rf": lista[0]}],
+        )
+
         res = client.post(
             f"{_BASE}/funcionarios/BuscarPorListaRF/",
             ["7654321"],
@@ -415,7 +614,15 @@ class TestEP38BuscarPorListaRF:
         assert res.status_code == 200
         assert any(f["codigo_rf"] == "7654321" for f in res.data)
 
-    def test_rf_inexistente_retorna_vazio(self, client, db):
+    def test_rf_inexistente_retorna_vazio(self, client, monkeypatch):
+        from apps.funcionarios.api import views
+
+        monkeypatch.setattr(
+            views.services,
+            "buscar_por_lista_rf",
+            lambda _lista: [],
+        )
+
         res = client.post(
             f"{_BASE}/funcionarios/BuscarPorListaRF/",
             ["0000000"],

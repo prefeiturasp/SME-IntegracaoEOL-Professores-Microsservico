@@ -11,6 +11,7 @@ from apps.professores.models import (
     CargoBaseServidor,
     ContratoExterno,
     FuncaoAtividadeCargoServidor,
+    FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Pessoa,
     Professor,
@@ -102,6 +103,20 @@ def cargo_base(professor) -> CargoBaseServidor:
 @pytest.fixture
 def lotacao(cargo_base, ue) -> LotacaoServidor:
     """Cria lotacao de servidor para os testes."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf=cargo_base.professor.codigo_rf,
+        nome=cargo_base.professor.nome,
+        nome_social=cargo_base.professor.nome_social,
+        cpf=cargo_base.professor.cpf,
+        codigo_ue=ue.codigo_ue,
+        data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
+        codigo_cargo=str(cargo_base.codigo_cargo),
+        cargo=cargo_base.descricao_cargo,
+        codigo_tipo_funcao_atividade=0,
+        esta_afastado=False,
+        funcao_externo=0,
+        tipo_funcao_externo=0,
+    )
     return LotacaoServidor.objects.create(
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,

@@ -28,7 +28,7 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
         """Autentica request por header de API key.
 
         Args:
-            request: Request DRF com headers da chamada.
+            request: Requisição DRF com headers da chamada.
 
         Returns:
             Usuário autenticado e credencial nula, ou ``None`` sem header.

@@ -7,10 +7,35 @@ class FuncionarioUESerializer(serializers.Serializer):
     """Serializa dados de funcionário em unidade educacional."""
 
     codigo_rf = serializers.CharField()
-    nome_servidor = serializers.CharField()
+    nome = serializers.CharField()
+    cpf = serializers.CharField()
     cargo = serializers.CharField(allow_null=True)
-    data_inicio = serializers.DateField(allow_null=True)
-    data_fim = serializers.DateField(allow_null=True)
+    data_inicio = serializers.CharField(allow_null=True)
+    data_fim = serializers.CharField(allow_null=True)
+    codigo_tipo_funcao_atividade = serializers.IntegerField()
+    esta_afastado = serializers.BooleanField()
+    funcao_externo = serializers.IntegerField()
+    tipo_funcao_externo = serializers.IntegerField()
+
+
+class FuncionariosUEQuerySerializer(serializers.Serializer):
+    """Valida filtros de funcionarios em unidade educacional."""
+
+    cargos = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+    )
+    funcoes_atividades = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+    )
+    funcoes_externas = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+    )
 
 
 class FuncionarioFuncaoExternaSerializer(serializers.Serializer):
@@ -31,22 +56,13 @@ class FuncionarioExternoCpfSerializer(serializers.Serializer):
     codigo_tipo_funcao = serializers.IntegerField(allow_null=True)
 
 
-class NomeServidorSerializer(serializers.Serializer):
+class NomeCPFServidorSerializer(serializers.Serializer):
     """Serializa dados de identificação do servidor."""
 
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
     cpf = serializers.CharField(allow_null=True)
-
-
-class DreUeAtribuicaoSerializer(serializers.Serializer):
-    """Serializa dados de atribuição do funcionário."""
-
-    codigo_rf = serializers.CharField()
-    nome = serializers.CharField()
-    codigo_dre = serializers.CharField(allow_null=True)
-    codigo_ue = serializers.CharField(allow_null=True)
-
+    
 
 class DreUeCargoSerializer(serializers.Serializer):
     """Serializa dados de cargo do funcionário."""

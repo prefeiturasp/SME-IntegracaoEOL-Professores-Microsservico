@@ -11,7 +11,14 @@ class ProfessoresTestRunner(DiscoverRunner):
     """Prepara tabelas externas antes de executar os testes."""
 
     def setup_databases(self, **kwargs: Any) -> Any:
-        """Configura bancos de teste e cria tabelas externas."""
+        """Configura bancos de teste e cria tabelas externas.
+
+        Args:
+            **kwargs: Opções repassadas ao runner do Django.
+
+        Returns:
+            Configuração dos bancos criada pelo runner.
+        """
         result = super().setup_databases(**kwargs)
         with connections["default"].schema_editor() as editor:
             criadas: set[str] = set()

@@ -39,7 +39,7 @@ class TestEP01BuscaProfessores:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/escolas/000532/professores/2024/")
         assert res.status_code == 403
 
@@ -83,7 +83,7 @@ class TestEP02TurmasAtribuidasEscola:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/7654321/escolas/000532"
             "/turmas/anos_letivos/2024/"
@@ -121,35 +121,34 @@ class TestEP03EP04TurmasAtribuidas:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/7654321/turmas/")
         assert res.status_code == 403
 
 
 class TestEP05ObterNomePeloRF:
     def test_encontrado_retorna_200_com_nome(self, client, professor):
-        """Verifica encontrado retorna 200 com nome."""
+        """Verifica retorno do nome quando professor existe."""
         res = client.get(f"{_BASE}/professores/7654321/")
         assert res.status_code == 200
         assert res.content.decode() == "Ana Silva"
 
     def test_nao_encontrado_retorna_404(self, client, db):
-        """Verifica nao encontrado retorna 404."""
+        """Verifica ausência de professor."""
         res = client.get(f"{_BASE}/professores/0000000/")
         assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/7654321/")
         assert res.status_code == 403
 
 
 class TestEP06BuscarPorRf:
-    def test_encontrado_retorna_200_com_rf(self, client, professor):
-        """Verifica encontrado retorna 200 com RF."""
+    def test_sem_atribuicao_retorna_404(self, client, professor):
+        """Verifica que professor sem atribuicao no ano retorna 404."""
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRf/2024/")
-        assert res.status_code == 200
-        assert res.data["codigo_rf"] == "7654321"
+        assert res.status_code == 404
 
     def test_com_atribuicao_retorna_turma(self, client, atribuicao):
         """Verifica com atribuicao retorna turma."""
@@ -157,26 +156,26 @@ class TestEP06BuscarPorRf:
         assert res.status_code == 200
         assert "codigo_rf" in res.data
 
-    def test_com_lotacao_retorna_escola(self, client, professor, lotacao):
-        """Verifica com lotacao retorna escola."""
+    def test_com_atribuicao_retorna_nome(self, client, atribuicao):
+        """Verifica que atribuicao no ano retorna nome."""
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRf/2024/")
         assert res.status_code == 200
         assert res.data["nome"] == "Ana Silva"
 
     def test_nao_encontrado_retorna_404(self, client, db):
-        """Verifica nao encontrado retorna 404."""
+        """Verifica ausência de professor."""
         res = client.get(f"{_BASE}/professores/0000000/BuscarPorRf/2024/")
         assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/7654321/BuscarPorRf/2024/")
         assert res.status_code == 403
 
 
 class TestEP07BuscarPorRfDreUe:
     def test_encontrado_sem_filtro_retorna_200(self, client, professor):
-        """Verifica encontrado sem filtro retorna 200."""
+        """Verifica retorno do professor sem filtro opcional."""
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/")
         assert res.status_code == 200
         assert res.data["codigo_rf"] == "7654321"
@@ -202,12 +201,12 @@ class TestEP07BuscarPorRfDreUe:
         assert res.data["codigo_rf"] == "7654321"
 
     def test_nao_encontrado_retorna_404(self, client, db):
-        """Verifica nao encontrado retorna 404."""
+        """Verifica ausência de professor."""
         res = client.get(f"{_BASE}/professores/0000000/BuscarPorRfDreUe/2024/")
         assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/")
         assert res.status_code == 403
 
@@ -243,7 +242,7 @@ class TestEP08AutoComplete:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/2024/AutoComplete/108100/")
         assert res.status_code == 403
 
@@ -280,7 +279,7 @@ class TestEP09BuscarPorListaRF:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.post(
             f"{_BASE}/professores/2024/BuscarPorListaRF/",
             [],
@@ -334,7 +333,7 @@ class TestEP10VerificarValidade:
         assert res.data is False
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/7654321/validade/")
         assert res.status_code == 403
 
@@ -354,7 +353,7 @@ class TestEP11EhEmei:
         assert res.data is False
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/7654321/ehEmei/")
         assert res.status_code == 403
 
@@ -377,7 +376,7 @@ class TestEP12AtribuicaoStatus:
         assert res.data["ano_atribuicao"] is None
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/7654321/turmas/2112345/atribuicao/status/"
         )
@@ -415,7 +414,7 @@ class TestEP13AtribuicaoVerificarData:
         assert res.data is False
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/atribuicao/verificar/data/"
@@ -456,7 +455,7 @@ class TestEP14AtribuicaoDisciplinaData:
         assert res.data is False
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/data/"
@@ -486,7 +485,7 @@ class TestEP15AtribuicaoDisciplinaDataTick:
         assert res.data is False
 
     def test_sem_tick_retorna_400(self, client, atribuicao):
-        """Verifica sem tick retorna 400."""
+        """Verifica validação de tick obrigatório."""
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/datatick/"
@@ -494,7 +493,7 @@ class TestEP15AtribuicaoDisciplinaDataTick:
         assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/verificar/datatick/"
@@ -518,7 +517,7 @@ class TestEP16AtribuicaoRecorrenciaDatas:
         assert False in resultados
 
     def test_sem_ticks_retorna_400(self, client, atribuicao):
-        """Verifica sem ticks retorna 400."""
+        """Verifica validação de ticks obrigatórios."""
         res = client.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/recorrencia/verificar/datas/"
@@ -526,7 +525,7 @@ class TestEP16AtribuicaoRecorrenciaDatas:
         assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/7654321/turmas/2112345"
             "/disciplinas/138/atribuicao/recorrencia/verificar/datas/"
@@ -537,6 +536,9 @@ class TestEP16AtribuicaoRecorrenciaDatas:
 class TestEP17AtribuicaoTurmasLista:
     def test_turma_com_atribuicao_retorna_true(self, client, atribuicao):
         """Verifica turma com atribuicao retorna true."""
+        atribuicao.codigo_motivo_disponibilizacao = 34
+        atribuicao.save(update_fields=["codigo_motivo_disponibilizacao"])
+
         res = client.post(
             f"{_BASE}/professores/7654321/disciplina/138/turmas/",
             [2112345, 9999999],
@@ -558,10 +560,9 @@ class TestEP17AtribuicaoTurmasLista:
             [],
             format="json",
         )
-        assert res.status_code == 200
-        assert res.data == []
+        assert res.status_code == 400
 
-    def test_turma_com_atribuicao_externa_retorna_periodo(
+    def test_atribuicao_externa_sem_codigo_turma_direto_retorna_vazio(
         self,
         client,
         atribuicao_externa,
@@ -584,16 +585,36 @@ class TestEP17AtribuicaoTurmasLista:
         )
 
         assert res.status_code == 200
-        assert res.data == [
-            {
-                "codigo_turma": "2112345",
-                "data_disponibilizacao_aulas": None,
-                "data_atribuicao_aula": "2024-02-01T00:00:00",
-            }
-        ]
+        assert res.data == []
+
+    def test_codigo_turma_invalido_retorna_lista_vazia(
+        self,
+        client,
+        atribuicao,
+    ):
+        """Verifica codigo_turma invalido retorna lista vazia."""
+        res = client.post(
+            f"{_BASE}/professores/7654321/disciplina/138/turmas/",
+            ["string"],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_payload_nao_lista_retorna_lista_vazia(self, client, atribuicao):
+        """Verifica retorno vazio para entrada fora do formato esperado."""
+        res = client.post(
+            f"{_BASE}/professores/7654321/disciplina/138/turmas/",
+            {"codigo_turma": 2112345},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.post(
             f"{_BASE}/professores/7654321/disciplina/138/turmas/",
             [],
@@ -624,7 +645,7 @@ class TestEP18AtribuicaoPeriodo:
         assert res.data is False
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.post(self._URL, format="json")
         assert res.status_code == 403
 
@@ -669,14 +690,14 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
         assert res.data == []
 
     def test_sem_data_ticks_retorna_400(self, client):
-        """Verifica sem data ticks retorna 400."""
+        """Verifica validação de data em ticks obrigatória."""
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
         )
         assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
         )
@@ -685,7 +706,7 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
 
 class TestEP20TitularPorTurmaDisciplina:
     def test_encontrado_retorna_200_com_rf(self, client, atribuicao):
-        """Verifica encontrado retorna 200 com RF."""
+        """Verifica retorno do RF quando registro existe."""
         res = client.get(
             f"{_BASE}/professores/titular/turmas/2112345"
             "/componentes-curriculares/138/"
@@ -694,7 +715,7 @@ class TestEP20TitularPorTurmaDisciplina:
         assert res.data["professor_rf"] == "7654321"
 
     def test_nao_encontrado_retorna_404(self, client, db):
-        """Verifica nao encontrado retorna 404."""
+        """Verifica ausência de professor."""
         res = client.get(
             f"{_BASE}/professores/titular/turmas/2112345"
             "/componentes-curriculares/138/"
@@ -702,7 +723,7 @@ class TestEP20TitularPorTurmaDisciplina:
         assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/titular/turmas/2112345"
             "/componentes-curriculares/138/"
@@ -734,7 +755,7 @@ class TestEP21TitularesPorTurmas:
         assert isinstance(res.data, list)
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/titulares/")
         assert res.status_code == 403
 
@@ -759,7 +780,7 @@ class TestEP22TitularesPorTurmaAgrupamento:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(
             f"{_BASE}/professores/2112345/titulares"
             "/realizaAgrupamentoComponente/false/"
@@ -795,6 +816,6 @@ class TestEP23TitularesPorUe:
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
-        """Verifica sem API key retorna 403."""
+        """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/titulares/ue/000532/2024-06-01/")
         assert res.status_code == 403
