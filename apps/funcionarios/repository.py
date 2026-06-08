@@ -48,7 +48,7 @@ def _nome_funcionario(funcionario: FuncionarioUnidadeEducacional) -> str:
 def _fmt_data_funcionario(valor: Any) -> str | None:
     if valor is None:
         return None
-    return str(valor.strftime("%d/%m/%Y 00:00:00"))
+    return str(valor.strftime("%m/%d/%Y 00:00:00"))
 
 
 def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
@@ -58,7 +58,8 @@ def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
         "cpf": funcionario.cpf,
         "data_inicio": _fmt_data_funcionario(funcionario.data_inicio),
         "data_fim": _fmt_data_funcionario(funcionario.data_fim),
-        "cargo": funcionario.cargo,
+        "cargo": funcionario.cargo or "",
+        "codigo_cargo": funcionario.codigo_cargo,
         "codigo_tipo_funcao_atividade": (
             funcionario.codigo_tipo_funcao_atividade or 0
         ),

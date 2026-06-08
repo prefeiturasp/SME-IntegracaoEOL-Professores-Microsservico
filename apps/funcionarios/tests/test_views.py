@@ -35,7 +35,7 @@ class TestEP25FuncionariosPorUE:
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
         assert res.status_code == 200
         assert any(f["codigo_rf"] == "7654321" for f in res.data)
-        assert res.data[0]["data_inicio"] == "01/02/2024 00:00:00"
+        assert res.data[0]["data_inicio"] == "02/01/2024 00:00:00"
         assert "codigo_tipo_funcao_atividade" in res.data[0]
 
     def test_ue_sem_lotacao_retorna_vazio(self, client, db):
