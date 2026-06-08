@@ -25,7 +25,14 @@ _UE_DRE_CACHE: dict[str, str | None] = {}
 
 
 def perfil_placeholder_invalido(id_perfil: str) -> bool:
-    """Verifica se o perfil informado é um placeholder inválido."""
+    """Verifica se o perfil informado é um placeholder inválido.
+
+    Args:
+        id_perfil: Identificador do perfil a validar.
+
+    Returns:
+        ``True`` quando o perfil corresponde ao GUID vazio.
+    """
     return id_perfil.strip().lower() == _GUID_VAZIO
 
 
@@ -76,7 +83,16 @@ def _lotacoes_ativas() -> Any:
 def funcionarios_por_ue(
     codigo_ue: str, filtros: dict[str, Any] | None = None
 ) -> list[dict]:
-    """Lista funcionários ativos de uma unidade educacional."""
+    """Lista funcionários ativos de uma unidade educacional.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        filtros: Filtros opcionais. Chaves aceitas: ``cargos``,
+            ``funcoes_atividades`` e ``funcoes_externas``.
+
+    Returns:
+        Funcionários ativos da unidade, ordenados por nome.
+    """
     qs = FuncionarioUnidadeEducacional.objects.filter(
         codigo_ue=codigo_ue,
         data_fim__isnull=True,
@@ -97,7 +113,15 @@ def funcionarios_por_ue(
 
 
 def funcionarios_por_ue_cargo(codigo_ue: str, codigo_cargo: int) -> list[dict]:
-    """Lista funcionários ativos de uma unidade por cargo."""
+    """Lista funcionários ativos de uma unidade por cargo.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        codigo_cargo: Código do cargo usado no filtro.
+
+    Returns:
+        Funcionários ativos da unidade no cargo informado.
+    """
     return funcionarios_por_ue(
         codigo_ue,
         filtros={"cargos": [codigo_cargo]},
@@ -107,7 +131,15 @@ def funcionarios_por_ue_cargo(codigo_ue: str, codigo_cargo: int) -> list[dict]:
 def funcionarios_por_lista_cargos(
     codigo_ue: str, cargos: list[int]
 ) -> list[dict]:
-    """Lista funcionários de uma unidade por cargos informados."""
+    """Lista funcionários de uma unidade por cargos informados.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        cargos: Códigos de cargo usados no filtro.
+
+    Returns:
+        Funcionários com lotação ativa nos cargos informados.
+    """
     qs = (
         _lotacoes_ativas()
         .filter(
@@ -129,7 +161,15 @@ def funcionarios_por_lista_cargos(
 def funcionarios_por_funcao_atividade(
     codigo_ue: str, codigo_funcao_atividade: int
 ) -> list[dict]:
-    """Lista funcionários de uma unidade por função de atividade."""
+    """Lista funcionários de uma unidade por função de atividade.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        codigo_funcao_atividade: Código da função de atividade consultada.
+
+    Returns:
+        Funcionários da unidade na função de atividade informada.
+    """
     qs = FuncaoAtividadeCargoServidor.objects.filter(
         codigo_unidade_local_servico=codigo_ue
     ).select_related("cargo_base__professor")
@@ -150,7 +190,16 @@ def funcionarios_por_funcao_atividade(
 def funcionarios_por_lista_funcoes_atividade(
     codigo_ue: str, _funcoes: list[int]
 ) -> list[dict]:
-    """Lista funcionários de uma unidade por funções de atividade."""
+    """Lista funcionários de uma unidade por funções de atividade.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        _funcoes: Funções de atividade consultadas; apenas a primeira é
+            refletida no retorno.
+
+    Returns:
+        Funcionários da unidade vinculados às funções de atividade.
+    """
     qs = FuncaoAtividadeCargoServidor.objects.filter(
         codigo_unidade_local_servico=codigo_ue
     ).select_related("cargo_base__professor")
@@ -168,7 +217,15 @@ def funcionarios_por_funcao_externa(
     codigo_ue: str,
     codigo_funcao_externa: int,
 ) -> list[dict]:
-    """Lista funcionários externos de uma unidade por função."""
+    """Lista funcionários externos de uma unidade por função.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        codigo_funcao_externa: Código do tipo de função externa.
+
+    Returns:
+        Funcionários externos ativos da unidade na função informada.
+    """
     qs = ContratoExterno.objects.filter(
         codigo_unidade_educacao=codigo_ue,
         codigo_tipo_funcao=codigo_funcao_externa,
@@ -190,7 +247,15 @@ def funcionarios_por_lista_funcoes_externas(
     codigo_ue: str,
     funcoes: list[int],
 ) -> list[dict]:
-    """Lista funcionários externos de uma unidade por funções."""
+    """Lista funcionários externos de uma unidade por funções.
+
+    Args:
+        codigo_ue: CodigoEOL da unidade educacional.
+        funcoes: Códigos de função externa; lista vazia retorna ``[]``.
+
+    Returns:
+        Funcionários externos ativos da unidade nas funções informadas.
+    """
     if not funcoes:
         return []
     qs = ContratoExterno.objects.filter(
@@ -211,7 +276,14 @@ def funcionarios_por_lista_funcoes_externas(
 
 
 def cargos_funcionario(registro_funcional: str) -> list[dict]:
-    """Lista cargos vinculados ao funcionário."""
+    """Lista cargos vinculados ao funcionário.
+
+    Args:
+        registro_funcional: RF do funcionário consultado.
+
+    Returns:
+        Cargos ativos do funcionário com lotação, sobreposição e função.
+    """
     qs = (
         CargoBaseServidor.objects.filter(
             professor__codigo_rf=registro_funcional
@@ -275,7 +347,14 @@ def cargos_funcionario(registro_funcional: str) -> list[dict]:
 
 
 def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
-    """Retorna dados de funcionário externo por CPF."""
+    """Retorna dados de funcionário externo por CPF.
+
+    Args:
+        cpf: CPF do funcionário externo.
+
+    Returns:
+        Contratos externos do funcionário, ou ``None`` quando não houver.
+    """
     qs = ContratoExterno.objects.filter(pessoa__cpf=cpf).select_related(
         "pessoa"
     )
@@ -305,7 +384,14 @@ def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
 
 
 def nome_cpf_servidor(registro_funcional: str) -> dict | None:
-    """Retorna nome e CPF do servidor."""
+    """Retorna nome e CPF do servidor.
+
+    Args:
+        registro_funcional: RF do servidor consultado.
+
+    Returns:
+        Nome e CPF do servidor, ou ``None`` quando não encontrado.
+    """
     func = FuncionarioUnidadeEducacional.objects.filter(
         codigo_rf=registro_funcional,
         funcao_externo=0,
@@ -320,7 +406,14 @@ def nome_cpf_servidor(registro_funcional: str) -> dict | None:
 
 
 def nome_servidor(registro_funcional: str) -> str | None:
-    """Retorna nome do funcionário."""
+    """Retorna nome do funcionário.
+
+    Args:
+        registro_funcional: RF do funcionário consultado.
+
+    Returns:
+        Nome do funcionário, ou ``None`` quando não encontrado.
+    """
     func = FuncionarioUnidadeEducacional.objects.filter(
         codigo_rf=registro_funcional,
         funcao_externo=0,
@@ -335,7 +428,14 @@ def nome_servidor(registro_funcional: str) -> str | None:
 
 
 def servidor_ativo(registro_funcional: str) -> bool:
-    """Verifica se o servidor possui cargo ativo."""
+    """Verifica se o servidor possui cargo ativo.
+
+    Args:
+        registro_funcional: RF do servidor consultado.
+
+    Returns:
+        ``True`` quando existe cargo ativo para o servidor.
+    """
     return bool(
         CargoBaseServidor.objects.filter(
             professor__codigo_rf=registro_funcional,
@@ -345,7 +445,15 @@ def servidor_ativo(registro_funcional: str) -> bool:
 
 
 def dre_ue_cargo(registro_funcional: str, codigo_cargo: int) -> list[dict]:
-    """Lista DRE e UE do funcionário por cargo."""
+    """Lista DRE e UE do funcionário por cargo.
+
+    Args:
+        registro_funcional: RF do funcionário consultado.
+        codigo_cargo: Código do cargo usado no filtro.
+
+    Returns:
+        DRE e UE de cada cargo ativo do funcionário.
+    """
     qs = (
         CargoBaseServidor.objects.filter(
             professor__codigo_rf=registro_funcional,
@@ -384,7 +492,19 @@ def usuarios_sgp_por_perfil(  # NOSONAR
     codigo_rf: str | None = None,
     nome_servidor_param: str | None = None,
 ) -> list[dict]:
-    """Lista usuários SGP por perfil e filtros opcionais."""
+    """Lista usuários SGP por perfil e filtros opcionais.
+
+    Args:
+        _id_perfil: Identificador de perfil; mantido por compatibilidade
+            de contrato, sem efeito na consulta.
+        codigo_dre: Código da DRE usado como filtro opcional.
+        codigo_ue: CodigoEOL da unidade usado como filtro opcional.
+        codigo_rf: RF usado como filtro opcional.
+        nome_servidor_param: Trecho do nome usado como filtro opcional.
+
+    Returns:
+        Usuários com lotação ativa compatíveis com os filtros.
+    """
     qs = LotacaoServidor.objects.filter(dt_fim__isnull=True).select_related(
         "cargo_base__professor"
     )
@@ -427,7 +547,21 @@ def funcionarios_sgp_dre(  # NOSONAR
     nome_servidor_param: str | None = None,
     codigo_funcao_atividade: int | None = None,  # NOSONAR
 ) -> list[dict]:
-    """Lista funcionários SGP por DRE e filtros opcionais."""
+    """Lista funcionários SGP por DRE e filtros opcionais.
+
+    Args:
+        _id_perfil: Identificador de perfil; mantido por compatibilidade
+            de contrato, sem efeito na consulta.
+        codigo_dre: Código da DRE usado no filtro.
+        codigo_ue: CodigoEOL da unidade usado como filtro opcional.
+        codigo_rf: RF usado como filtro opcional.
+        nome_servidor_param: Trecho do nome usado como filtro opcional.
+        codigo_funcao_atividade: Mantido por compatibilidade de contrato,
+            sem efeito na consulta.
+
+    Returns:
+        Funcionários com lotação ativa na DRE compatíveis com os filtros.
+    """
     ues_dre = UnidadeEducacional.objects.filter(
         codigo_dre=codigo_dre
     ).values_list("codigo_ue", flat=True)
@@ -455,7 +589,14 @@ def funcionarios_sgp_dre(  # NOSONAR
 
 
 def acesso_sondagem(codigo_rf: str) -> bool:
-    """Verifica se o servidor possui acesso à sondagem."""
+    """Verifica se o servidor possui acesso à sondagem.
+
+    Args:
+        codigo_rf: RF do servidor consultado.
+
+    Returns:
+        ``True`` quando o servidor possui atribuição de aula.
+    """
     return bool(
         AtribuicaoAula.objects.filter(
             cargo_base__professor__codigo_rf=codigo_rf,
@@ -464,7 +605,14 @@ def acesso_sondagem(codigo_rf: str) -> bool:
 
 
 def buscar_por_lista_rf_func(lista: list[str]) -> list[dict]:
-    """Lista funcionários por registros funcionais."""
+    """Lista funcionários por registros funcionais.
+
+    Args:
+        lista: RFs dos funcionários consultados.
+
+    Returns:
+        Funcionários distintos encontrados para os RFs informados.
+    """
     return [
         {"nome": get_nome(p), "codigo_rf": p.codigo_rf}
         for p in FuncionarioUnidadeEducacional.objects.filter(
@@ -474,7 +622,14 @@ def buscar_por_lista_rf_func(lista: list[str]) -> list[dict]:
 
 
 def buscar_por_lista_login(lista: list[str]) -> list[dict]:
-    """Lista funcionários por logins."""
+    """Lista funcionários por logins.
+
+    Args:
+        lista: Logins (RF) dos funcionários consultados.
+
+    Returns:
+        Funcionários encontrados para os logins informados.
+    """
     return [
         {
             "login": p.codigo_rf,

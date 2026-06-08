@@ -154,10 +154,6 @@ def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
 
     Returns:
         Lista de professores vinculados à escola no ano informado.
-
-    Raises:
-        ValueError: Quando o RF cadastrado não pode ser convertido para
-            número inteiro.
     """
     qs = _vigentes_em(
         AtribuicaoAula.objects.filter(
@@ -635,10 +631,6 @@ def atribuicao_turmas_lista(
 
     Returns:
         Lista de períodos de atribuição por turma encontrada.
-
-    Raises:
-        ValueError: Quando algum código de turma não pode ser convertido para
-            número inteiro.
     """
     codigos = [int(codigo_turma) for codigo_turma in codigos_turma]
 
