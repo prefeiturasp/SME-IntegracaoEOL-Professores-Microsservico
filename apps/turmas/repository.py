@@ -13,7 +13,15 @@ def turmas_historicas_professor(
     ano_letivo: int,
     professor_rf: str,
 ) -> list[dict]:
-    """Lista turmas históricas do professor por ano letivo."""
+    """Lista turmas históricas do professor por ano letivo.
+
+    Args:
+        ano_letivo: Ano letivo usado no filtro de atribuições.
+        professor_rf: RF do professor consultado.
+
+    Returns:
+        Turmas em status histórico atribuídas ao professor no ano.
+    """
     atribuicoes = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf=professor_rf,
         ano_atribuicao=ano_letivo,
