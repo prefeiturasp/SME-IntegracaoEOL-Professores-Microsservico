@@ -33,6 +33,8 @@ class TestEP24TurmasHistoricas:
     def test_atribuicao_sem_disponibilizacao_retorna_404(
         self, client, atribuicao
     ):
+        """Atribuição existente sem disponibilização não conta como turma."""
+        assert atribuicao.dt_disponibilizacao_aulas is None
         res = client.get(self._url)
         assert res.status_code == 404
 
