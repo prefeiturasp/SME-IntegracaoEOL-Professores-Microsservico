@@ -1,5 +1,6 @@
 """Views do domínio de turmas."""
 
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.request import Request
@@ -7,25 +8,23 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.turmas import repository
-from apps.turmas.serializers import TurmaHistoricaSerializer
 
 _TAG_TURMAS = ["Turmas"]
 
 
 class TurmasHistoricasAnoProfessorView(APIView):
-    """Lista turmas históricas do professor por ano."""
+    """Lista códigos de turma históricos do professor por ano."""
 
     @extend_schema(
         tags=_TAG_TURMAS,
-        summary="Buscar turmas históricas do professor por ano",
+        summary="Buscar códigos de turma históricos do professor por ano",
         parameters=[
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
             OpenApiParameter("professor_rf", str, OpenApiParameter.PATH),
         ],
         responses={
-            200: TurmaHistoricaSerializer(many=True),
-            400: dict,
-            404: dict,
+            200: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
         },
     )
     def get(
@@ -34,9 +33,9 @@ class TurmasHistoricasAnoProfessorView(APIView):
         ano_letivo: int,
         professor_rf: str,
     ) -> Response:
-        resultado = repository.turmas_historicas_professor(
+        codigos = repository.turmas_historicas_professor(
             ano_letivo, professor_rf
         )
-        if not resultado:
+        if not codigos:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(resultado)
+        return Response(codigos)
