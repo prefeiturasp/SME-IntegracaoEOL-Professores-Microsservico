@@ -19,13 +19,13 @@ from apps.professores.api.views import (
     BuscarTurmasAtribuidasView,
     BuscaTurmasAtribuidasEscolaView,
     BuscaTurmasAtribuidasProfessorEscolaView,
-    EhEmeiView,
     ObterNomePeloRFView,
     ObterProfessoresAtribuidosTurmaDiscView,
     TitularesPorTurmaAgrupamentoView,
     TitularesPorTurmasView,
     TitularesPorUeView,
     TitularPorTurmaDisciplinaView,
+    UnidadesAtribuicaoValidaView,
     VerificarValidadeView,
 )
 
@@ -92,9 +92,9 @@ urlpatterns = [
         name="professor-validade",
     ),
     path(
-        f"{_BASE_PROF}/<str:codigo_rf>/ehEmei/",
-        EhEmeiView.as_view(),
-        name="professor-eh-emei",
+        f"{_BASE_PROF}/<str:codigo_rf>/unidades-atribuicao/",
+        UnidadesAtribuicaoValidaView.as_view(),
+        name="professor-unidades-atribuicao",
     ),
     path(
         f"{_BASE_PROF}/<str:codigo_rf>/turmas/<int:codigo_turma>"

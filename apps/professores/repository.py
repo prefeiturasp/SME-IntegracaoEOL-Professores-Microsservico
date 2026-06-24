@@ -17,6 +17,7 @@ from apps.professores.models import (
     AtribuicaoAula,
     AtribuicaoExterno,
     CargoBaseServidor,
+    ContratoExterno,
     Professor,
     SerieTurmaGrade,
     TurmaEscola,
@@ -145,6 +146,34 @@ def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
     }
 
 
+def _ancora_row(aa: AtribuicaoAula) -> dict:
+    """Monta o vínculo-âncora de uma atribuição efetiva."""
+    codigo_turma_escola = aa.codigo_turma_escola
+    return {
+        "codigo_turma": (
+            int(codigo_turma_escola) if codigo_turma_escola else None
+        ),
+        "codigo_serie_grade": aa.codigo_serie_grade,
+        "codigo_unidade_educacao": aa.codigo_unidade_educacao,
+        "data_atribuicao": fmt_br(aa.dt_atribuicao_aula),
+        "data_disponibilizacao": fmt_br(aa.dt_disponibilizacao_aulas),
+    }
+
+
+def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
+    """Monta o vínculo-âncora de uma atribuição externa (próprio domínio)."""
+    codigo_turma_escola = ae.codigo_turma_escola
+    return {
+        "codigo_turma": (
+            int(codigo_turma_escola) if codigo_turma_escola else None
+        ),
+        "codigo_serie_grade": ae.codigo_serie_grade,
+        "codigo_unidade_educacao": ae.codigo_unidade_educacao,
+        "data_atribuicao": fmt_br(ae.dt_atribuicao),
+        "data_disponibilizacao": fmt_br(ae.dt_disponibilizacao),
+    }
+
+
 def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
     """Lista professores de uma escola por ano letivo.
 
@@ -220,30 +249,21 @@ def buscar_turmas_professor_escola_ano(
 
 
 def buscar_turmas_professor(codigo_rf: str) -> list[dict]:
-    """Lista turmas atribuídas ao professor.
+    """Lista os vínculos-âncora de turma atribuídos ao professor.
 
     Args:
         codigo_rf: Registro funcional do professor.
 
     Returns:
-        Lista de turmas efetivas e externas atribuídas ao professor.
+        Lista de vínculos-âncora efetivos do professor.
     """
-    efetivas = list(
-        _vigentes_em(
-            AtribuicaoAula.objects.filter(
-                cargo_base__professor__codigo_rf=codigo_rf
-            ),
-            date.today(),
-        )
+    efetivas = _vigentes_em(
+        AtribuicaoAula.objects.filter(
+            cargo_base__professor__codigo_rf=codigo_rf
+        ),
+        date.today(),
     )
-    externas = AtribuicaoExterno.objects.filter(
-        contrato_externo__pessoa__cpf=codigo_rf
-    )
-    serie_map = _serie_turma_map(efetivas)
-    turmas_map = _turma_map(serie_map.values())
-    return [_turma_row(aa, serie_map, turmas_map) for aa in efetivas] + [
-        _turma_row_externo(ae) for ae in externas
-    ]
+    return [_ancora_row(aa) for aa in efetivas]
 
 
 def buscar_turmas_professor_ano(codigo_rf: str, ano_letivo: int) -> list[dict]:
@@ -256,23 +276,19 @@ def buscar_turmas_professor_ano(codigo_rf: str, ano_letivo: int) -> list[dict]:
     Returns:
         Lista de turmas atribuídas ao professor no ano informado.
     """
-    efetivas = list(
-        _vigentes_em(
-            AtribuicaoAula.objects.filter(
-                cargo_base__professor__codigo_rf=codigo_rf,
-                ano_atribuicao=ano_letivo,
-            ),
-            date.today(),
-        )
+    efetivas = _vigentes_em(
+        AtribuicaoAula.objects.filter(
+            cargo_base__professor__codigo_rf=codigo_rf,
+            ano_atribuicao=ano_letivo,
+        ),
+        date.today(),
     )
     externas = AtribuicaoExterno.objects.filter(
         contrato_externo__pessoa__cpf=codigo_rf,
         ano_atribuicao=ano_letivo,
     )
-    serie_map = _serie_turma_map(efetivas)
-    turmas_map = _turma_map(serie_map.values())
-    return [_turma_row(aa, serie_map, turmas_map) for aa in efetivas] + [
-        _turma_row_externo(ae) for ae in externas
+    return [_ancora_row(aa) for aa in efetivas] + [
+        _ancora_row_externo(ae) for ae in externas
     ]
 
 
@@ -328,19 +344,48 @@ def buscar_professor_com_atribuicao_aula_ano_letivo(
     }
 
 
-def buscar_por_rf_dre_ue(rf: str) -> dict | None:
-    """Retorna dados básicos do professor por RF.
+def buscar_por_rf_dre_ue(
+    rf: str,
+    ano_letivo: int,
+    dre_id: str | None = None,
+    ue_id: str | None = None,
+    buscar_outros_cargos: bool = False,
+) -> dict | None:
+    """Retorna dados do professor, com fallback externo.
 
     Args:
-        rf: Registro funcional do professor.
+        rf: Registro funcional (ou CPF, no caso externo) do professor.
+        ano_letivo: Ano letivo de referência.
+        dre_id: Código opcional da DRE para escopo.
+        ue_id: Código opcional da UE para escopo.
+        buscar_outros_cargos: Quando ``True``, ignora o escopo de DRE/UE.
 
     Returns:
         Dados básicos do professor encontrado ou ``None``.
     """
-    prof = Professor.objects.filter(codigo_rf=rf).first()
-    if not prof:
-        return None
-    return {"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)}
+    atribuicoes = AtribuicaoAula.objects.filter(
+        cargo_base__professor__codigo_rf=rf,
+        ano_atribuicao=ano_letivo,
+        dt_cancelamento__isnull=True,
+    )
+    if not buscar_outros_cargos:
+        atribuicoes = _filtrar_localizacao(atribuicoes, ue_id, dre_id)
+    aa = atribuicoes.select_related("cargo_base__professor").first()
+    if aa:
+        prof = aa.cargo_base.professor
+        return {"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)}
+
+    contrato = (
+        ContratoExterno.objects.filter(
+            pessoa__cpf=rf, dt_cancelamento__isnull=True
+        )
+        .select_related("pessoa")
+        .first()
+    )
+    if contrato:
+        pessoa = contrato.pessoa
+        return {"codigo_rf": pessoa.cpf, "nome": get_nome(pessoa)}
+    return None
 
 
 def autocomplete_professores(
@@ -360,65 +405,78 @@ def autocomplete_professores(
     Returns:
         Lista limitada de professores encontrados para autocomplete.
     """
-    qs = AtribuicaoAula.objects.filter(
-        ano_atribuicao=ano_letivo
+    efetivos = AtribuicaoAula.objects.filter(
+        ano_atribuicao=ano_letivo,
+        dt_cancelamento__isnull=True,
+        cargo_base__dt_fim_nomeacao__isnull=True,
     ).select_related("cargo_base__professor")
-    qs = _filtrar_localizacao(qs, ue_id, dre_id)
+    efetivos = _filtrar_localizacao(efetivos, ue_id, dre_id)
     if nome:
-        qs = qs.filter(cargo_base__professor__nome__icontains=nome)
-
-    seen: set[str] = set()
-    resultado: list[dict] = []
-    for aa in qs:
-        prof = aa.cargo_base.professor
-        if prof.codigo_rf not in seen:
-            seen.add(prof.codigo_rf)
-            resultado.append(
-                {"codigo_rf": prof.codigo_rf, "nome_servidor": get_nome(prof)}
-            )
-        if len(resultado) >= 10:
-            break
+        efetivos = efetivos.filter(
+            cargo_base__professor__nome__istartswith=nome
+        )
 
     externos = AtribuicaoExterno.objects.filter(
-        ano_atribuicao=ano_letivo
+        ano_atribuicao=ano_letivo,
+        contrato_externo__dt_cancelamento__isnull=True,
     ).select_related("contrato_externo__pessoa")
     externos = _filtrar_localizacao(externos, ue_id, dre_id)
     if nome:
         externos = externos.filter(
-            contrato_externo__pessoa__nome__icontains=nome
+            contrato_externo__pessoa__nome__istartswith=nome
         )
-    for ae in externos:
-        if len(resultado) >= 10:
-            break
-        pessoa = ae.contrato_externo.pessoa
-        if pessoa.cpf not in seen:
-            seen.add(pessoa.cpf)
-            resultado.append(
-                {"codigo_rf": pessoa.cpf, "nome_servidor": get_nome(pessoa)}
-            )
 
-    return resultado
+    # União dedup por RF/CPF; ordena por nome asc e corta em 10.
+    candidatos: dict[str, str] = {}
+    for aa in efetivos:
+        prof = aa.cargo_base.professor
+        candidatos.setdefault(prof.codigo_rf, get_nome(prof))
+    for ae in externos:
+        pessoa = ae.contrato_externo.pessoa
+        candidatos.setdefault(pessoa.cpf, get_nome(pessoa))
+
+    ordenados = sorted(candidatos.items(), key=lambda item: item[1])
+    return [
+        {"codigo_rf": rf, "nome_servidor": nome_servidor}
+        for rf, nome_servidor in ordenados[:10]
+    ]
 
 
 def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
-    """Lista professores por RFs e ano letivo.
+    """Lista professores por RFs e ano letivo, com as UEs de atribuição.
 
     Args:
         ano_letivo: Ano letivo usado no filtro de atribuições.
         lista_rf: Lista de registros funcionais pesquisados.
 
     Returns:
-        Lista de professores encontrados para os RFs informados.
+        Lista de ``{codigo_rf, nome, codigos_ue}`` para os RFs informados.
     """
-    rfs = set(
-        AtribuicaoAula.objects.filter(
-            cargo_base__professor__codigo_rf__in=lista_rf,
-            ano_atribuicao=ano_letivo,
-        ).values_list("cargo_base__professor__codigo_rf", flat=True)
-    )
+    qs = AtribuicaoAula.objects.filter(
+        cargo_base__professor__codigo_rf__in=lista_rf,
+        ano_atribuicao=ano_letivo,
+        dt_cancelamento__isnull=True,
+    ).select_related("cargo_base__professor")
+    por_rf: dict[str, dict] = {}
+    for aa in qs:
+        prof = aa.cargo_base.professor
+        entry = por_rf.setdefault(
+            prof.codigo_rf,
+            {
+                "codigo_rf": prof.codigo_rf,
+                "nome": get_nome(prof),
+                "codigos_ue": set(),
+            },
+        )
+        if aa.codigo_unidade_educacao:
+            entry["codigos_ue"].add(aa.codigo_unidade_educacao)
     return [
-        {"codigo_rf": p.codigo_rf, "nome": get_nome(p)}
-        for p in Professor.objects.filter(codigo_rf__in=rfs)
+        {
+            "codigo_rf": entry["codigo_rf"],
+            "nome": entry["nome"],
+            "codigos_ue": sorted(entry["codigos_ue"]),
+        }
+        for entry in por_rf.values()
     ]
 
 
@@ -439,26 +497,30 @@ def verificar_validade(rf: str) -> bool:
     )
 
 
-_TIPOS_EMEI = [4, 16, 48, 6]
+_CD_CARGO_PROF_INFANTIL_FUND_I = 3239
 
 
-def eh_emei(codigo_rf: str) -> bool:
-    """Verifica se o professor está vinculado a EMEI.
+def unidades_com_atribuicao_valida(codigo_rf: str) -> list[str]:
+    """Lista as UEs onde o professor tem atribuição válida.
+
+    Considera cargo 3239 (PROF.ED.INF.E ENS.FUND.I), atribuição não
+    cancelada e nomeação vigente.
 
     Args:
         codigo_rf: Registro funcional do professor.
 
     Returns:
-        ``True`` quando o professor possui atribuição em unidade EMEI.
+        Códigos EOL das unidades com atribuição válida, sem repetição.
     """
-    ues_emei = UnidadeEducacional.objects.filter(
-        codigo_tipo_escola__in=_TIPOS_EMEI
-    ).values_list("codigo_ue", flat=True)
-    return bool(
+    return list(
         AtribuicaoAula.objects.filter(
             cargo_base__professor__codigo_rf=codigo_rf,
-            codigo_unidade_educacao__in=ues_emei,
-        ).exists()
+            cargo_base__codigo_cargo=_CD_CARGO_PROF_INFANTIL_FUND_I,
+            dt_cancelamento__isnull=True,
+            cargo_base__dt_fim_nomeacao__isnull=True,
+        )
+        .values_list("codigo_unidade_educacao", flat=True)
+        .distinct()
     )
 
 
