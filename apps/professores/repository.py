@@ -21,7 +21,6 @@ from apps.professores.models import (
     Professor,
     SerieTurmaGrade,
     TurmaEscola,
-    UnidadeEducacional,
 )
 
 _CD_MOTIVO_DISPONIBILIZACAO = 34
@@ -33,11 +32,6 @@ def _filtrar_localizacao(
 ) -> Any:
     if ue_id:
         return qs.filter(codigo_unidade_educacao=ue_id)
-    if dre_id:
-        ues = UnidadeEducacional.objects.filter(codigo_dre=dre_id).values_list(
-            "codigo_ue", flat=True
-        )
-        return qs.filter(codigo_unidade_educacao__in=ues)
     return qs
 
 
