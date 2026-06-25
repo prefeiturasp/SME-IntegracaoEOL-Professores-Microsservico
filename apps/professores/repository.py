@@ -251,11 +251,11 @@ def buscar_turmas_professor(codigo_rf: str) -> list[dict]:
     Returns:
         Lista de vínculos-âncora efetivos do professor.
     """
-    efetivas = _vigentes_em(
-        AtribuicaoAula.objects.filter(
-            cargo_base__professor__codigo_rf=codigo_rf
-        ),
-        date.today(),
+    efetivas = AtribuicaoAula.objects.filter(
+        cargo_base__professor__codigo_rf=codigo_rf,
+        ano_atribuicao=date.today().year,
+        dt_cancelamento__isnull=True,
+        dt_atribuicao_aula__lte=date.today(),
     )
     return [_ancora_row(aa) for aa in efetivas]
 

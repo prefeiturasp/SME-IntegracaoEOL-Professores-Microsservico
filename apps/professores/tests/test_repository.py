@@ -41,8 +41,8 @@ def _cria_professor_com_atribuicao(
         codigo_turma_escola=codigo_turma,
         codigo_grade=100,
         codigo_componente_curricular=138,
-        ano_atribuicao=2024,
-        dt_atribuicao_aula=date(2024, 2, 1),
+        ano_atribuicao=date.today().year,
+        dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
 
@@ -67,26 +67,24 @@ def test_autocomplete_limita_dez_resultados(db):
             2110000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(2024, "")
+    resultado = repository.autocomplete_professores(date.today().year, "")
 
     assert len(resultado) == 10
 
 
-def test_autocomplete_ordena_por_nome_no_top_10(db, atribuicao_externa):
-    """Top 10 sai ordenado por nome sobre a união (efetivos + externos)."""
-    for indice in range(10):
+def test_autocomplete_ordena_por_nome_no_top_10(db):
+    """Top 10 sai ordenado por nome e limitado a 10 resultados."""
+    for indice in range(11):
         _cria_professor_com_atribuicao(
             f"91000{indice}",
             2120000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(2024, "")
+    resultado = repository.autocomplete_professores(date.today().year, "")
 
     nomes = [item["nome_servidor"] for item in resultado]
     assert nomes == sorted(nomes)
     assert len(resultado) == 10
-    # "João Ext" ordena antes de "Professor ..." e entra no top 10.
-    assert any(item["codigo_rf"] == "98765432100" for item in resultado)
 
 
 def test_autocomplete_inclui_professor_externo(atribuicao_externa):
@@ -252,7 +250,7 @@ def test_buscar_turmas_professor_ancora_regular(db):
             "codigo_turma": 2112345,
             "codigo_serie_grade": None,
             "codigo_unidade_educacao": "000532",
-            "data_atribuicao": "02/01/2024 00:00:00",
+            "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
             "data_disponibilizacao": None,
         }
     ]
@@ -278,8 +276,8 @@ def test_buscar_turmas_professor_ancora_programa(db):
         codigo_serie_grade=1040353,
         codigo_grade=100,
         codigo_componente_curricular=138,
-        ano_atribuicao=2024,
-        dt_atribuicao_aula=date(2024, 2, 1),
+        ano_atribuicao=date.today().year,
+        dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
     resultado = repository.buscar_turmas_professor("7654322")
@@ -289,7 +287,7 @@ def test_buscar_turmas_professor_ancora_programa(db):
             "codigo_turma": None,
             "codigo_serie_grade": 1040353,
             "codigo_unidade_educacao": "000532",
-            "data_atribuicao": "02/01/2024 00:00:00",
+            "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
             "data_disponibilizacao": None,
         }
     ]

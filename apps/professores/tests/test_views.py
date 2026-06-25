@@ -96,7 +96,7 @@ class TestEP02TurmasAtribuidasEscola:
 
 
 class TestEP03EP04TurmasAtribuidas:
-    def test_todas_as_turmas_retorna_lista(self, client, atribuicao):
+    def test_todas_as_turmas_retorna_lista(self, client, atribuicao_ano_corrente):
         """Verifica todas as turmas retorna lista."""
         res = client.get(f"{_BASE}/professores/7654321/turmas/")
         assert res.status_code == 200
