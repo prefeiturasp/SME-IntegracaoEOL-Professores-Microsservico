@@ -66,7 +66,6 @@ def buscar_professor_com_atribuicao_aula_ano_letivo(
 def buscar_por_rf_dre_ue(
     codigo_rf: str,
     ano_letivo: int,
-    dre_id: str | None = None,
     ue_id: str | None = None,
     buscar_outros_cargos: bool = False,
 ) -> dict | None:
@@ -81,7 +80,6 @@ def buscar_por_rf_dre_ue(
 
 def autocomplete_professores(
     ano_letivo: int,
-    dre_id: str,
     ue_id: str | None = None,
     nome: str | None = None,
 ) -> list[dict]:

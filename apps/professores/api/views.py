@@ -225,7 +225,6 @@ class BuscarPorRfDreUeView(APIView):
         resultado = services.buscar_por_rf_dre_ue(
             codigo_rf,
             ano_letivo,
-            dre_id=request.query_params.get("dre_id"),
             ue_id=request.query_params.get("ue_id"),
             buscar_outros_cargos=buscar_outros_cargos,
         )
@@ -255,7 +254,6 @@ class AutoCompleteView(APIView):
     def get(self, request: Request, ano_letivo: int, dre_id: str) -> Response:
         resultado = services.autocomplete_professores(
             ano_letivo,
-            dre_id,
             ue_id=request.query_params.get("ue_id"),
             nome=request.query_params.get("nome"),
         )
