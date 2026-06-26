@@ -285,8 +285,8 @@ class TestEP09BuscarPorListaRF:
         assert res.status_code == 200
         assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
-    def test_inclui_codigos_ue_e_ignora_cancelada(self, client, professor):
-        """Resposta traz as UEs da atribuição vigente; cancelada não conta."""
+    def test_uma_entrada_por_turma_e_ignora_cancelada(self, client, professor):
+        """Um item por turma vigente; cancelada excluída; mesma turma não duplica."""
         cargo = CargoBaseServidor.objects.create(
             professor=professor,
             codigo_cargo=3379,
@@ -299,6 +299,15 @@ class TestEP09BuscarPorListaRF:
             codigo_turma_escola=2112345,
             codigo_grade=100,
             codigo_componente_curricular=138,
+            ano_atribuicao=2024,
+            dt_atribuicao_aula=date(2024, 2, 1),
+        )
+        AtribuicaoAula.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao="000532",
+            codigo_turma_escola=2112345,
+            codigo_grade=100,
+            codigo_componente_curricular=139,
             ano_atribuicao=2024,
             dt_atribuicao_aula=date(2024, 2, 1),
         )
@@ -320,8 +329,9 @@ class TestEP09BuscarPorListaRF:
         )
 
         assert res.status_code == 200
-        item = next(p for p in res.data if p["codigo_rf"] == "7654321")
-        assert item["codigos_ue"] == ["000532"]
+        entradas = [p for p in res.data if p["codigo_rf"] == "7654321"]
+        assert len(entradas) == 1
+        assert set(entradas[0].keys()) == {"codigo_rf", "nome"}
 
     def test_rf_sem_atribuicao_retorna_vazio(self, client, professor):
         """Verifica RF sem atribuicao retorna vazio."""
