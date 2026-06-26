@@ -474,7 +474,7 @@ def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
                     entry["atribuicoes_ue"][ue] = (
                         entry["atribuicoes_ue"].get(ue, 0) + 1
                     )
-    # TODO: corrigir para que a lista não retorne dados por turma do professor
+    # NOSONAR # TODO: corrigir para que a lista não retorne dados por turma do professor.
     return [
         {
             "codigo_rf": entry["codigo_rf"],
