@@ -249,13 +249,21 @@ def buscar_turmas_professor(codigo_rf: str) -> list[dict]:
     Returns:
         Lista de vínculos-âncora efetivos do professor.
     """
-    efetivas = AtribuicaoAula.objects.filter(
-        cargo_base__professor__codigo_rf=codigo_rf,
-        ano_atribuicao=date.today().year,
-        dt_cancelamento__isnull=True,
-        dt_atribuicao_aula__lte=date.today(),
+    efetivas = _vigentes_em(
+        AtribuicaoAula.objects.filter(
+            cargo_base__professor__codigo_rf=codigo_rf,
+            ano_atribuicao=date.today().year,
+        ),
+        date.today(),
     )
-    return [_ancora_row(aa) for aa in efetivas]
+    vistas: set[tuple] = set()
+    resultado = []
+    for aa in efetivas:
+        chave = (aa.codigo_turma_escola, aa.codigo_unidade_educacao)
+        if chave not in vistas:
+            vistas.add(chave)
+            resultado.append(_ancora_row(aa))
+    return resultado
 
 
 def buscar_turmas_professor_ano(codigo_rf: str, ano_letivo: int) -> list[dict]:
@@ -431,55 +439,31 @@ def autocomplete_professores(
 
 
 def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
-    """Lista professores por RFs e ano letivo, com as UEs de atribuição.
+    """Lista professores por RFs e ano letivo, um item por turma atribuída.
 
     Args:
         ano_letivo: Ano letivo usado no filtro de atribuições.
         lista_rf: Lista de registros funcionais pesquisados.
 
     Returns:
-        Lista de ``{codigo_rf, nome, codigos_ue, atribuicoes_ue}`` para os
-        RFs informados. ``atribuicoes_ue`` é um dicionário ``{ue: count}``
-        com o número de turmas distintas por UE (1 registro por turma).
+        Lista de ``{codigo_rf, nome}`` com um item por turma vigente.
+        O mesmo professor aparece N vezes se tiver N turmas.
     """
     qs = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf__in=lista_rf,
         ano_atribuicao=ano_letivo,
         dt_cancelamento__isnull=True,
     ).select_related("cargo_base__professor")
-    vistas_turma: set[tuple] = set()
-    por_rf: dict[str, dict] = {}
+    vistas: set[tuple] = set()
+    resultado = []
     for aa in qs:
         prof = aa.cargo_base.professor
-        entry = por_rf.setdefault(
-            prof.codigo_rf,
-            {
-                "codigo_rf": prof.codigo_rf,
-                "nome": get_nome(prof),
-                "codigos_ue": set(),
-                "atribuicoes_ue": {},
-            },
-        )
-        ue = aa.codigo_unidade_educacao
-        if ue:
-            entry["codigos_ue"].add(ue)
-            if aa.codigo_turma_escola is not None:
-                chave = (prof.codigo_rf, ue, aa.codigo_turma_escola)
-                if chave not in vistas_turma:
-                    vistas_turma.add(chave)
-                    entry["atribuicoes_ue"][ue] = (
-                        entry["atribuicoes_ue"].get(ue, 0) + 1
-                    )
+        chave = (prof.codigo_rf, aa.codigo_turma_escola)
+        if chave not in vistas:
+            vistas.add(chave)
+            resultado.append({"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)})
     # NOSONAR # TODO: corrigir para que a lista não retorne dados por turma do professor.
-    return [
-        {
-            "codigo_rf": entry["codigo_rf"],
-            "nome": entry["nome"],
-            "codigos_ue": sorted(entry["codigos_ue"]),
-            "atribuicoes_ue": entry["atribuicoes_ue"],
-        }
-        for entry in por_rf.values()
-    ]
+    return resultado
 
 
 def verificar_validade(rf: str) -> bool:
