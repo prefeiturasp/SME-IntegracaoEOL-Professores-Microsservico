@@ -254,7 +254,6 @@ class AutoCompleteView(APIView):
     def get(self, request: Request, ano_letivo: int, dre_id: str) -> Response:
         resultado = services.autocomplete_professores(
             ano_letivo,
-            dre_id=dre_id,
             ue_id=request.query_params.get("ue_id"),
             nome=request.query_params.get("nome"),
         )
