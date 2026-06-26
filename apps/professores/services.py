@@ -74,7 +74,6 @@ def buscar_por_rf_dre_ue(
     return repository.buscar_por_rf_dre_ue(
         codigo_rf,
         ano_letivo,
-        dre_id=dre_id,
         ue_id=ue_id,
         buscar_outros_cargos=buscar_outros_cargos,
     )
@@ -89,7 +88,6 @@ def autocomplete_professores(
     """Lista professores para autocomplete."""
     return repository.autocomplete_professores(
         ano_letivo,
-        dre_id,
         ue_id=ue_id,
         nome=nome,
     )
