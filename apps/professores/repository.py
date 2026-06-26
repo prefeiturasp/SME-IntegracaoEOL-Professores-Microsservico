@@ -27,9 +27,7 @@ _CD_MOTIVO_DISPONIBILIZACAO = 34
 _CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO = 3
 
 
-def _filtrar_localizacao(
-    qs: Any, ue_id: str | None, dre_id: str | None
-) -> Any:
+def _filtrar_localizacao(qs: Any, ue_id: str | None) -> Any:
     if ue_id:
         return qs.filter(codigo_unidade_educacao=ue_id)
     return qs
@@ -363,7 +361,7 @@ def buscar_por_rf_dre_ue(
         dt_cancelamento__isnull=True,
     )
     if not buscar_outros_cargos:
-        atribuicoes = _filtrar_localizacao(atribuicoes, ue_id, dre_id)
+        atribuicoes = _filtrar_localizacao(atribuicoes, ue_id)
     aa = atribuicoes.select_related("cargo_base__professor").first()
     if aa:
         prof = aa.cargo_base.professor
@@ -404,7 +402,7 @@ def autocomplete_professores(
         dt_cancelamento__isnull=True,
         cargo_base__dt_fim_nomeacao__isnull=True,
     ).select_related("cargo_base__professor")
-    efetivos = _filtrar_localizacao(efetivos, ue_id, dre_id)
+    efetivos = _filtrar_localizacao(efetivos, ue_id)
     if nome:
         efetivos = efetivos.filter(
             cargo_base__professor__nome__istartswith=nome
@@ -414,7 +412,7 @@ def autocomplete_professores(
         ano_atribuicao=ano_letivo,
         contrato_externo__dt_cancelamento__isnull=True,
     ).select_related("contrato_externo__pessoa")
-    externos = _filtrar_localizacao(externos, ue_id, dre_id)
+    externos = _filtrar_localizacao(externos, ue_id)
     if nome:
         externos = externos.filter(
             contrato_externo__pessoa__nome__istartswith=nome
@@ -444,13 +442,16 @@ def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
         lista_rf: Lista de registros funcionais pesquisados.
 
     Returns:
-        Lista de ``{codigo_rf, nome, codigos_ue}`` para os RFs informados.
+        Lista de ``{codigo_rf, nome, codigos_ue, atribuicoes_ue}`` para os
+        RFs informados. ``atribuicoes_ue`` é um dicionário ``{ue: count}``
+        com o número de turmas distintas por UE (1 registro por turma).
     """
     qs = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf__in=lista_rf,
         ano_atribuicao=ano_letivo,
         dt_cancelamento__isnull=True,
     ).select_related("cargo_base__professor")
+    vistas_turma: set[tuple] = set()
     por_rf: dict[str, dict] = {}
     for aa in qs:
         prof = aa.cargo_base.professor
@@ -460,15 +461,26 @@ def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
                 "codigo_rf": prof.codigo_rf,
                 "nome": get_nome(prof),
                 "codigos_ue": set(),
+                "atribuicoes_ue": {},
             },
         )
-        if aa.codigo_unidade_educacao:
-            entry["codigos_ue"].add(aa.codigo_unidade_educacao)
+        ue = aa.codigo_unidade_educacao
+        if ue:
+            entry["codigos_ue"].add(ue)
+            if aa.codigo_turma_escola is not None:
+                chave = (prof.codigo_rf, ue, aa.codigo_turma_escola)
+                if chave not in vistas_turma:
+                    vistas_turma.add(chave)
+                    entry["atribuicoes_ue"][ue] = (
+                        entry["atribuicoes_ue"].get(ue, 0) + 1
+                    )
+    # TODO: corrigir para que a lista não retorne dados por turma do professor
     return [
         {
             "codigo_rf": entry["codigo_rf"],
             "nome": entry["nome"],
             "codigos_ue": sorted(entry["codigos_ue"]),
+            "atribuicoes_ue": entry["atribuicoes_ue"],
         }
         for entry in por_rf.values()
     ]
