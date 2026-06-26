@@ -50,7 +50,6 @@ def test_autocomplete_filtra_por_ue(atribuicao):
     """Verifica filtro direto por unidade educacional."""
     resultado = repository.autocomplete_professores(
         2024,
-        "108100",
         ue_id="000532",
     )
 
@@ -67,7 +66,7 @@ def test_autocomplete_limita_dez_resultados(db):
             2110000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(date.today().year, "")
+    resultado = repository.autocomplete_professores(date.today().year)
 
     assert len(resultado) == 10
 
@@ -80,7 +79,7 @@ def test_autocomplete_ordena_por_nome_no_top_10(db):
             2120000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(date.today().year, "")
+    resultado = repository.autocomplete_professores(date.today().year)
 
     nomes = [item["nome_servidor"] for item in resultado]
     assert nomes == sorted(nomes)
@@ -89,7 +88,7 @@ def test_autocomplete_ordena_por_nome_no_top_10(db):
 
 def test_autocomplete_inclui_professor_externo(atribuicao_externa):
     """Verifica inclusao de contrato externo no autocomplete."""
-    resultado = repository.autocomplete_professores(2024, "")
+    resultado = repository.autocomplete_professores(2024)
 
     assert resultado[0]["codigo_rf"] == "98765432100"
 
@@ -120,7 +119,7 @@ def test_autocomplete_filtra_nome_por_prefixo(db):
         )
 
     resultado = repository.autocomplete_professores(
-        2024, "108100", ue_id="000532", nome="ana"
+        2024, ue_id="000532", nome="ana"
     )
 
     assert [item["codigo_rf"] for item in resultado] == ["800001"]
@@ -167,7 +166,7 @@ def test_autocomplete_exclui_cancelada_e_nomeacao_encerrada(db):
     )
 
     resultado = repository.autocomplete_professores(
-        2024, "108100", ue_id="000532"
+        2024, ue_id="000532"
     )
 
     assert resultado == []

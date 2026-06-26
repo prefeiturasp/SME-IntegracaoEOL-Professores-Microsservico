@@ -339,7 +339,6 @@ def buscar_professor_com_atribuicao_aula_ano_letivo(
 def buscar_por_rf_dre_ue(
     rf: str,
     ano_letivo: int,
-    dre_id: str | None = None,
     ue_id: str | None = None,
     buscar_outros_cargos: bool = False,
 ) -> dict | None:
@@ -348,7 +347,6 @@ def buscar_por_rf_dre_ue(
     Args:
         rf: Registro funcional (ou CPF, no caso externo) do professor.
         ano_letivo: Ano letivo de referência.
-        dre_id: Código opcional da DRE para escopo.
         ue_id: Código opcional da UE para escopo.
         buscar_outros_cargos: Quando ``True``, ignora o escopo de DRE/UE.
 
@@ -382,7 +380,6 @@ def buscar_por_rf_dre_ue(
 
 def autocomplete_professores(
     ano_letivo: int,
-    dre_id: str,
     ue_id: str | None = None,
     nome: str | None = None,
 ) -> list[dict]:
@@ -390,7 +387,6 @@ def autocomplete_professores(
 
     Args:
         ano_letivo: Ano letivo usado no filtro de atribuições.
-        dre_id: Código da Diretoria Regional de Educação.
         ue_id: Código opcional da unidade educacional.
         nome: Trecho opcional do nome do professor.
 
