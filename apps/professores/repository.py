@@ -388,6 +388,7 @@ def buscar_por_rf_dre_ue(
 
 def autocomplete_professores(
     ano_letivo: int,
+    dre_id: str | None = None,
     ue_id: str | None = None,
     nome: str | None = None,
 ) -> list[dict]:
@@ -395,29 +396,37 @@ def autocomplete_professores(
 
     Args:
         ano_letivo: Ano letivo usado no filtro de atribuições.
+        dre_id: Código opcional da DRE.
         ue_id: Código opcional da unidade educacional.
         nome: Trecho opcional do nome do professor.
 
     Returns:
         Lista limitada de professores encontrados para autocomplete.
     """
+    # NOSONAR # TODO: dt_disponibilizacao_aulas__isnull=True é um proxy para
+    # atribuição ativa. O filtro pode ser restringir pelos codigos_turma_escola
+    # com status in ('A','O') e dt_fim nulo.
     efetivos = AtribuicaoAula.objects.filter(
         ano_atribuicao=ano_letivo,
         dt_cancelamento__isnull=True,
+        dt_disponibilizacao_aulas__isnull=True,
         cargo_base__dt_fim_nomeacao__isnull=True,
     ).select_related("cargo_base__professor")
+
+    externos = AtribuicaoExterno.objects.filter(
+        ano_atribuicao=ano_letivo,
+        dt_cancelamento__isnull=True,
+        dt_disponibilizacao__isnull=True,
+        contrato_externo__dt_cancelamento__isnull=True,
+    ).select_related("contrato_externo__pessoa")
+
     efetivos = _filtrar_localizacao(efetivos, ue_id)
+    externos = _filtrar_localizacao(externos, ue_id)
+
     if nome:
         efetivos = efetivos.filter(
             cargo_base__professor__nome__istartswith=nome
         )
-
-    externos = AtribuicaoExterno.objects.filter(
-        ano_atribuicao=ano_letivo,
-        contrato_externo__dt_cancelamento__isnull=True,
-    ).select_related("contrato_externo__pessoa")
-    externos = _filtrar_localizacao(externos, ue_id)
-    if nome:
         externos = externos.filter(
             contrato_externo__pessoa__nome__istartswith=nome
         )

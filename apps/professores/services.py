@@ -80,12 +80,14 @@ def buscar_por_rf_dre_ue(
 
 def autocomplete_professores(
     ano_letivo: int,
+    dre_id: str | None = None,
     ue_id: str | None = None,
     nome: str | None = None,
 ) -> list[dict]:
     """Lista professores para autocomplete."""
     return repository.autocomplete_professores(
         ano_letivo,
+        dre_id=dre_id,
         ue_id=ue_id,
         nome=nome,
     )
