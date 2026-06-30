@@ -63,21 +63,29 @@ def buscar_professor_com_atribuicao_aula_ano_letivo(
     )
 
 
-def buscar_por_rf_dre_ue(codigo_rf: str) -> dict | None:
-    """Retorna dados do professor por registro funcional."""
-    return repository.buscar_por_rf_dre_ue(codigo_rf)
+def buscar_por_rf_dre_ue(
+    codigo_rf: str,
+    ano_letivo: int,
+    ue_id: str | None = None,
+    buscar_outros_cargos: bool = False,
+) -> dict | None:
+    """Retorna dados do professor por RF/ano, com escopo e fallback externo."""
+    return repository.buscar_por_rf_dre_ue(
+        codigo_rf,
+        ano_letivo,
+        ue_id=ue_id,
+        buscar_outros_cargos=buscar_outros_cargos,
+    )
 
 
 def autocomplete_professores(
     ano_letivo: int,
-    dre_id: str,
     ue_id: str | None = None,
     nome: str | None = None,
 ) -> list[dict]:
     """Lista professores para autocomplete."""
     return repository.autocomplete_professores(
         ano_letivo,
-        dre_id,
         ue_id=ue_id,
         nome=nome,
     )
@@ -102,9 +110,9 @@ def verificar_validade(codigo_rf: str) -> bool:
     return repository.verificar_validade(codigo_rf)
 
 
-def eh_emei(codigo_rf: str) -> bool:
-    """Verifica se o professor esta vinculado a EMEI."""
-    return repository.eh_emei(codigo_rf)
+def unidades_com_atribuicao_valida(codigo_rf: str) -> list[str]:
+    """Lista UEs com atribuicao valida do professor (base do recorte EMEI)."""
+    return repository.unidades_com_atribuicao_valida(codigo_rf)
 
 
 def atribuicao_status(codigo_rf: str, codigo_turma: int) -> dict:

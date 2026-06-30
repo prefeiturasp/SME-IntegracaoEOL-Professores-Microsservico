@@ -150,6 +150,20 @@ def atribuicao(cargo_base, ue) -> AtribuicaoAula:
 
 
 @pytest.fixture
+def atribuicao_ano_corrente(cargo_base, ue) -> AtribuicaoAula:
+    """Cria atribuição de aula com ano_atribuicao do ano corrente."""
+    return AtribuicaoAula.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_turma_escola=2112345,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=date.today().year,
+        dt_atribuicao_aula=date(date.today().year, 1, 1),
+    )
+
+
+@pytest.fixture
 def pessoa(db) -> Pessoa:
     """Cria pessoa para os testes."""
     return Pessoa.objects.create(

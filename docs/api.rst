@@ -31,16 +31,16 @@ Professores
    :members:
    :undoc-members:
 
+.. automodule:: apps.professores.services
+   :members:
+   :undoc-members:
+
 .. automodule:: apps.professores.api.views
    :members:
    :undoc-members:
 
 Turmas
 ------
-
-.. automodule:: apps.turmas.serializers
-   :members:
-   :undoc-members:
 
 .. automodule:: apps.turmas.repository
    :members:
@@ -58,6 +58,10 @@ Funcionários
    :undoc-members:
 
 .. automodule:: apps.funcionarios.repository
+   :members:
+   :undoc-members:
+
+.. automodule:: apps.funcionarios.services
    :members:
    :undoc-members:
 

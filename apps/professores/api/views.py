@@ -1,5 +1,6 @@
 """Views do domínio de professores."""
 
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.request import Request
@@ -207,12 +208,26 @@ class BuscarPorRfDreUeView(APIView):
                 required=False,
             ),
         ],
-        responses={200: ProfessorPerfilSerializer, 404: dict},
+        responses={200: ProfessorPerfilSerializer, 400: dict, 404: dict},
     )
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
-        resultado = services.buscar_por_rf_dre_ue(codigo_rf)
+        if ano_letivo == 0:
+            return Response(
+                {"detail": "É necessário informar o ano letivo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        buscar_outros_cargos = (
+            request.query_params.get("buscar_outros_cargos", "").lower()
+            == "true"
+        )
+        resultado = services.buscar_por_rf_dre_ue(
+            codigo_rf,
+            ano_letivo,
+            ue_id=request.query_params.get("ue_id"),
+            buscar_outros_cargos=buscar_outros_cargos,
+        )
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado)
@@ -239,7 +254,6 @@ class AutoCompleteView(APIView):
     def get(self, request: Request, ano_letivo: int, dre_id: str) -> Response:
         resultado = services.autocomplete_professores(
             ano_letivo,
-            dre_id,
             ue_id=request.query_params.get("ue_id"),
             nome=request.query_params.get("nome"),
         )
@@ -256,9 +270,14 @@ class BuscarPorListaRFView(APIView):
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
         ],
         request=list[str],
-        responses={200: ResumoSerializer(many=True)},
+        responses={200: ResumoSerializer(many=True), 400: dict},
     )
     def post(self, request: Request, ano_letivo: int) -> Response:
+        if ano_letivo == 0:
+            return Response(
+                {"detail": "É necessário informar o ano letivo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         resultado = services.buscar_por_lista_rf(ano_letivo, request.data)
         return Response(resultado)
 
@@ -278,19 +297,26 @@ class VerificarValidadeView(APIView):
         return Response(services.verificar_validade(codigo_rf))
 
 
-class EhEmeiView(APIView):
-    """Verifica se o professor está vinculado a EMEI."""
+class UnidadesAtribuicaoValidaView(APIView):
+    """Lista as UEs onde o professor tem atribuição válida."""
 
     @extend_schema(
         tags=_TAG_PROF,
-        summary="Verificar se professor é EMEI",
+        summary="Listar UEs com atribuição válida do professor",
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
         ],
-        responses={200: bool, 400: dict},
+        responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request: Request, codigo_rf: str) -> Response:
-        return Response(services.eh_emei(codigo_rf))
+        return Response(
+            {
+                "codigo_rf": codigo_rf,
+                "codigos_ue": services.unidades_com_atribuicao_valida(
+                    codigo_rf
+                ),
+            }
+        )
 
 
 class AtribuicaoStatusView(APIView):

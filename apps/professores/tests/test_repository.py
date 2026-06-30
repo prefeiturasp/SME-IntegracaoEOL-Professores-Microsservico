@@ -41,8 +41,8 @@ def _cria_professor_com_atribuicao(
         codigo_turma_escola=codigo_turma,
         codigo_grade=100,
         codigo_componente_curricular=138,
-        ano_atribuicao=2024,
-        dt_atribuicao_aula=date(2024, 2, 1),
+        ano_atribuicao=date.today().year,
+        dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
 
@@ -50,7 +50,6 @@ def test_autocomplete_filtra_por_ue(atribuicao):
     """Verifica filtro direto por unidade educacional."""
     resultado = repository.autocomplete_professores(
         2024,
-        "108100",
         ue_id="000532",
     )
 
@@ -60,40 +59,117 @@ def test_autocomplete_filtra_por_ue(atribuicao):
 
 
 def test_autocomplete_limita_dez_resultados(db):
-    """Verifica limite legado de resultados do autocomplete."""
+    """Verifica limite de resultados do autocomplete."""
     for indice in range(11):
         _cria_professor_com_atribuicao(
             f"90000{indice}",
             2110000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(2024, "")
+    resultado = repository.autocomplete_professores(date.today().year)
 
     assert len(resultado) == 10
 
 
-def test_autocomplete_limite_interrompe_antes_de_externos(
-    db,
-    atribuicao_externa,
-):
-    """Verifica interrupcao quando efetivos ja atingiram o limite."""
-    for indice in range(10):
+def test_autocomplete_ordena_por_nome_no_top_10(db):
+    """Top 10 sai ordenado por nome e limitado a 10 resultados."""
+    for indice in range(11):
         _cria_professor_com_atribuicao(
             f"91000{indice}",
             2120000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(2024, "")
+    resultado = repository.autocomplete_professores(date.today().year)
 
+    nomes = [item["nome_servidor"] for item in resultado]
+    assert nomes == sorted(nomes)
     assert len(resultado) == 10
-    assert all(item["codigo_rf"] != "98765432100" for item in resultado)
 
 
 def test_autocomplete_inclui_professor_externo(atribuicao_externa):
     """Verifica inclusao de contrato externo no autocomplete."""
-    resultado = repository.autocomplete_professores(2024, "")
+    resultado = repository.autocomplete_professores(2024)
 
     assert resultado[0]["codigo_rf"] == "98765432100"
+
+
+def test_autocomplete_filtra_nome_por_prefixo(db):
+    """Nome filtra por prefixo (istartswith), não por substring."""
+    ana = Professor.objects.create(
+        codigo_rf="800001", nome="Ana Souza", cpf="00000800001"
+    )
+    mariana = Professor.objects.create(
+        codigo_rf="800002", nome="Mariana Lima", cpf="00000800002"
+    )
+    for prof in (ana, mariana):
+        cargo = CargoBaseServidor.objects.create(
+            professor=prof,
+            codigo_cargo=3379,
+            descricao_cargo="Professor",
+            dt_posse=date(2020, 1, 1),
+        )
+        AtribuicaoAula.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao="000532",
+            codigo_turma_escola=2112345,
+            codigo_grade=100,
+            codigo_componente_curricular=138,
+            ano_atribuicao=2024,
+            dt_atribuicao_aula=date(2024, 2, 1),
+        )
+
+    resultado = repository.autocomplete_professores(
+        2024, ue_id="000532", nome="ana"
+    )
+
+    assert [item["codigo_rf"] for item in resultado] == ["800001"]
+
+
+def test_autocomplete_exclui_cancelada_e_nomeacao_encerrada(db):
+    """Atribuição cancelada e nomeação encerrada não entram."""
+    prof = Professor.objects.create(
+        codigo_rf="800003", nome="Carlos Dias", cpf="00000800003"
+    )
+    cargo_ok = CargoBaseServidor.objects.create(
+        professor=prof,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    # Atribuição cancelada do cargo válido.
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_ok,
+        codigo_unidade_educacao="000532",
+        codigo_turma_escola=2112345,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=2024,
+        dt_atribuicao_aula=date(2024, 2, 1),
+        dt_cancelamento=date(2024, 6, 1),
+    )
+    # Atribuição válida, mas com nomeação encerrada.
+    cargo_encerrado = CargoBaseServidor.objects.create(
+        professor=prof,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+        dt_fim_nomeacao=date(2024, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_encerrado,
+        codigo_unidade_educacao="000532",
+        codigo_turma_escola=2112346,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=2024,
+        dt_atribuicao_aula=date(2024, 2, 1),
+    )
+
+    resultado = repository.autocomplete_professores(
+        2024, ue_id="000532"
+    )
+
+    assert resultado == []
 
 
 def test_helpers_retornam_vazio_quando_nao_ha_codigos():
@@ -160,6 +236,94 @@ def test_codigo_turma_retorna_none_quando_serie_nao_existe():
     )
 
     assert repository._codigo_turma(atribuicao) is None
+
+
+def test_buscar_turmas_professor_ancora_regular(db):
+    """Âncora de turma regular: codigo_turma vem de codigo_turma_escola."""
+    _cria_professor_com_atribuicao("7654321", 2112345, "000532")
+
+    resultado = repository.buscar_turmas_professor("7654321")
+
+    assert resultado == [
+        {
+            "codigo_turma": 2112345,
+            "codigo_serie_grade": None,
+            "codigo_unidade_educacao": "000532",
+            "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
+            "data_disponibilizacao": None,
+        }
+    ]
+
+
+def test_buscar_turmas_professor_ancora_programa(db):
+    """Âncora de programa: sem codigo_turma, expõe codigo_serie_grade."""
+    professor = Professor.objects.create(
+        codigo_rf="7654322",
+        nome="Professor Programa",
+        cpf="00000000000",
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo,
+        codigo_unidade_educacao="000532",
+        codigo_turma_escola=None,
+        codigo_serie_grade=1040353,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=date.today().year,
+        dt_atribuicao_aula=date(date.today().year, 1, 1),
+    )
+
+    resultado = repository.buscar_turmas_professor("7654322")
+
+    assert resultado == [
+        {
+            "codigo_turma": None,
+            "codigo_serie_grade": 1040353,
+            "codigo_unidade_educacao": "000532",
+            "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
+            "data_disponibilizacao": None,
+        }
+    ]
+
+
+def test_buscar_turmas_professor_ignora_atribuicao_externa(
+    db, atribuicao_externa
+):
+    """Atribuição externa não entra no recorte de /turmas."""
+    resultado = repository.buscar_turmas_professor("98765432100")
+
+    assert resultado == []
+
+
+def test_buscar_turmas_professor_ignora_atribuicao_cancelada(db):
+    """Atribuição cancelada não entra (dt_cancelamento via _vigentes_em)."""
+    professor = Professor.objects.create(
+        codigo_rf="7654323", nome="Professor Cancelado", cpf="11111111111"
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo,
+        codigo_unidade_educacao="000532",
+        codigo_turma_escola=2112345,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=2024,
+        dt_atribuicao_aula=date(2024, 2, 1),
+        dt_cancelamento=date(2024, 6, 1),
+    )
+
+    assert repository.buscar_turmas_professor("7654323") == []
 
 
 def test_atribuicao_disciplina_territorio_filtra_por_data():

@@ -4,7 +4,11 @@ from datetime import date
 
 import pytest
 
-from apps.professores.models import CargoBaseServidor, SerieTurmaGrade
+from apps.professores.models import (
+    AtribuicaoAula,
+    CargoBaseServidor,
+    SerieTurmaGrade,
+)
 from conftest import date_to_ticks
 
 pytestmark = pytest.mark.django_db
@@ -92,7 +96,7 @@ class TestEP02TurmasAtribuidasEscola:
 
 
 class TestEP03EP04TurmasAtribuidas:
-    def test_todas_as_turmas_retorna_lista(self, client, atribuicao):
+    def test_todas_as_turmas_retorna_lista(self, client, atribuicao_ano_corrente):
         """Verifica todas as turmas retorna lista."""
         res = client.get(f"{_BASE}/professores/7654321/turmas/")
         assert res.status_code == 200
@@ -174,8 +178,8 @@ class TestEP06BuscarPorRf:
 
 
 class TestEP07BuscarPorRfDreUe:
-    def test_encontrado_sem_filtro_retorna_200(self, client, professor):
-        """Verifica retorno do professor sem filtro opcional."""
+    def test_encontrado_sem_filtro_retorna_200(self, client, atribuicao):
+        """Com atribuição no ano e sem filtro, retorna o professor."""
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/")
         assert res.status_code == 200
         assert res.data["codigo_rf"] == "7654321"
@@ -193,12 +197,35 @@ class TestEP07BuscarPorRfDreUe:
     def test_filtro_ue_errado_nao_encontra_atribuicao(
         self, client, professor, atribuicao
     ):
-        """Verifica filtro UE errado nao encontra atribuicao."""
+        """UE errada (sem outros cargos) não encontra atribuição → 404."""
         res = client.get(
             f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ue_id=999999"
         )
+        assert res.status_code == 404
+
+    def test_buscar_outros_cargos_ignora_filtro_ue(
+        self, client, professor, atribuicao
+    ):
+        """Com buscar_outros_cargos, o escopo de UE é ignorado."""
+        res = client.get(
+            f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/"
+            "?ue_id=999999&buscar_outros_cargos=true"
+        )
         assert res.status_code == 200
         assert res.data["codigo_rf"] == "7654321"
+
+    def test_fallback_externo_por_cpf(self, client, contrato_externo):
+        """Sem atribuição efetiva, cai no contrato externo por CPF."""
+        res = client.get(
+            f"{_BASE}/professores/98765432100/BuscarPorRfDreUe/2024/"
+        )
+        assert res.status_code == 200
+        assert res.data["codigo_rf"] == "98765432100"
+
+    def test_ano_zero_retorna_400(self, client, db):
+        """Ano letivo igual a zero retorna 400."""
+        res = client.get(f"{_BASE}/professores/7654321/BuscarPorRfDreUe/0/")
+        assert res.status_code == 400
 
     def test_nao_encontrado_retorna_404(self, client, db):
         """Verifica ausência de professor."""
@@ -258,6 +285,54 @@ class TestEP09BuscarPorListaRF:
         assert res.status_code == 200
         assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
+    def test_uma_entrada_por_turma_e_ignora_cancelada(self, client, professor):
+        """Um item por turma vigente; cancelada excluída; mesma turma não duplica."""
+        cargo = CargoBaseServidor.objects.create(
+            professor=professor,
+            codigo_cargo=3379,
+            descricao_cargo="Professor",
+            dt_posse=date(2020, 1, 1),
+        )
+        AtribuicaoAula.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao="000532",
+            codigo_turma_escola=2112345,
+            codigo_grade=100,
+            codigo_componente_curricular=138,
+            ano_atribuicao=2024,
+            dt_atribuicao_aula=date(2024, 2, 1),
+        )
+        AtribuicaoAula.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao="000532",
+            codigo_turma_escola=2112345,
+            codigo_grade=100,
+            codigo_componente_curricular=139,
+            ano_atribuicao=2024,
+            dt_atribuicao_aula=date(2024, 2, 1),
+        )
+        AtribuicaoAula.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao="000999",
+            codigo_turma_escola=2112346,
+            codigo_grade=100,
+            codigo_componente_curricular=138,
+            ano_atribuicao=2024,
+            dt_atribuicao_aula=date(2024, 2, 1),
+            dt_cancelamento=date(2024, 6, 1),
+        )
+
+        res = client.post(
+            f"{_BASE}/professores/2024/BuscarPorListaRF/",
+            ["7654321"],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        entradas = [p for p in res.data if p["codigo_rf"] == "7654321"]
+        assert len(entradas) == 1
+        assert set(entradas[0].keys()) == {"codigo_rf", "nome"}
+
     def test_rf_sem_atribuicao_retorna_vazio(self, client, professor):
         """Verifica RF sem atribuicao retorna vazio."""
         res = client.post(
@@ -277,6 +352,15 @@ class TestEP09BuscarPorListaRF:
         )
         assert res.status_code == 200
         assert res.data == []
+
+    def test_ano_zero_retorna_400(self, client, db):
+        """Ano letivo igual a zero retorna 400."""
+        res = client.post(
+            f"{_BASE}/professores/0/BuscarPorListaRF/",
+            ["7654321"],
+            format="json",
+        )
+        assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""
@@ -338,23 +422,76 @@ class TestEP10VerificarValidade:
         assert res.status_code == 403
 
 
-class TestEP11EhEmei:
-    def test_atribuicao_em_ue_emei_retorna_true(self, client, atribuicao):
-        # ue fixture tem codigo_tipo_escola=4 (EMEI)
-        """Verifica atribuicao em UE EMEI retorna true."""
-        res = client.get(f"{_BASE}/professores/7654321/ehEmei/")
-        assert res.status_code == 200
-        assert res.data is True
+class TestEP11UnidadesAtribuicaoValida:
+    _URL = f"{_BASE}/professores/7654321/unidades-atribuicao/"
 
-    def test_sem_atribuicao_retorna_false(self, client, db):
-        """Verifica sem atribuicao retorna false."""
-        res = client.get(f"{_BASE}/professores/7654321/ehEmei/")
+    @staticmethod
+    def _atribuir_cargo_3239(
+        professor,
+        *,
+        dt_fim_nomeacao=None,
+        dt_cancelamento=None,
+        codigo_ue="000532",
+    ):
+        cargo = CargoBaseServidor.objects.create(
+            professor=professor,
+            codigo_cargo=3239,
+            situacao_funcional=6,
+            dt_posse=date(2020, 1, 1),
+            dt_fim_nomeacao=dt_fim_nomeacao,
+        )
+        return AtribuicaoAula.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao=codigo_ue,
+            codigo_turma_escola=2112345,
+            codigo_grade=100,
+            codigo_componente_curricular=138,
+            ano_atribuicao=2024,
+            dt_atribuicao_aula=date(2024, 2, 1),
+            dt_cancelamento=dt_cancelamento,
+        )
+
+    def test_cargo_3239_valido_retorna_ue(self, client, professor):
+        """Atribuição cargo 3239 vigente retorna a UE."""
+        self._atribuir_cargo_3239(professor)
+        res = client.get(self._URL)
         assert res.status_code == 200
-        assert res.data is False
+        assert res.data["codigo_rf"] == "7654321"
+        assert res.data["codigos_ue"] == ["000532"]
+
+    def test_cargo_diferente_de_3239_nao_retorna(self, client, atribuicao):
+        """Atribuição em cargo != 3239 (fixture cargo 3379) não entra."""
+        res = client.get(self._URL)
+        assert res.status_code == 200
+        assert res.data["codigos_ue"] == []
+
+    def test_atribuicao_cancelada_nao_retorna(self, client, professor):
+        """Atribuição cancelada não entra (paridade com dt_cancelamento)."""
+        self._atribuir_cargo_3239(
+            professor, dt_cancelamento=date(2024, 6, 1)
+        )
+        res = client.get(self._URL)
+        assert res.status_code == 200
+        assert res.data["codigos_ue"] == []
+
+    def test_nomeacao_encerrada_nao_retorna(self, client, professor):
+        """Nomeação encerrada não entra (paridade com dt_fim_nomeacao)."""
+        self._atribuir_cargo_3239(
+            professor, dt_fim_nomeacao=date(2024, 1, 1)
+        )
+        res = client.get(self._URL)
+        assert res.status_code == 200
+        assert res.data["codigos_ue"] == []
+
+    def test_sem_atribuicao_retorna_vazio(self, client, db):
+        """Sem atribuição retorna lista vazia."""
+        res = client.get(self._URL)
+        assert res.status_code == 200
+        assert res.data["codigos_ue"] == []
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""
-        res = anon.get(f"{_BASE}/professores/7654321/ehEmei/")
+        res = anon.get(self._URL)
         assert res.status_code == 403
 
 
