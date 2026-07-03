@@ -39,9 +39,13 @@ def _cria_professor_com_atribuicao(
         cargo_base=cargo,
         codigo_unidade_educacao=codigo_ue,
         codigo_turma_escola=codigo_turma,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=1,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
@@ -165,9 +169,7 @@ def test_autocomplete_exclui_cancelada_e_nomeacao_encerrada(db):
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
-    resultado = repository.autocomplete_professores(
-        2024, ue_id="000532"
-    )
+    resultado = repository.autocomplete_professores(2024, ue_id="000532")
 
     assert resultado == []
 
@@ -247,8 +249,12 @@ def test_buscar_turmas_professor_ancora_regular(db):
     assert resultado == [
         {
             "codigo_turma": 2112345,
+            "nome_turma": "1A",
             "codigo_serie_grade": None,
+            "componente_curricular": "Matematica",
             "codigo_unidade_educacao": "000532",
+            "ano": "1",
+            "etapa_ensino": 1,
             "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
             "data_disponibilizacao": None,
         }
@@ -272,10 +278,14 @@ def test_buscar_turmas_professor_ancora_programa(db):
         cargo_base=cargo,
         codigo_unidade_educacao="000532",
         codigo_turma_escola=None,
+        descricao_turma_escola="Programa",
         codigo_serie_grade=1040353,
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Territorio do Saber",
+        ano_escolar="4",
         ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=2,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
@@ -284,9 +294,74 @@ def test_buscar_turmas_professor_ancora_programa(db):
     assert resultado == [
         {
             "codigo_turma": None,
+            "nome_turma": "Programa",
             "codigo_serie_grade": 1040353,
+            "componente_curricular": "Territorio do Saber",
             "codigo_unidade_educacao": "000532",
+            "ano": "4",
+            "etapa_ensino": 2,
             "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
+            "data_disponibilizacao": None,
+        }
+    ]
+
+
+def test_buscar_turmas_professor_escola_ano_usa_dados_atribuicao(
+    db, cargo_base, ue
+):
+    """Verifica payload de turma com campos desnormalizados da atribuicao."""
+    fim = date(date.today().year + 1, 1, 1)
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
+        ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=1,
+        dt_atribuicao_aula=date(date.today().year, 2, 1),
+        dt_disponibilizacao_aulas=fim,
+    )
+
+    resultado = repository.buscar_turmas_professor_escola_ano(
+        "7654321", ue.codigo_ue, date.today().year
+    )
+
+    assert resultado == [
+        {
+            "codigo_turma": 2112345,
+            "nome_turma": "1A",
+            "componente_curricular": "Matematica",
+            "data_inicio_atribuicao": (f"02/01/{date.today().year} 00:00:00"),
+            "data_fim_atribuicao": (f"01/01/{date.today().year + 1} 00:00:00"),
+            "ano": "1",
+            "etapa_ensino": 1,
+        }
+    ]
+
+
+def test_buscar_turmas_professor_ano_inclui_campos_atribuicao_externa(
+    atribuicao_externa,
+):
+    """Verifica payload de vinculo externo com dados desnormalizados."""
+    atribuicao_externa.codigo_turma_escola = 2112345
+    atribuicao_externa.save(update_fields=["codigo_turma_escola"])
+
+    resultado = repository.buscar_turmas_professor_ano("98765432100", 2024)
+
+    assert resultado == [
+        {
+            "codigo_turma": 2112345,
+            "nome_turma": "1A",
+            "componente_curricular": "Matematica",
+            "codigo_serie_grade": None,
+            "codigo_unidade_educacao": "000532",
+            "ano": "1",
+            "etapa_ensino": 1,
+            "data_atribuicao": "02/01/2024 00:00:00",
             "data_disponibilizacao": None,
         }
     ]

@@ -104,37 +104,27 @@ def _vigentes_em(qs: Any, data_ref: date) -> Any:
     )
 
 
-def _turma_row(
-    aa: AtribuicaoAula,
-    serie_map: dict[int, int] | None = None,
-    turmas_map: dict[int, TurmaEscola] | None = None,
-) -> dict:
-    codigo_turma = _codigo_turma(aa, serie_map)
-    turma = (
-        (turmas_map or {}).get(codigo_turma)
-        if codigo_turma is not None
-        else None
-    )
+def _turma_row(aa: AtribuicaoAula) -> dict:
     return {
-        "codigo_turma": codigo_turma,
-        "nome_turma": None,
-        "componente_curricular": None,
+        "codigo_turma": aa.codigo_turma_escola,
+        "nome_turma": aa.descricao_turma_escola,
+        "componente_curricular": aa.descricao_componente_curricular,
         "data_inicio_atribuicao": fmt_br(aa.dt_atribuicao_aula),
-        "data_fim_atribuicao": fmt_br(_fim_atribuicao_ou_turma(aa, turma)),
-        "ano": None,
-        "etapa_ensino": None,
+        "data_fim_atribuicao": fmt_br(aa.dt_disponibilizacao_aulas),
+        "ano": aa.ano_escolar,
+        "etapa_ensino": aa.codigo_etapa_ensino,
     }
 
 
 def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
     return {
-        "codigo_turma": None,
-        "nome_turma": None,
-        "componente_curricular": None,
+        "codigo_turma": ae.codigo_turma_escola,
+        "nome_turma": ae.descricao_turma_escola,
+        "componente_curricular": ae.descricao_componente_curricular,
         "data_inicio_atribuicao": fmt_br(ae.dt_atribuicao),
         "data_fim_atribuicao": fmt_br(ae.dt_disponibilizacao),
-        "ano": None,
-        "etapa_ensino": None,
+        "ano": ae.ano_escolar,
+        "etapa_ensino": ae.codigo_etapa_ensino,
     }
 
 
@@ -145,22 +135,30 @@ def _ancora_row(aa: AtribuicaoAula) -> dict:
         "codigo_turma": (
             int(codigo_turma_escola) if codigo_turma_escola else None
         ),
+        "nome_turma": aa.descricao_turma_escola,
         "codigo_serie_grade": aa.codigo_serie_grade,
+        "componente_curricular": aa.descricao_componente_curricular,
         "codigo_unidade_educacao": aa.codigo_unidade_educacao,
+        "ano": aa.ano_escolar,
+        "etapa_ensino": aa.codigo_etapa_ensino,
         "data_atribuicao": fmt_br(aa.dt_atribuicao_aula),
         "data_disponibilizacao": fmt_br(aa.dt_disponibilizacao_aulas),
     }
 
 
 def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
-    """Monta o vínculo-âncora de uma atribuição externa (próprio domínio)."""
+    """Monta o vínculo-âncora de uma atribuição externa."""
     codigo_turma_escola = ae.codigo_turma_escola
     return {
         "codigo_turma": (
             int(codigo_turma_escola) if codigo_turma_escola else None
         ),
+        "nome_turma": ae.descricao_turma_escola,
+        "componente_curricular": ae.descricao_componente_curricular,
         "codigo_serie_grade": ae.codigo_serie_grade,
         "codigo_unidade_educacao": ae.codigo_unidade_educacao,
+        "ano": ae.ano_escolar,
+        "etapa_ensino": ae.codigo_etapa_ensino,
         "data_atribuicao": fmt_br(ae.dt_atribuicao),
         "data_disponibilizacao": fmt_br(ae.dt_disponibilizacao),
     }
@@ -233,9 +231,7 @@ def buscar_turmas_professor_escola_ano(
         externas_qs = externas_qs.filter(
             contrato_externo__pessoa__cpf=codigo_rf
         )
-    serie_map = _serie_turma_map(efetivas)
-    turmas_map = _turma_map(serie_map.values())
-    return [_turma_row(aa, serie_map, turmas_map) for aa in efetivas] + [
+    return [_turma_row(aa) for aa in efetivas] + [
         _turma_row_externo(ae) for ae in externas_qs
     ]
 
@@ -402,7 +398,7 @@ def autocomplete_professores(
         Lista limitada de professores encontrados para autocomplete.
     """
     # NOSONAR # TODO: dt_disponibilizacao_aulas__isnull=True é um proxy para
-    # atribuição ativa. O filtro pode ser restringir pelos codigos_turma_escola
+    # atribuição ativa. O filtro pode restringir codigos_turma_escola
     # com status in ('A','O') e dt_fim nulo.
     efetivos = AtribuicaoAula.objects.filter(
         ano_atribuicao=ano_letivo,
@@ -468,8 +464,10 @@ def buscar_por_lista_rf(ano_letivo: int, lista_rf: list[str]) -> list[dict]:
         chave = (prof.codigo_rf, aa.codigo_turma_escola)
         if chave not in vistas:
             vistas.add(chave)
-            resultado.append({"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)})
-    # NOSONAR # TODO: corrigir para que a lista não retorne dados por turma do professor.
+            resultado.append(
+                {"codigo_rf": prof.codigo_rf, "nome": get_nome(prof)}
+            )
+    # NOSONAR # TODO: evitar retorno de dados por turma do professor.
     return resultado
 
 
@@ -736,7 +734,9 @@ def atribuicao_turmas_lista(
             )
         )
         .filter(
-            codigo_motivo_disponibilizacao_externo=_CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO
+            codigo_motivo_disponibilizacao_externo=(
+                _CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO
+            )
         )
         .order_by("dt_disponibilizacao")
     )

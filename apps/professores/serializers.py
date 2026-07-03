@@ -30,9 +30,12 @@ class TurmaAtribuidaSerializer(serializers.Serializer):
     data_inicio_atribuicao = serializers.DateField(allow_null=True)
     data_fim_atribuicao = serializers.DateField(allow_null=True)
     codigo_componente_curricular = serializers.IntegerField(allow_null=True)
+    componente_curricular = serializers.CharField(allow_null=True)
     codigo_grade = serializers.IntegerField(allow_null=True)
     codigo_serie_grade = serializers.IntegerField(allow_null=True)
     ano_atribuicao = serializers.IntegerField(allow_null=True)
+    ano = serializers.CharField(allow_null=True)
+    etapa_ensino = serializers.IntegerField(allow_null=True)
 
 
 class NomePorRFSerializer(serializers.Serializer):

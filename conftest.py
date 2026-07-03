@@ -142,9 +142,13 @@ def atribuicao(cargo_base, ue) -> AtribuicaoAula:
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
         codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=2024,
+        codigo_etapa_ensino=1,
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
@@ -156,9 +160,13 @@ def atribuicao_ano_corrente(cargo_base, ue) -> AtribuicaoAula:
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
         codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=1,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
@@ -188,9 +196,13 @@ def atribuicao_externa(contrato_externo, ue) -> AtribuicaoExterno:
     return AtribuicaoExterno.objects.create(
         contrato_externo=contrato_externo,
         codigo_unidade_educacao=ue.codigo_ue,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=2024,
+        codigo_etapa_ensino=1,
         dt_atribuicao=date(2024, 2, 1),
     )
 

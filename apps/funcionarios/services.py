@@ -190,9 +190,7 @@ def funcionarios_sgp_dre(
         codigo_rf=codigo_rf,
         nome_servidor_param=nome_servidor,
         codigo_funcao_atividade=(
-            int(codigo_funcao_atividade)
-            if codigo_funcao_atividade
-            else None
+            int(codigo_funcao_atividade) if codigo_funcao_atividade else None
         ),
     )
     if not resultado:
