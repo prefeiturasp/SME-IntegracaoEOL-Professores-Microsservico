@@ -29,6 +29,7 @@ class TurmaAtribuidaSerializer(serializers.Serializer):
     codigo_escola = serializers.CharField(allow_null=True)
     data_inicio_atribuicao = serializers.DateField(allow_null=True)
     data_fim_atribuicao = serializers.DateField(allow_null=True)
+    data_inicio_turma = serializers.DateField(allow_null=True)
     codigo_componente_curricular = serializers.IntegerField(allow_null=True)
     componente_curricular = serializers.CharField(allow_null=True)
     codigo_grade = serializers.IntegerField(allow_null=True)

@@ -62,6 +62,7 @@ class TestEP02TurmasAtribuidasEscola:
                 "componente_curricular": "Matematica",
                 "data_inicio_atribuicao": "02/01/2024 00:00:00",
                 "data_fim_atribuicao": None,
+                "data_inicio_turma": None,
                 "ano": "1",
                 "etapa_ensino": 1,
             }
@@ -81,6 +82,7 @@ class TestEP02TurmasAtribuidasEscola:
                 "componente_curricular": "Matematica",
                 "data_inicio_atribuicao": "02/01/2024 00:00:00",
                 "data_fim_atribuicao": None,
+                "data_inicio_turma": None,
                 "ano": "1",
                 "etapa_ensino": 1,
             }
@@ -100,6 +102,7 @@ class TestEP02TurmasAtribuidasEscola:
                 "componente_curricular": "Matematica",
                 "data_inicio_atribuicao": "02/01/2024 00:00:00",
                 "data_fim_atribuicao": None,
+                "data_inicio_turma": None,
                 "ano": "1",
                 "etapa_ensino": 1,
             }
@@ -141,6 +144,7 @@ class TestEP03EP04TurmasAtribuidas:
                 "etapa_ensino": 1,
                 "data_atribuicao": (f"01/01/{date.today().year} 00:00:00"),
                 "data_disponibilizacao": None,
+                "data_inicio_turma": None,
             }
         ]
 
@@ -167,6 +171,7 @@ class TestEP03EP04TurmasAtribuidas:
                 "etapa_ensino": 1,
                 "data_atribuicao": "02/01/2024 00:00:00",
                 "data_disponibilizacao": None,
+                "data_inicio_turma": None,
             }
         ]
 

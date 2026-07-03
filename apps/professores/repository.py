@@ -70,6 +70,23 @@ def _turma_map(codigos_turma: Any) -> dict[int, TurmaEscola]:
     }
 
 
+def _filtro_turmas_anos_iniciais() -> Q:
+    """Filtro para turmas de anos iniciais (1 a 6).
+
+    Returns:
+        Q: Filtro para uso em queryset.
+
+    """
+    return (
+        Q(descricao_turma_escola__startswith="1")
+        | Q(descricao_turma_escola__startswith="2")
+        | Q(descricao_turma_escola__startswith="3")
+        | Q(descricao_turma_escola__startswith="4")
+        | Q(descricao_turma_escola__startswith="5")
+        | Q(descricao_turma_escola__startswith="6")
+    )
+
+
 def _codigo_turma(
     atribuicao: Any, serie_map: dict[int, int] | None = None
 ) -> int | None:
@@ -111,6 +128,7 @@ def _turma_row(aa: AtribuicaoAula) -> dict:
         "componente_curricular": aa.descricao_componente_curricular,
         "data_inicio_atribuicao": fmt_br(aa.dt_atribuicao_aula),
         "data_fim_atribuicao": fmt_br(aa.dt_disponibilizacao_aulas),
+        "data_inicio_turma": fmt_br(aa.dt_inicio_turma),
         "ano": aa.ano_escolar,
         "etapa_ensino": aa.codigo_etapa_ensino,
     }
@@ -123,6 +141,7 @@ def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
         "componente_curricular": ae.descricao_componente_curricular,
         "data_inicio_atribuicao": fmt_br(ae.dt_atribuicao),
         "data_fim_atribuicao": fmt_br(ae.dt_disponibilizacao),
+        "data_inicio_turma": fmt_br(ae.dt_inicio_turma),
         "ano": ae.ano_escolar,
         "etapa_ensino": ae.codigo_etapa_ensino,
     }
@@ -143,6 +162,7 @@ def _ancora_row(aa: AtribuicaoAula) -> dict:
         "etapa_ensino": aa.codigo_etapa_ensino,
         "data_atribuicao": fmt_br(aa.dt_atribuicao_aula),
         "data_disponibilizacao": fmt_br(aa.dt_disponibilizacao_aulas),
+        "data_inicio_turma": fmt_br(aa.dt_inicio_turma),
     }
 
 
@@ -161,6 +181,7 @@ def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
         "etapa_ensino": ae.codigo_etapa_ensino,
         "data_atribuicao": fmt_br(ae.dt_atribuicao),
         "data_disponibilizacao": fmt_br(ae.dt_disponibilizacao),
+        "data_inicio_turma": fmt_br(ae.dt_inicio_turma),
     }
 
 
@@ -217,6 +238,9 @@ def buscar_turmas_professor_escola_ano(
         efetivas_qs = efetivas_qs.filter(
             cargo_base__professor__codigo_rf=codigo_rf
         )
+    else:
+        efetivas_qs = efetivas_qs.filter(_filtro_turmas_anos_iniciais())
+
     efetivas = list(
         _vigentes_em(
             efetivas_qs,
@@ -231,6 +255,8 @@ def buscar_turmas_professor_escola_ano(
         externas_qs = externas_qs.filter(
             contrato_externo__pessoa__cpf=codigo_rf
         )
+    else:
+        externas_qs = externas_qs.filter(_filtro_turmas_anos_iniciais())
     return [_turma_row(aa) for aa in efetivas] + [
         _turma_row_externo(ae) for ae in externas_qs
     ]

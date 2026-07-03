@@ -29,6 +29,7 @@ def test_atribuicao_aula_mapeia_campos_desnormalizados():
         AtribuicaoAula._meta.get_field("descricao_componente_curricular"),
         AtribuicaoAula._meta.get_field("ano_escolar"),
         AtribuicaoAula._meta.get_field("codigo_etapa_ensino"),
+        AtribuicaoAula._meta.get_field("dt_inicio_turma"),
     ]
 
     assert all(campo.null for campo in campos)
@@ -42,6 +43,7 @@ def test_atribuicao_externo_mapeia_campos_desnormalizados():
         AtribuicaoExterno._meta.get_field("descricao_componente_curricular"),
         AtribuicaoExterno._meta.get_field("ano_escolar"),
         AtribuicaoExterno._meta.get_field("codigo_etapa_ensino"),
+        AtribuicaoExterno._meta.get_field("dt_inicio_turma"),
     ]
 
     assert all(campo.null for campo in campos)
