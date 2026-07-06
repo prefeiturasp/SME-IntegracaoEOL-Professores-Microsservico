@@ -62,7 +62,7 @@ class NomeCPFServidorSerializer(serializers.Serializer):
     codigo_rf = serializers.CharField()
     nome = serializers.CharField()
     cpf = serializers.CharField(allow_null=True)
-    
+
 
 class DreUeCargoSerializer(serializers.Serializer):
     """Serializa dados de cargo do funcionário."""

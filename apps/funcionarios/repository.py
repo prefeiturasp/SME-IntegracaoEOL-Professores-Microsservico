@@ -101,9 +101,7 @@ def funcionarios_por_ue(
     if cargos := filtros.get("cargos"):
         qs = qs.filter(codigo_cargo__in=[str(cargo) for cargo in cargos])
     if funcoes_atividades := filtros.get("funcoes_atividades"):
-        qs = qs.filter(
-            codigo_tipo_funcao_atividade__in=funcoes_atividades
-        )
+        qs = qs.filter(codigo_tipo_funcao_atividade__in=funcoes_atividades)
     if funcoes_externas := filtros.get("funcoes_externas"):
         qs = qs.filter(funcao_externo__in=funcoes_externas)
     return sorted(

@@ -8,11 +8,11 @@ from apps.funcionarios.api.views import (
     BuscarPorListaRFView,
     CargosFuncionarioView,
     DreUeAtribuicaoCargoView,
-    NomeUsuarioEOLView,
     FuncionarioExternoPorCpfView,
     FuncionariosPorUEView,
     FuncionariosSGPDreView,
     NomeCPFServidorView,
+    NomeUsuarioEOLView,
     ServidorAtivoView,
     UsuariosSGPView,
 )
