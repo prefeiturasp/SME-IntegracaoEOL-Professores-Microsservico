@@ -7,7 +7,6 @@ import pytest
 from apps.professores.models import (
     AtribuicaoAula,
     CargoBaseServidor,
-    SerieTurmaGrade,
 )
 from conftest import date_to_ticks
 
@@ -97,7 +96,7 @@ class TestEP02TurmasAtribuidasEscola:
         assert res.status_code == 200
         assert res.data == [
             {
-                "codigo_turma": None,
+                "codigo_turma": 2112345,
                 "nome_turma": "1A",
                 "componente_curricular": "Matematica",
                 "data_inicio_atribuicao": "02/01/2024 00:00:00",
@@ -758,16 +757,12 @@ class TestEP17AtribuicaoTurmasLista:
         self,
         client,
         atribuicao_externa,
-        ue,
     ):
-        """Verifica turma com atribuicao externa retorna periodo."""
+        """Verifica externo sem turma direta nao retorna periodo."""
+        atribuicao_externa.codigo_turma_escola = None
         atribuicao_externa.codigo_serie_grade = 1040353
-        atribuicao_externa.save()
-        SerieTurmaGrade.objects.create(
-            codigo_serie_grade=1040353,
-            codigo_turma=2112345,
-            codigo_escola=ue.codigo_ue,
-            codigo_escola_grade=100,
+        atribuicao_externa.save(
+            update_fields=["codigo_turma_escola", "codigo_serie_grade"]
         )
 
         res = client.post(
@@ -852,17 +847,8 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
         assert res.status_code == 200
         assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
-    def test_retorna_externo_atribuido(self, client, atribuicao_externa, ue):
+    def test_retorna_externo_atribuido(self, client, atribuicao_externa):
         """Verifica retorna externo atribuido."""
-        atribuicao_externa.codigo_serie_grade = 1040353
-        atribuicao_externa.save()
-        SerieTurmaGrade.objects.create(
-            codigo_serie_grade=1040353,
-            codigo_turma=2112345,
-            codigo_escola=ue.codigo_ue,
-            codigo_escola_grade=100,
-        )
-
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
             f"?data_ticks={_TICK_2024_02_02}"
