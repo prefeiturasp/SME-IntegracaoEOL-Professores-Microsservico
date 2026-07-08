@@ -443,3 +443,16 @@ class BuscarPorListaLoginView(APIView):
     )
     def post(self, request: Request) -> Response:
         return Response(services.buscar_por_lista_login(request.data))
+
+
+class BuscarFuncionariosView(APIView):
+    """Lista funcionários por filtros básicos."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Buscar funcionários por filtros básicos",
+        request=dict,
+        responses={200: ResumoFuncionarioSerializer(many=True)},
+    )
+    def post(self, request: Request) -> Response:
+        return Response(services.buscar_funcionarios(request.data))

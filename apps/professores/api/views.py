@@ -22,6 +22,7 @@ from apps.professores.serializers import (
     TitularPorTurmaSerializer,
     TitularSerializer,
     TurmaAtribuidaSerializer,
+    TurmaAtribuidaUeSerializer,
 )
 
 _TAG_PROF = ["Professores"]
@@ -140,6 +141,58 @@ class BuscarTurmasAtribuidasView(APIView):
         ano_letivo: int | None = None,
     ) -> Response:
         resultado = services.buscar_turmas_professor(codigo_rf, ano_letivo)
+        return Response(resultado)
+
+
+class BuscarAbrangenciaFuncionarioPerfilView(APIView):
+    """Lista abrangência de turmas do funcionário."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Abrangência de turmas por funcionário e perfil",
+        parameters=[
+            OpenApiParameter("login", str, OpenApiParameter.PATH),
+            OpenApiParameter("id_perfil", str, OpenApiParameter.PATH),
+        ],
+        responses={200: dict},
+    )
+    def get(self, request: Request, login: str, id_perfil: str) -> Response:
+        resultado = services.buscar_abrangencia_funcionario_perfil(
+            login,
+            id_perfil,
+        )
+        return Response(resultado)
+
+
+class TurmasAtribuidasUeView(APIView):
+    """Lista turmas atribuídas por vínculo com UE."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Turmas atribuídas por vínculo com UE",
+        parameters=[
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "cargos", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "codigo_dre", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+        ],
+        responses={200: TurmaAtribuidaUeSerializer(many=True)},
+    )
+    def get(self, request: Request, codigo_rf: str) -> Response:
+        cargos = [
+            int(cargo)
+            for cargo in request.query_params.getlist("cargos")
+            if cargo.isdigit()
+        ]
+        codigo_dre = request.query_params.get("codigo_dre")
+        resultado = services.turmas_atribuidas_ue(
+            codigo_rf,
+            cargos or None,
+            codigo_dre,
+        )
         return Response(resultado)
 
 

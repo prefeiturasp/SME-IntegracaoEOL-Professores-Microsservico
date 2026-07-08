@@ -213,3 +213,15 @@ def buscar_por_lista_login(payload: Any) -> list[dict]:
     """Lista resumos de funcionarios por logins."""
     lista = payload if isinstance(payload, list) else []
     return repository.buscar_por_lista_login(lista)
+
+
+def buscar_funcionarios(payload: Any) -> list[dict]:
+    """Lista funcionários por filtros básicos."""
+    filtros = payload if isinstance(payload, dict) else {}
+    return repository.buscar_funcionarios(
+        codigo_rf=filtros.get("CodigoRF") or filtros.get("codigoRF"),
+        codigo_ue=filtros.get("CodigoUE") or filtros.get("codigoUE"),
+        nome_servidor=(
+            filtros.get("NomeServidor") or filtros.get("nomeServidor")
+        ),
+    )

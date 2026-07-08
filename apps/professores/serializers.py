@@ -39,6 +39,30 @@ class TurmaAtribuidaSerializer(serializers.Serializer):
     etapa_ensino = serializers.IntegerField(allow_null=True)
 
 
+class TurmaAtribuidaUeSerializer(serializers.Serializer):
+    """Serializa turma atribuída por vínculo com UE."""
+
+    codigo_escola = serializers.CharField()
+    codigo_turma = serializers.IntegerField()
+    ano_letivo = serializers.IntegerField()
+    modalidade = serializers.CharField(allow_null=True)
+    semestre = serializers.IntegerField(allow_null=True)
+    codigo_modalidade = serializers.IntegerField(allow_null=True)
+    codigo_dre = serializers.CharField(allow_null=True)
+    dre = serializers.CharField(allow_null=True)
+    dre_abreviacao = serializers.CharField(allow_null=True)
+    ue = serializers.CharField(allow_null=True)
+    ue_abreviacao = serializers.CharField(allow_null=True)
+    nome_turma = serializers.CharField(allow_null=True)
+    ano = serializers.CharField(allow_null=True)
+    tipo_ue = serializers.CharField(allow_null=True)
+    codigo_tipo_ue = serializers.IntegerField(allow_null=True)
+    codigo_tipo_escola = serializers.IntegerField(allow_null=True)
+    tipo_escola = serializers.CharField(allow_null=True)
+    duracao_turno = serializers.IntegerField(allow_null=True)
+    tipo_turno = serializers.IntegerField(allow_null=True)
+
+
 class NomePorRFSerializer(serializers.Serializer):
     """Serializa dados de identificação do professor."""
 

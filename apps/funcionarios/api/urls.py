@@ -4,6 +4,7 @@ from django.urls import path
 
 from apps.funcionarios.api.views import (
     AcessoSondagemView,
+    BuscarFuncionariosView,
     BuscarPorListaLoginView,
     BuscarPorListaRFView,
     CargosFuncionarioView,
@@ -23,6 +24,11 @@ _BASE_FUNCIONARIOS = "professores/funcionarios"
 _BASE_PERFIS = "professores/perfis"
 
 urlpatterns = [
+    path(
+        "funcionarios/",
+        BuscarFuncionariosView.as_view(),
+        name="funcionarios-buscar",
+    ),
     path(
         f"{_BASE_ESCOLAS}/<str:codigo_ue>/funcionarios/",
         FuncionariosPorUEView.as_view(),

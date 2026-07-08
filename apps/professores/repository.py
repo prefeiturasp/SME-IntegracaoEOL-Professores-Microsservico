@@ -18,7 +18,7 @@ from apps.professores.models import (
     AtribuicaoExterno,
     CargoBaseServidor,
     ContratoExterno,
-    Professor,
+    Professor
 )
 
 _CD_MOTIVO_DISPONIBILIZACAO = 34
@@ -65,6 +65,24 @@ def _vigentes_em(qs: Any, data_ref: date) -> Any:
         Q(dt_disponibilizacao_aulas__isnull=True)
         | Q(dt_disponibilizacao_aulas__gte=data_ref)
     )
+
+
+def _vigentes_legado_professor(qs: Any, data_ref: date) -> Any:
+    qs = qs.filter(
+        dt_cancelamento__isnull=True,
+        dt_atribuicao_aula__lte=data_ref,
+        ano_atribuicao=data_ref.year,
+    )
+    filtro_disponibilizacao = (
+        Q(dt_disponibilizacao_aulas__isnull=True)
+        | Q(dt_disponibilizacao_aulas__gte=data_ref)
+        | Q(
+            codigo_tipo_turma__in=(2, 3, 4, 5),
+            dt_disponibilizacao_aulas__year=data_ref.year,
+            dt_disponibilizacao_aulas__month=data_ref.month,
+        )
+    )
+    return qs.filter(filtro_disponibilizacao)
 
 
 def _turma_row(aa: AtribuicaoAula) -> dict:
@@ -129,6 +147,143 @@ def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
         "data_disponibilizacao": fmt_br(ae.dt_disponibilizacao),
         "data_inicio_turma": fmt_br(ae.dt_inicio_turma),
     }
+
+
+def _abrangencia_turma_row(
+    row: dict,
+) -> dict:
+    tipo_turma = row.get("codigo_tipo_turma")
+    turma_programa = tipo_turma in (2, 3, 4, 5)
+    return {
+        "ano": "0" if turma_programa else row["ano"],
+        "ano_letivo": row["ano_letivo"],
+        "codigo": row["codigo_turma"],
+        "codigo_modalidade": (
+            5 if turma_programa else row.get("codigo_modalidade") or 0
+        ),
+        "modalidade": (
+            "Fundamental" if turma_programa else row.get("modalidade")
+        ),
+        "nome_turma": row["nome_turma"],
+        "semestre": row.get("semestre") or 0,
+        "duracao_turno": row.get("duracao_turno") or 0,
+        "tipo_turno": row.get("tipo_turno") or 0,
+        "etapa_eja": 0,
+        "data_fim": None,
+        "ehistorico": False,
+        "ensino_especial": False,
+        "serie_ensino": None,
+        "data_inicio_turma": fmt_iso(row.get("data_inicio_turma")),
+        "extinta": False,
+        "tipo_turma": tipo_turma,
+    }
+
+
+def _abrangencia_retorno(rows: list[dict]) -> dict:
+    dres: dict[str, dict] = {}
+
+    for row in rows:
+        codigo_ue = row["codigo_unidade_educacao"]
+        codigo_dre = row.get("codigo_dre")
+        dre = dres.setdefault(
+            codigo_dre or "",
+            {
+                "abreviacao": row.get("abreviacao_dre"),
+                "codigo": codigo_dre,
+                "nome": row.get("nome_dre"),
+                "ues": {},
+            },
+        )
+        ues_dre = dre["ues"]
+        ue_item = ues_dre.setdefault(
+            codigo_ue,
+            {
+                "codigo": codigo_ue,
+                "cod_tipo_escola": row.get("codigo_tipo_escola"),
+                "nome": row.get("nome_unidade_educacional"),
+                "turmas": [],
+            },
+        )
+        ue_item["turmas"].append(_abrangencia_turma_row(row))
+
+    return {
+        "abrangencia": None,
+        "dres": [
+            {**dre, "ues": list(dre["ues"].values())} for dre in dres.values()
+        ],
+    }
+
+
+def _turma_atribuida_ue_row(turma: TurmaAtribuidaUe) -> dict:
+    return {
+        "codigo_escola": turma.codigo_escola,
+        "codigo_turma": turma.codigo_turma,
+        "ano_letivo": turma.ano_letivo,
+        "modalidade": turma.modalidade,
+        "semestre": turma.semestre,
+        "codigo_modalidade": turma.codigo_modalidade,
+        "codigo_dre": None,
+        "dre": turma.dre,
+        "dre_abreviacao": turma.dre_abreviacao,
+        "ue": turma.ue,
+        "ue_abreviacao": turma.ue_abreviacao,
+        "nome_turma": turma.nome_turma,
+        "ano": turma.ano,
+        "tipo_ue": turma.tipo_ue,
+        "codigo_tipo_ue": turma.codigo_tipo_ue,
+        "codigo_tipo_escola": turma.codigo_tipo_escola,
+        "tipo_escola": turma.tipo_escola,
+        "duracao_turno": turma.duracao_turno,
+        "tipo_turno": turma.tipo_turno,
+    }
+
+
+def turmas_atribuidas_ue(
+    codigo_rf: str,
+    cargos: list[int] | None = None,
+    codigo_dre: str | None = None,
+) -> list[dict]:
+    """Lista turmas atribuídas por vínculo com UE."""
+    qs = TurmaAtribuidaUe.objects.filter(usuario_rf=codigo_rf)
+    if cargos:
+        qs = qs.filter(Q(cargo__in=cargos) | Q(cargo_sobreposto__in=cargos))
+    if codigo_dre:
+        qs = qs.filter(codigo_dre=codigo_dre)
+    qs = qs.order_by("codigo_escola", "nome_turma", "codigo_turma")
+    return [_turma_atribuida_ue_row(turma) for turma in qs]
+
+
+def _linhas_abrangencia_atribuicoes(qs: Any) -> list[dict]:
+    vistas: set[tuple] = set()
+    rows = []
+    for aa in qs:
+        codigo_turma = _codigo_turma(aa)
+        chave = (aa.codigo_unidade_educacao, codigo_turma)
+        if chave in vistas:
+            continue
+        vistas.add(chave)
+        rows.append(
+            {
+                "codigo_unidade_educacao": aa.codigo_unidade_educacao,
+                "codigo_turma": codigo_turma,
+                "nome_turma": aa.descricao_turma_escola,
+                "ano": aa.ano_escolar,
+                "ano_letivo": aa.ano_atribuicao,
+                "codigo_dre": aa.codigo_dre,
+                "nome_dre": aa.nome_dre,
+                "abreviacao_dre": aa.abreviacao_dre,
+                "nome_unidade_educacional": aa.nome_unidade_educacional,
+                "codigo_tipo_escola": aa.codigo_tipo_escola,
+                "codigo_tipo_turma": aa.codigo_tipo_turma,
+                "modalidade": aa.modalidade,
+                "codigo_modalidade": aa.codigo_modalidade,
+                "semestre": aa.semestre,
+                "duracao_turno": aa.duracao_turno,
+                "tipo_turno": aa.tipo_turno,
+                "data_inicio_turma": aa.dt_inicio_turma,
+            }
+        )
+    return rows
 
 
 def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
@@ -258,6 +413,29 @@ def buscar_turmas_professor_ano(codigo_rf: str, ano_letivo: int) -> list[dict]:
     return [_ancora_row(aa) for aa in efetivas] + [
         _ancora_row_externo(ae) for ae in externas
     ]
+
+
+def buscar_abrangencia_funcionario_perfil(
+    login: str,
+    _id_perfil: str,
+) -> dict:
+    """Lista abrangência de turmas do funcionário.
+
+    Args:
+        login: Login do funcionário.
+        _id_perfil: Perfil recebido na consulta.
+
+    Returns:
+        Abrangência organizada por DRE, UE e turma.
+    """
+    efetivas = _vigentes_legado_professor(
+        AtribuicaoAula.objects.filter(
+            cargo_base__professor__codigo_rf=login,
+        ),
+        date.today(),
+    )
+    rows = _linhas_abrangencia_atribuicoes(efetivas)
+    return _abrangencia_retorno(rows)
 
 
 def obter_nome_rf(rf: str) -> str | None:

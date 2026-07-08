@@ -636,3 +636,41 @@ def buscar_por_lista_login(lista: list[str]) -> list[dict]:
         }
         for p in Professor.objects.filter(codigo_rf__in=lista)
     ]
+
+
+def buscar_funcionarios(
+    codigo_rf: str | None = None,
+    codigo_ue: str | None = None,
+    nome_servidor: str | None = None,
+) -> list[dict]:
+    """Lista funcionários por filtros básicos.
+
+    Args:
+        codigo_rf: RF usado no filtro.
+        codigo_ue: Código EOL da unidade usado no filtro.
+        nome_servidor: Trecho do nome usado no filtro.
+
+    Returns:
+        Funcionários encontrados para os filtros informados.
+    """
+    qs = FuncionarioUnidadeEducacional.objects.all()
+    if codigo_rf:
+        qs = qs.filter(codigo_rf=codigo_rf)
+    if codigo_ue:
+        qs = qs.filter(codigo_ue=codigo_ue)
+    if nome_servidor:
+        qs = qs.filter(nome__icontains=nome_servidor)
+    return [
+        {
+            "codigo_rf": funcionario.codigo_rf,
+            "nome": get_nome(funcionario),
+            "cpf": funcionario.cpf,
+            "codigo_cargo": funcionario.codigo_cargo or 0,
+            "codigo_funcao_atividade": (
+                funcionario.codigo_tipo_funcao_atividade or 0
+            ),
+            "funcao_externo": funcionario.funcao_externo or 0,
+            "tipo_funcao_externo": funcionario.tipo_funcao_externo or 0,
+        }
+        for funcionario in qs.distinct("codigo_rf")
+    ]

@@ -49,6 +49,23 @@ def buscar_turmas_professor(
     return repository.buscar_turmas_professor(codigo_rf)
 
 
+def buscar_abrangencia_funcionario_perfil(
+    login: str,
+    id_perfil: str,
+) -> dict:
+    """Lista abrangência de turmas do funcionário."""
+    return repository.buscar_abrangencia_funcionario_perfil(login, id_perfil)
+
+
+def turmas_atribuidas_ue(
+    codigo_rf: str,
+    cargos: list[int] | None = None,
+    codigo_dre: str | None = None,
+) -> list[dict]:
+    """Lista turmas atribuídas por vínculo com UE."""
+    return repository.turmas_atribuidas_ue(codigo_rf, cargos, codigo_dre)
+
+
 def obter_nome_rf(rf_professor: str) -> str | None:
     """Retorna nome do professor por registro funcional."""
     return repository.obter_nome_rf(rf_professor)

@@ -13,6 +13,7 @@ from apps.professores.api.views import (
     AutoCompleteView,
     BuscaProfessoresAnoLetivoView,
     BuscaProfessoresView,
+    BuscarAbrangenciaFuncionarioPerfilView,
     BuscarPorListaRFView,
     BuscarPorRfAnoLetivoView,
     BuscarPorRfDreUeView,
@@ -25,6 +26,7 @@ from apps.professores.api.views import (
     TitularesPorTurmasView,
     TitularesPorUeView,
     TitularPorTurmaDisciplinaView,
+    TurmasAtribuidasUeView,
     UnidadesAtribuicaoValidaView,
     VerificarValidadeView,
 )
@@ -65,6 +67,16 @@ urlpatterns = [
         f"{_BASE_PROF}/<str:codigo_rf>/turmas/anos_letivos/<int:ano_letivo>/",
         BuscarTurmasAtribuidasView.as_view(),
         name="turmas-atribuidas-ano",
+    ),
+    path(
+        "funcionarios/<str:login>/perfis/<str:id_perfil>/turmas/",
+        BuscarAbrangenciaFuncionarioPerfilView.as_view(),
+        name="funcionarios-perfis-turmas",
+    ),
+    path(
+        "funcionarios/<str:codigo_rf>/turmas-atribuidas-ue/",
+        TurmasAtribuidasUeView.as_view(),
+        name="funcionarios-turmas-atribuidas-ue",
     ),
     path(
         f"{_BASE_PROF}/<str:codigo_rf>/BuscarPorRf/<int:ano_letivo>/",
