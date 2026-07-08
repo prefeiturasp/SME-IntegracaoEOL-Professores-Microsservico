@@ -11,6 +11,7 @@ from apps.professores.models import (
     AtribuicaoAula,
     CargoBaseServidor,
     Professor,
+    TurmaAtribuidaUe,
 )
 
 pytestmark = pytest.mark.django_db
@@ -478,3 +479,176 @@ def test_atribuicao_turmas_lista_inclui_atribuicao_externa(
             "data_atribuicao_aula": "2024-02-01T00:00:00",
         }
     ]
+
+
+def _cria_atribuicao_abrangencia(
+    codigo_rf: str,
+    codigo_ue: str,
+    codigo_turma: int,
+    codigo_dre: str,
+    codigo_tipo_turma: int = 1,
+) -> None:
+    professor = Professor.objects.create(
+        codigo_rf=codigo_rf,
+        nome=f"Professor {codigo_rf}",
+        cpf=f"000000{codigo_rf}",
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo,
+        codigo_unidade_educacao=codigo_ue,
+        codigo_turma_escola=codigo_turma,
+        descricao_turma_escola="1A",
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_escolar="1",
+        ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=1,
+        dt_atribuicao_aula=date(date.today().year, 1, 1),
+        codigo_dre=codigo_dre,
+        nome_dre="DRE Teste",
+        abreviacao_dre="DT",
+        nome_unidade_educacional="EMEF Teste",
+        codigo_tipo_escola=4,
+        codigo_tipo_turma=codigo_tipo_turma,
+        modalidade="Fundamental",
+        codigo_modalidade=5,
+        semestre=0,
+        duracao_turno=5,
+        tipo_turno=1,
+    )
+
+
+def test_buscar_abrangencia_funcionario_perfil_monta_hierarquia(db):
+    """Abrangência agrupa turmas vigentes por DRE e UE."""
+    _cria_atribuicao_abrangencia("770001", "000532", 2112345, "108100")
+
+    resultado = repository.buscar_abrangencia_funcionario_perfil(
+        "770001", "perfil-x"
+    )
+
+    assert resultado["abrangencia"] is None
+    assert len(resultado["dres"]) == 1
+    dre = resultado["dres"][0]
+    assert dre["codigo"] == "108100"
+    assert dre["nome"] == "DRE Teste"
+    assert [ue["codigo"] for ue in dre["ues"]] == ["000532"]
+    turmas = dre["ues"][0]["turmas"]
+    assert [t["codigo"] for t in turmas] == [2112345]
+    assert turmas[0]["modalidade"] == "Fundamental"
+
+
+def test_buscar_abrangencia_funcionario_perfil_turma_programa(db):
+    """Turma de programa (tipo 2-5) vira Fundamental com ano '0'."""
+    _cria_atribuicao_abrangencia(
+        "770002", "000600", 2113000, "108200", codigo_tipo_turma=2
+    )
+
+    resultado = repository.buscar_abrangencia_funcionario_perfil(
+        "770002", "perfil-x"
+    )
+
+    turma = resultado["dres"][0]["ues"][0]["turmas"][0]
+    assert turma["modalidade"] == "Fundamental"
+    assert turma["ano"] == "0"
+    assert turma["codigo_modalidade"] == 5
+
+
+def test_buscar_abrangencia_ignora_atribuicao_de_outro_ano(db):
+    """Atribuição de ano diferente do corrente não entra na abrangência."""
+    professor = Professor.objects.create(
+        codigo_rf="770003", nome="Prof Antigo", cpf="00000770003"
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo,
+        codigo_unidade_educacao="000532",
+        codigo_turma_escola=2112345,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=date.today().year - 1,
+        dt_atribuicao_aula=date(date.today().year - 1, 2, 1),
+    )
+
+    resultado = repository.buscar_abrangencia_funcionario_perfil(
+        "770003", "perfil-x"
+    )
+
+    assert resultado == {"abrangencia": None, "dres": []}
+
+
+def test_turmas_atribuidas_ue_filtra_rf_cargo_dre(db):
+    """turmas_atribuidas_ue filtra por RF, cargo/sobreposto e DRE."""
+
+    def _cria(rf, escola, turma, cargo=None, sobreposto=None, dre="108100"):
+        TurmaAtribuidaUe.objects.create(
+            codigo_escola=escola,
+            codigo_turma=turma,
+            ano_letivo=date.today().year,
+            codigo_dre=dre,
+            dre="DRE Teste",
+            nome_turma="1A",
+            usuario_rf=rf,
+            cargo=cargo,
+            cargo_sobreposto=sobreposto,
+        )
+
+    _cria("111", "000001", 10, cargo=3360)
+    _cria("111", "000002", 20, sobreposto=3379)
+    _cria("111", "000003", 30, cargo=9999, dre="200000")
+    _cria("222", "000004", 40, cargo=3360)
+
+    todas = repository.turmas_atribuidas_ue("111")
+    assert {t["codigo_turma"] for t in todas} == {10, 20, 30}
+    # a linha de saída sempre zera codigo_dre (resolvido no consumo)
+    assert all(t["codigo_dre"] is None for t in todas)
+
+    por_cargo = repository.turmas_atribuidas_ue("111", cargos=[3360, 3379])
+    assert {t["codigo_turma"] for t in por_cargo} == {10, 20}
+
+    por_dre = repository.turmas_atribuidas_ue("111", codigo_dre="200000")
+    assert [t["codigo_turma"] for t in por_dre] == [30]
+
+
+def test_buscar_abrangencia_deduplica_turma_repetida(db):
+    """Mesma UE+turma em duas atribuições aparece uma única vez."""
+    professor = Professor.objects.create(
+        codigo_rf="770004", nome="Prof Dup", cpf="00000770004"
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    for componente in (138, 139):
+        AtribuicaoAula.objects.create(
+            cargo_base=cargo,
+            codigo_unidade_educacao="000532",
+            codigo_turma_escola=2112345,
+            descricao_turma_escola="1A",
+            codigo_grade=100,
+            codigo_componente_curricular=componente,
+            ano_escolar="1",
+            ano_atribuicao=date.today().year,
+            codigo_etapa_ensino=1,
+            dt_atribuicao_aula=date(date.today().year, 1, 1),
+            codigo_dre="108100",
+        )
+
+    resultado = repository.buscar_abrangencia_funcionario_perfil(
+        "770004", "perfil-x"
+    )
+
+    turmas = resultado["dres"][0]["ues"][0]["turmas"]
+    assert [t["codigo"] for t in turmas] == [2112345]

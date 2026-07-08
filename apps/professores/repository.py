@@ -18,7 +18,8 @@ from apps.professores.models import (
     AtribuicaoExterno,
     CargoBaseServidor,
     ContratoExterno,
-    Professor
+    Professor,
+    TurmaAtribuidaUe,
 )
 
 _CD_MOTIVO_DISPONIBILIZACAO = 34

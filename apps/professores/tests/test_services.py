@@ -142,3 +142,39 @@ def test_titulares_por_turmas_converte_codigos(monkeypatch):
 
     assert resultado == [{"turma_id": 2112345}]
     assert chamadas["codigos"] == [2112345]
+
+
+def test_buscar_abrangencia_funcionario_perfil_delega(monkeypatch):
+    """Service delega a abrangência ao repository."""
+    chamadas = {}
+
+    def fake(login, id_perfil):
+        chamadas["args"] = (login, id_perfil)
+        return {"abrangencia": None, "dres": []}
+
+    monkeypatch.setattr(
+        services.repository,
+        "buscar_abrangencia_funcionario_perfil",
+        fake,
+    )
+
+    resultado = services.buscar_abrangencia_funcionario_perfil("111", "p")
+
+    assert resultado == {"abrangencia": None, "dres": []}
+    assert chamadas["args"] == ("111", "p")
+
+
+def test_turmas_atribuidas_ue_delega(monkeypatch):
+    """Service delega as turmas por vínculo de UE ao repository."""
+    chamadas = {}
+
+    def fake(codigo_rf, cargos, codigo_dre):
+        chamadas["args"] = (codigo_rf, cargos, codigo_dre)
+        return [{"codigo_turma": 10}]
+
+    monkeypatch.setattr(services.repository, "turmas_atribuidas_ue", fake)
+
+    resultado = services.turmas_atribuidas_ue("111", [3360], "108100")
+
+    assert resultado == [{"codigo_turma": 10}]
+    assert chamadas["args"] == ("111", [3360], "108100")
