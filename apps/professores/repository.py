@@ -19,8 +19,6 @@ from apps.professores.models import (
     CargoBaseServidor,
     ContratoExterno,
     Professor,
-    SerieTurmaGrade,
-    TurmaEscola,
 )
 
 _CD_MOTIVO_DISPONIBILIZACAO = 34
@@ -33,41 +31,8 @@ def _filtrar_localizacao(qs: Any, ue_id: str | None) -> Any:
     return qs
 
 
-def _series_da_turma(codigo_turma: int) -> Any:
-    return SerieTurmaGrade.objects.filter(codigo_turma=codigo_turma).values(
-        "codigo_serie_grade"
-    )
-
-
 def _filtro_turma(codigo_turma: int) -> Q:
-    return Q(codigo_turma_escola=codigo_turma) | Q(
-        codigo_serie_grade__in=_series_da_turma(codigo_turma)
-    )
-
-
-def _serie_turma_map(atribuicoes: Any) -> dict[int, int]:
-    codigos = {
-        aa.codigo_serie_grade
-        for aa in atribuicoes
-        if getattr(aa, "codigo_serie_grade", None)
-    }
-    if not codigos:
-        return {}
-    return dict(
-        SerieTurmaGrade.objects.filter(
-            codigo_serie_grade__in=codigos
-        ).values_list("codigo_serie_grade", "codigo_turma")
-    )
-
-
-def _turma_map(codigos_turma: Any) -> dict[int, TurmaEscola]:
-    codigos = {codigo for codigo in codigos_turma if codigo}
-    if not codigos:
-        return {}
-    return {
-        turma.codigo_turma: turma
-        for turma in TurmaEscola.objects.filter(codigo_turma__in=codigos)
-    }
+    return Q(codigo_turma_escola=codigo_turma)
 
 
 def _filtro_turmas_anos_iniciais() -> Q:
@@ -87,29 +52,10 @@ def _filtro_turmas_anos_iniciais() -> Q:
     )
 
 
-def _codigo_turma(
-    atribuicao: Any, serie_map: dict[int, int] | None = None
-) -> int | None:
+def _codigo_turma(atribuicao: Any) -> int | None:
     if atribuicao.codigo_turma_escola:
         return int(atribuicao.codigo_turma_escola)
-    if not atribuicao.codigo_serie_grade:
-        return None
-    if serie_map is not None:
-        return serie_map.get(atribuicao.codigo_serie_grade)
-    serie = SerieTurmaGrade.objects.filter(
-        codigo_serie_grade=atribuicao.codigo_serie_grade
-    ).first()
-    return serie.codigo_turma if serie else None
-
-
-def _fim_atribuicao_ou_turma(
-    atribuicao: Any, turma: TurmaEscola | None
-) -> Any:
-    return (
-        atribuicao.dt_disponibilizacao_aulas
-        or (turma.dt_fim_turma if turma else None)
-        or (turma.dt_fim if turma else None)
-    )
+    return None
 
 
 def _vigentes_em(qs: Any, data_ref: date) -> Any:
@@ -551,7 +497,6 @@ def atribuicao_status(codigo_rf: str, codigo_turma: int) -> dict:
     Returns:
         Dados de status da atribuição mais recente na turma.
     """
-    turma = TurmaEscola.objects.filter(codigo_turma=codigo_turma).first()
     aa = (
         AtribuicaoAula.objects.filter(
             cargo_base__professor__codigo_rf=codigo_rf,
@@ -575,8 +520,8 @@ def atribuicao_status(codigo_rf: str, codigo_turma: int) -> dict:
     return {
         "ano_atribuicao": aa.ano_atribuicao,
         "data_cancelamento": fmt_iso(aa.dt_cancelamento),
-        "data_disponibilizacao": fmt_iso(_fim_atribuicao_ou_turma(aa, turma)),
-        "data_fim_turma": fmt_iso(turma.dt_fim_turma if turma else None),
+        "data_disponibilizacao": fmt_iso(aa.dt_disponibilizacao_aulas),
+        "data_fim_turma": fmt_iso(aa.dt_fim_turma),
         "codigo_motivo_disponibilizacao": aa.codigo_motivo_disponibilizacao,
     }
 
@@ -830,7 +775,6 @@ def professores_atribuidos_turma_disc(
         OverflowError: Quando os ticks informados excedem uma data válida.
     """
     data = ticks_to_date(data_tick) if data_tick else None
-    turma = TurmaEscola.objects.filter(codigo_turma=codigo_turma).first()
     efetivas = (
         AtribuicaoAula.objects.filter(
             codigo_componente_curricular=disciplina_id,
@@ -850,12 +794,8 @@ def professores_atribuidos_turma_disc(
                 "ano_letivo": None,
                 "nome_turma": None,
                 "data_inicio_atribuicao": fmt_iso(aa.dt_atribuicao_aula),
-                "data_fim_atribuicao": fmt_iso(
-                    _fim_atribuicao_ou_turma(aa, turma)
-                ),
-                "data_fim_turma": fmt_iso(
-                    turma.dt_fim_turma if turma else None
-                ),
+                "data_fim_atribuicao": fmt_iso(aa.dt_disponibilizacao_aulas),
+                "data_fim_turma": fmt_iso(aa.dt_fim_turma),
                 "ano_atribuicao": aa.ano_atribuicao,
                 "codigo_rf": prof.codigo_rf,
                 "disciplina_id": str(disciplina_id),
@@ -866,7 +806,7 @@ def professores_atribuidos_turma_disc(
         )
     externas = AtribuicaoExterno.objects.filter(
         codigo_componente_curricular=disciplina_id,
-        codigo_serie_grade__in=_series_da_turma(codigo_turma),
+        codigo_turma_escola=codigo_turma,
     ).select_related("contrato_externo__pessoa")
     if data:
         externas = externas.filter(
@@ -886,9 +826,7 @@ def professores_atribuidos_turma_disc(
                 "nome_turma": None,
                 "data_inicio_atribuicao": fmt_iso(ae.dt_atribuicao),
                 "data_fim_atribuicao": fmt_iso(ae.dt_disponibilizacao),
-                "data_fim_turma": fmt_iso(
-                    turma.dt_fim_turma if turma else None
-                ),
+                "data_fim_turma": fmt_iso(ae.dt_fim_turma),
                 "ano_atribuicao": ae.ano_atribuicao,
                 "codigo_rf": pessoa.cpf,
                 "disciplina_id": str(disciplina_id),
@@ -1062,8 +1000,6 @@ def titulares_por_ue(
         dt_cancelamento__isnull=True,
         dt_atribuicao_aula__lte=data_referencia,
     ).select_related("cargo_base__professor")
-    atribuicoes = list(qs)
-    serie_map = _serie_turma_map(atribuicoes)
     return [
         {
             "professor_rf": aa.cargo_base.professor.codigo_rf,
@@ -1071,7 +1007,7 @@ def titulares_por_ue(
             "disciplina": None,
             "disciplina_id": str(aa.codigo_componente_curricular),
             "disciplinas_id": str(aa.codigo_componente_curricular),
-            "turma_id": _codigo_turma(aa, serie_map) or 0,
+            "turma_id": _codigo_turma(aa) or 0,
         }
-        for aa in atribuicoes
+        for aa in qs
     ]

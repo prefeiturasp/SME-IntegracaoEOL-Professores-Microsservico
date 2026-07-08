@@ -4,8 +4,6 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
-from django.db import connection
-from django.test.utils import CaptureQueriesContext
 
 from apps.professores import repository
 from apps.professores.models import (
@@ -13,7 +11,6 @@ from apps.professores.models import (
     AtribuicaoAula,
     CargoBaseServidor,
     Professor,
-    SerieTurmaGrade,
 )
 
 pytestmark = pytest.mark.django_db
@@ -174,26 +171,6 @@ def test_autocomplete_exclui_cancelada_e_nomeacao_encerrada(db):
     assert resultado == []
 
 
-def test_helpers_retornam_vazio_quando_nao_ha_codigos():
-    """Verifica retornos vazios dos mapas auxiliares."""
-    assert repository._serie_turma_map([]) == {}
-    assert repository._turma_map([]) == {}
-
-
-def test_helpers_retornam_mapas_preenchidos(ue, turma):
-    """Verifica montagem dos mapas auxiliares com dados."""
-    SerieTurmaGrade.objects.create(
-        codigo_serie_grade=1040353,
-        codigo_turma=turma.codigo_turma,
-        codigo_escola=ue.codigo_ue,
-        codigo_escola_grade=100,
-    )
-    atribuicao = SimpleNamespace(codigo_serie_grade=1040353)
-
-    assert repository._serie_turma_map([atribuicao]) == {1040353: 2112345}
-    assert repository._turma_map([2112345]) == {2112345: turma}
-
-
 def test_codigo_turma_retorna_none_sem_turma_ou_serie():
     """Verifica atribuicao sem turma e sem serie-grade."""
     atribuicao = SimpleNamespace(
@@ -204,34 +181,8 @@ def test_codigo_turma_retorna_none_sem_turma_ou_serie():
     assert repository._codigo_turma(atribuicao) is None
 
 
-def test_codigo_turma_usa_mapa_informado():
-    """Verifica resolucao da turma por mapa pre-carregado."""
-    atribuicao = SimpleNamespace(
-        codigo_turma_escola=None,
-        codigo_serie_grade=1040353,
-    )
-
-    assert repository._codigo_turma(atribuicao, {1040353: 2112345}) == 2112345
-
-
-def test_codigo_turma_busca_serie_quando_mapa_nao_foi_informado(ue):
-    """Verifica resolucao da turma pela serie-grade."""
-    SerieTurmaGrade.objects.create(
-        codigo_serie_grade=1040353,
-        codigo_turma=2112345,
-        codigo_escola=ue.codigo_ue,
-        codigo_escola_grade=100,
-    )
-    atribuicao = SimpleNamespace(
-        codigo_turma_escola=None,
-        codigo_serie_grade=1040353,
-    )
-
-    assert repository._codigo_turma(atribuicao) == 2112345
-
-
-def test_codigo_turma_retorna_none_quando_serie_nao_existe():
-    """Verifica serie-grade inexistente."""
+def test_codigo_turma_nao_resolve_por_serie_grade():
+    """Verifica que serie-grade nao e convertida em turma."""
     atribuicao = SimpleNamespace(
         codigo_turma_escola=None,
         codigo_serie_grade=999999,
@@ -389,9 +340,6 @@ def test_buscar_turmas_professor_ano_inclui_campos_atribuicao_externa(
     atribuicao_externa,
 ):
     """Verifica payload de vinculo externo com dados desnormalizados."""
-    atribuicao_externa.codigo_turma_escola = 2112345
-    atribuicao_externa.save(update_fields=["codigo_turma_escola"])
-
     resultado = repository.buscar_turmas_professor_ano("98765432100", 2024)
 
     assert resultado == [
@@ -530,18 +478,3 @@ def test_atribuicao_turmas_lista_inclui_atribuicao_externa(
             "data_atribuicao_aula": "2024-02-01T00:00:00",
         }
     ]
-
-
-def test_atribuicao_turmas_lista_nao_consulta_tabelas_inexistentes(
-    atribuicao,
-):
-    """Verifica ausencia de dependencias de tabelas fora do DB."""
-    with CaptureQueriesContext(connection) as queries:
-        repository.atribuicao_turmas_lista("7654321", 138, [2112345])
-
-    sql = "\n".join(query["sql"].lower() for query in queries)
-
-    assert 'from "turma_escola"' not in sql
-    assert 'join "turma_escola"' not in sql
-    assert 'from "serie_turma_grade"' not in sql
-    assert 'join "serie_turma_grade"' not in sql
