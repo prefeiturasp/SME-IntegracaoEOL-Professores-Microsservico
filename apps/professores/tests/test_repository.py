@@ -1,6 +1,6 @@
 """Testes dos repositories do dominio de professores."""
 
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -610,8 +610,7 @@ def test_turmas_atribuidas_ue_filtra_rf_cargo_dre(db):
 
     todas = repository.turmas_atribuidas_ue("111")
     assert {t["codigo_turma"] for t in todas} == {10, 20, 30}
-    # a linha de saída sempre zera codigo_dre (resolvido no consumo)
-    assert all(t["codigo_dre"] is None for t in todas)
+    assert {t["codigo_dre"] for t in todas} == {"108100", "200000"}
 
     por_cargo = repository.turmas_atribuidas_ue("111", cargos=[3360, 3379])
     assert {t["codigo_turma"] for t in por_cargo} == {10, 20}
@@ -652,3 +651,50 @@ def test_buscar_abrangencia_deduplica_turma_repetida(db):
 
     turmas = resultado["dres"][0]["ues"][0]["turmas"]
     assert [t["codigo"] for t in turmas] == [2112345]
+
+
+def test_buscar_abrangencia_exclui_atribuicao_ja_disponibilizada(db):
+    """Atribuição já disponibilizada (mesmo de programa no mês) fica fora."""
+    professor = Professor.objects.create(
+        codigo_rf="770006", nome="Prof Disp", cpf="00000770006"
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    hoje = date.today()
+    comum = {
+        "cargo_base": cargo,
+        "codigo_unidade_educacao": "000532",
+        "codigo_turma_escola_grade_programa": 555001,
+        "codigo_grade": 100,
+        "codigo_componente_curricular": 138,
+        "codigo_tipo_turma": 3,
+        "ano_atribuicao": hoje.year,
+        "dt_atribuicao_aula": date(hoje.year, 1, 1),
+        "codigo_dre": "108100",
+    }
+    AtribuicaoAula.objects.create(
+        codigo_turma_escola=2110001,
+        dt_disponibilizacao_aulas=hoje - timedelta(days=1),
+        **comum,
+    )
+    AtribuicaoAula.objects.create(
+        codigo_turma_escola=2110002,
+        dt_disponibilizacao_aulas=date(hoje.year, 12, 22),
+        **comum,
+    )
+
+    resultado = repository.buscar_abrangencia_funcionario_perfil(
+        "770006", "perfil-x"
+    )
+
+    turmas = {
+        t["codigo"]
+        for dre in resultado["dres"]
+        for ue in dre["ues"]
+        for t in ue["turmas"]
+    }
+    assert turmas == {2110002}

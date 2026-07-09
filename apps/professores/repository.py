@@ -18,6 +18,7 @@ from apps.professores.models import (
     AtribuicaoExterno,
     CargoBaseServidor,
     ContratoExterno,
+    DisciplinaTurmaAtribuidaUe,
     Professor,
     TurmaAtribuidaUe,
 )
@@ -68,22 +69,21 @@ def _vigentes_em(qs: Any, data_ref: date) -> Any:
     )
 
 
-def _vigentes_legado_professor(qs: Any, data_ref: date) -> Any:
+def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
+    """Filtra atribuições vigentes para a abrangência de turmas.
+
+    Não considera vigente a atribuição já disponibilizada — inclusive de
+    turma de programa no mês corrente —, acompanhando a abrangência do legado.
+    """
     qs = qs.filter(
         dt_cancelamento__isnull=True,
         dt_atribuicao_aula__lte=data_ref,
         ano_atribuicao=data_ref.year,
     )
-    filtro_disponibilizacao = (
+    return qs.filter(
         Q(dt_disponibilizacao_aulas__isnull=True)
         | Q(dt_disponibilizacao_aulas__gte=data_ref)
-        | Q(
-            codigo_tipo_turma__in=(2, 3, 4, 5),
-            dt_disponibilizacao_aulas__year=data_ref.year,
-            dt_disponibilizacao_aulas__month=data_ref.month,
-        )
     )
-    return qs.filter(filtro_disponibilizacao)
 
 
 def _turma_row(aa: AtribuicaoAula) -> dict:
@@ -223,7 +223,7 @@ def _turma_atribuida_ue_row(turma: TurmaAtribuidaUe) -> dict:
         "modalidade": turma.modalidade,
         "semestre": turma.semestre,
         "codigo_modalidade": turma.codigo_modalidade,
-        "codigo_dre": None,
+        "codigo_dre": turma.codigo_dre,
         "dre": turma.dre,
         "dre_abreviacao": turma.dre_abreviacao,
         "ue": turma.ue,
@@ -252,6 +252,46 @@ def turmas_atribuidas_ue(
         qs = qs.filter(codigo_dre=codigo_dre)
     qs = qs.order_by("codigo_escola", "nome_turma", "codigo_turma")
     return [_turma_atribuida_ue_row(turma) for turma in qs]
+
+
+def _disciplina_turma_atribuida_ue_row(
+    disciplina: DisciplinaTurmaAtribuidaUe,
+) -> dict:
+    return {
+        "codigo": disciplina.codigo_componente_curricular,
+        "descricao": disciplina.descricao_componente_curricular,
+        "codigo_componente_curricular_pai": (
+            disciplina.codigo_componente_curricular_pai
+        ),
+        "regencia": disciplina.regencia,
+        "codigo_componente_territorio_saber": (
+            disciplina.codigo_componente_territorio_saber
+        ),
+        "territorio_saber": disciplina.territorio_saber,
+        "tipo_escola": disciplina.tipo_escola,
+        "turma_codigo": disciplina.codigo_turma,
+        "ano_letivo": disciplina.ano_letivo,
+        "professor": disciplina.usuario_rf,
+    }
+
+
+def disciplinas_turmas_atribuidas_ue(
+    codigo_rf: str,
+    codigo_turma: int,
+    cargos: list[int] | None = None,
+    codigo_dre: str | None = None,
+) -> list[dict]:
+    """Lista disciplinas atribuídas por vínculo com UE."""
+    qs = DisciplinaTurmaAtribuidaUe.objects.filter(
+        usuario_rf=codigo_rf,
+        codigo_turma=codigo_turma,
+    )
+    if cargos:
+        qs = qs.filter(Q(cargo__in=cargos) | Q(cargo_sobreposto__in=cargos))
+    if codigo_dre:
+        qs = qs.filter(codigo_dre=codigo_dre)
+    qs = qs.order_by("descricao_componente_curricular")
+    return [_disciplina_turma_atribuida_ue_row(item) for item in qs]
 
 
 def _linhas_abrangencia_atribuicoes(qs: Any) -> list[dict]:
@@ -429,7 +469,7 @@ def buscar_abrangencia_funcionario_perfil(
     Returns:
         Abrangência organizada por DRE, UE e turma.
     """
-    efetivas = _vigentes_legado_professor(
+    efetivas = _vigentes_abrangencia_professor(
         AtribuicaoAula.objects.filter(
             cargo_base__professor__codigo_rf=login,
         ),

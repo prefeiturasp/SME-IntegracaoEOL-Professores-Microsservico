@@ -63,6 +63,25 @@ class TurmaAtribuidaUeSerializer(serializers.Serializer):
     tipo_turno = serializers.IntegerField(allow_null=True)
 
 
+class DisciplinaTurmaAtribuidaUeSerializer(serializers.Serializer):
+    """Serializa disciplina atribuída por vínculo com UE."""
+
+    codigo = serializers.IntegerField(source="codigo_componente_curricular")
+    descricao = serializers.CharField(source="descricao_componente_curricular")
+    codigo_componente_curricular_pai = serializers.IntegerField(
+        allow_null=True
+    )
+    regencia = serializers.BooleanField()
+    codigo_componente_territorio_saber = serializers.IntegerField(
+        allow_null=True
+    )
+    territorio_saber = serializers.BooleanField()
+    tipo_escola = serializers.CharField(allow_null=True)
+    turma_codigo = serializers.IntegerField(source="codigo_turma")
+    ano_letivo = serializers.IntegerField()
+    professor = serializers.CharField(source="usuario_rf")
+
+
 class NomePorRFSerializer(serializers.Serializer):
     """Serializa dados de identificação do professor."""
 

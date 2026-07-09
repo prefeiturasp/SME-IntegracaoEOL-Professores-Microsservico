@@ -215,6 +215,38 @@ class TurmaAtribuidaUe(models.Model):
         managed = False
 
 
+class DisciplinaTurmaAtribuidaUe(models.Model):
+    """Disciplina atribuída por vínculo do funcionário com UE."""
+
+    id = models.BigAutoField(primary_key=True)
+    codigo_escola = models.CharField(max_length=6)
+    codigo_turma = models.BigIntegerField()
+    ano_letivo = models.IntegerField()
+    usuario_rf = models.CharField(max_length=10)
+    codigo_componente_curricular = models.IntegerField()
+    descricao_componente_curricular = models.CharField(max_length=200)
+    codigo_componente_curricular_pai = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    regencia = models.BooleanField(default=False)
+    codigo_componente_territorio_saber = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    territorio_saber = models.BooleanField(default=False)
+    codigo_dre = models.CharField(max_length=6, null=True, blank=True)
+    codigo_tipo_escola = models.IntegerField(null=True, blank=True)
+    tipo_escola = models.CharField(max_length=12, null=True, blank=True)
+    cargo = models.IntegerField(null=True, blank=True)
+    cargo_sobreposto = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        app_label = "professores"
+        db_table = "disciplina_turma_atribuida_ue"
+        managed = False
+
+
 class CargoSobrepostoServidor(models.Model):
     """Cargo sobreposto exercido sobre o cargo base."""
 

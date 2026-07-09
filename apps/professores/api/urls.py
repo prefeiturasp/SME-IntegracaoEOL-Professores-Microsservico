@@ -20,6 +20,7 @@ from apps.professores.api.views import (
     BuscarTurmasAtribuidasView,
     BuscaTurmasAtribuidasEscolaView,
     BuscaTurmasAtribuidasProfessorEscolaView,
+    DisciplinasTurmasAtribuidasUeView,
     ObterNomePeloRFView,
     ObterProfessoresAtribuidosTurmaDiscView,
     TitularesPorTurmaAgrupamentoView,
@@ -77,6 +78,12 @@ urlpatterns = [
         "funcionarios/<str:codigo_rf>/turmas-atribuidas-ue/",
         TurmasAtribuidasUeView.as_view(),
         name="funcionarios-turmas-atribuidas-ue",
+    ),
+    path(
+        "funcionarios/<str:codigo_rf>/turmas/<int:codigo_turma>/"
+        "disciplinas-atribuidas-ue/",
+        DisciplinasTurmasAtribuidasUeView.as_view(),
+        name="funcionarios-disciplinas-turmas-atribuidas-ue",
     ),
     path(
         f"{_BASE_PROF}/<str:codigo_rf>/BuscarPorRf/<int:ano_letivo>/",

@@ -13,6 +13,7 @@ from apps.professores.serializers import (
     AtribuicaoStatusSerializer,
     AtribuicaoTurmaSerializer,
     AutoCompleteSerializer,
+    DisciplinaTurmaAtribuidaUeSerializer,
     NomePorRFSerializer,
     ProfessorAtribuidoTurmaDiscSerializer,
     ProfessorEscolaSerializer,
@@ -190,6 +191,45 @@ class TurmasAtribuidasUeView(APIView):
         codigo_dre = request.query_params.get("codigo_dre")
         resultado = services.turmas_atribuidas_ue(
             codigo_rf,
+            cargos or None,
+            codigo_dre,
+        )
+        return Response(resultado)
+
+
+class DisciplinasTurmasAtribuidasUeView(APIView):
+    """Lista disciplinas atribuídas por vínculo com UE."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Disciplinas atribuídas por vínculo com UE",
+        parameters=[
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "cargos", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "codigo_dre", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+        ],
+        responses={200: DisciplinaTurmaAtribuidaUeSerializer(many=True)},
+    )
+    def get(
+        self,
+        request: Request,
+        codigo_rf: str,
+        codigo_turma: int,
+    ) -> Response:
+        cargos = [
+            int(cargo)
+            for cargo in request.query_params.getlist("cargos")
+            if cargo.isdigit()
+        ]
+        codigo_dre = request.query_params.get("codigo_dre")
+        resultado = services.disciplinas_turmas_atribuidas_ue(
+            codigo_rf,
+            codigo_turma,
             cargos or None,
             codigo_dre,
         )

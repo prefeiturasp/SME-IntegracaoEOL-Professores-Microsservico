@@ -66,6 +66,21 @@ def turmas_atribuidas_ue(
     return repository.turmas_atribuidas_ue(codigo_rf, cargos, codigo_dre)
 
 
+def disciplinas_turmas_atribuidas_ue(
+    codigo_rf: str,
+    codigo_turma: int,
+    cargos: list[int] | None = None,
+    codigo_dre: str | None = None,
+) -> list[dict]:
+    """Lista disciplinas atribuídas por vínculo com UE."""
+    return repository.disciplinas_turmas_atribuidas_ue(
+        codigo_rf,
+        codigo_turma,
+        cargos,
+        codigo_dre,
+    )
+
+
 def obter_nome_rf(rf_professor: str) -> str | None:
     """Retorna nome do professor por registro funcional."""
     return repository.obter_nome_rf(rf_professor)
