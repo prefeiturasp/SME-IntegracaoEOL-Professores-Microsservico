@@ -13,6 +13,7 @@ from apps.professores.serializers import (
     AtribuicaoStatusSerializer,
     AtribuicaoTurmaSerializer,
     AutoCompleteSerializer,
+    DisciplinaTurmaAtribuidaUeSerializer,
     NomePorRFSerializer,
     ProfessorAtribuidoTurmaDiscSerializer,
     ProfessorEscolaSerializer,
@@ -22,6 +23,7 @@ from apps.professores.serializers import (
     TitularPorTurmaSerializer,
     TitularSerializer,
     TurmaAtribuidaSerializer,
+    TurmaAtribuidaUeSerializer,
 )
 
 _TAG_PROF = ["Professores"]
@@ -44,6 +46,15 @@ class BuscaProfessoresView(APIView):
         request: Request,
         codigo_eol_escola: str,
     ) -> Response:
+        """Lista professores de uma escola.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_eol_escola: Código EOL da escola consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.buscar_professores_escola(codigo_eol_escola)
         return Response(resultado)
 
@@ -66,6 +77,16 @@ class BuscaProfessoresAnoLetivoView(APIView):
         codigo_eol_escola: str,
         ano_letivo: int,
     ) -> Response:
+        """Lista professores de uma escola por ano letivo.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_eol_escola: Código EOL da escola consultada.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.buscar_professores_escola(
             codigo_eol_escola, ano_letivo
         )
@@ -90,6 +111,16 @@ class BuscaTurmasAtribuidasEscolaView(APIView):
         codigo_eol_escola: str,
         ano_letivo: int,
     ) -> Response:
+        """Lista turmas atribuídas em uma escola e ano letivo.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_eol_escola: Código EOL da escola consultada.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.buscar_turmas_professor_escola_ano(
             codigo_eol_escola, ano_letivo
         )
@@ -116,6 +147,17 @@ class BuscaTurmasAtribuidasProfessorEscolaView(APIView):
         ano_letivo: int,
         codigo_rf: str | None = None,
     ) -> Response:
+        """Lista turmas atribuídas ao professor em uma escola.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_eol_escola: Código EOL da escola consultada.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.buscar_turmas_professor_escola_ano(
             codigo_eol_escola, ano_letivo, codigo_rf
         )
@@ -139,7 +181,137 @@ class BuscarTurmasAtribuidasView(APIView):
         codigo_rf: str,
         ano_letivo: int | None = None,
     ) -> Response:
+        """Lista turmas atribuídas ao professor.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.buscar_turmas_professor(codigo_rf, ano_letivo)
+        return Response(resultado)
+
+
+class BuscarAbrangenciaFuncionarioPerfilView(APIView):
+    """Lista abrangência de turmas do funcionário."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Abrangência de turmas por funcionário e perfil",
+        parameters=[
+            OpenApiParameter("login", str, OpenApiParameter.PATH),
+            OpenApiParameter("id_perfil", str, OpenApiParameter.PATH),
+        ],
+        responses={200: dict},
+    )
+    def get(self, request: Request, login: str, id_perfil: str) -> Response:
+        """Lista abrangência de turmas do funcionário.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            login: Login do funcionário usado para buscar abrangência.
+            id_perfil: Identificador do perfil SGP usado na consulta.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        resultado = services.buscar_abrangencia_funcionario_perfil(
+            login,
+            id_perfil,
+        )
+        return Response(resultado)
+
+
+class TurmasAtribuidasUeView(APIView):
+    """Lista turmas atribuídas por vínculo com UE."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Turmas atribuídas por vínculo com UE",
+        parameters=[
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "cargos", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "codigo_dre", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+        ],
+        responses={200: TurmaAtribuidaUeSerializer(many=True)},
+    )
+    def get(self, request: Request, codigo_rf: str) -> Response:
+        """Lista turmas atribuídas por vínculo com UE.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        cargos = [
+            int(cargo)
+            for cargo in request.query_params.getlist("cargos")
+            if cargo.isdigit()
+        ]
+        codigo_dre = request.query_params.get("codigo_dre")
+        resultado = services.turmas_atribuidas_ue(
+            codigo_rf,
+            cargos or None,
+            codigo_dre,
+        )
+        return Response(resultado)
+
+
+class DisciplinasTurmasAtribuidasUeView(APIView):
+    """Lista disciplinas atribuídas por vínculo com UE."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Disciplinas atribuídas por vínculo com UE",
+        parameters=[
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
+            OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "cargos", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "codigo_dre", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+        ],
+        responses={200: DisciplinaTurmaAtribuidaUeSerializer(many=True)},
+    )
+    def get(
+        self,
+        request: Request,
+        codigo_rf: str,
+        codigo_turma: int,
+    ) -> Response:
+        """Lista disciplinas atribuídas por vínculo com UE.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            codigo_turma: Código EOL da turma consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        cargos = [
+            int(cargo)
+            for cargo in request.query_params.getlist("cargos")
+            if cargo.isdigit()
+        ]
+        codigo_dre = request.query_params.get("codigo_dre")
+        resultado = services.disciplinas_turmas_atribuidas_ue(
+            codigo_rf,
+            codigo_turma,
+            cargos or None,
+            codigo_dre,
+        )
         return Response(resultado)
 
 
@@ -155,6 +327,15 @@ class ObterNomePeloRFView(APIView):
         responses={200: NomePorRFSerializer, 404: dict},
     )
     def get(self, request: Request, rf_professor: str) -> Response:
+        """Retorna o nome do professor pelo registro funcional.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            rf_professor: Registro funcional do professor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         nome = services.obter_nome_rf(rf_professor)
         if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -178,6 +359,16 @@ class BuscarPorRfAnoLetivoView(APIView):
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
+        """Retorna dados do professor com atribuicao de aula por ano letivo.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.buscar_professor_com_atribuicao_aula_ano_letivo(
             codigo_rf, ano_letivo
         )
@@ -213,6 +404,16 @@ class BuscarPorRfDreUeView(APIView):
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
     ) -> Response:
+        """Retorna dados do professor por registro funcional.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         if ano_letivo == 0:
             return Response(
                 {"detail": "É necessário informar o ano letivo."},
@@ -252,6 +453,16 @@ class AutoCompleteView(APIView):
         responses={200: AutoCompleteSerializer(many=True)},
     )
     def get(self, request: Request, ano_letivo: int, dre_id: str) -> Response:
+        """Lista professores para autocomplete por DRE e ano.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+            dre_id: Código EOL da DRE usada para filtrar professores.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.autocomplete_professores(
             ano_letivo,
             ue_id=request.query_params.get("ue_id"),
@@ -273,6 +484,15 @@ class BuscarPorListaRFView(APIView):
         responses={200: ResumoSerializer(many=True), 400: dict},
     )
     def post(self, request: Request, ano_letivo: int) -> Response:
+        """Lista professores por registros funcionais e ano.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         if ano_letivo == 0:
             return Response(
                 {"detail": "É necessário informar o ano letivo."},
@@ -294,6 +514,15 @@ class VerificarValidadeView(APIView):
         responses={200: bool},
     )
     def get(self, request: Request, codigo_rf: str) -> Response:
+        """Verifica se o professor possui vínculo válido.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(services.verificar_validade(codigo_rf))
 
 
@@ -309,6 +538,15 @@ class UnidadesAtribuicaoValidaView(APIView):
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request: Request, codigo_rf: str) -> Response:
+        """Lista as UEs onde o professor tem atribuição válida.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(
             {
                 "codigo_rf": codigo_rf,
@@ -334,6 +572,16 @@ class AtribuicaoStatusView(APIView):
     def get(
         self, request: Request, codigo_rf: str, codigo_turma: int
     ) -> Response:
+        """Verifica atribuição do professor na turma.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            codigo_turma: Código EOL da turma consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(services.atribuicao_status(codigo_rf, codigo_turma))
 
 
@@ -355,6 +603,16 @@ class AtribuicaoVerificarDataView(APIView):
     def get(
         self, request: Request, codigo_rf: str, codigo_turma: int
     ) -> Response:
+        """Verifica atribuição do professor na turma em uma data.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            codigo_turma: Código EOL da turma consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(
             services.atribuicao_verificar_data(
                 codigo_rf,
@@ -393,6 +651,17 @@ class AtribuicaoDisciplinaDataView(APIView):
         codigo_turma: int,
         disciplina_id: int,
     ) -> Response:
+        """Verifica atribuição do professor na disciplina em uma data.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            codigo_turma: Código EOL da turma consultada.
+            disciplina_id: Identificador do componente curricular/disciplina.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(
             services.atribuicao_disciplina_data(
                 codigo_rf,
@@ -430,6 +699,17 @@ class AtribuicaoDisciplinaDataTickView(APIView):
         codigo_turma: int,
         disciplina_id: int,
     ) -> Response:
+        """Verifica atribuição do professor usando data em ticks.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            codigo_turma: Código EOL da turma consultada.
+            disciplina_id: Identificador do componente curricular/disciplina.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.atribuicao_disciplina_datatick(
             codigo_rf,
             codigo_turma,
@@ -473,6 +753,17 @@ class AtribuicaoRecorrenciaDatasView(APIView):
         codigo_turma: int,
         disciplina_id: int,
     ) -> Response:
+        """Lista resultados de atribuição para datas recorrentes.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            codigo_turma: Código EOL da turma consultada.
+            disciplina_id: Identificador do componente curricular/disciplina.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.atribuicao_recorrencia_datas(
             codigo_rf,
             codigo_turma,
@@ -498,6 +789,16 @@ class AtribuicaoTurmasListaView(APIView):
     def post(
         self, request: Request, codigo_rf: str, disciplina_id: int
     ) -> Response:
+        """Lista resultados de atribuição em turmas por disciplina.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            disciplina_id: Identificador do componente curricular/disciplina.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.atribuicao_turmas_lista(
             codigo_rf,
             disciplina_id,
@@ -534,6 +835,19 @@ class AtribuicaoPeriodoView(APIView):
         data_inicio_periodo: str,
         data_fim_periodo: str,
     ) -> Response:
+        """Verifica atribuição do professor em período.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+            codigo_turma: Código EOL da turma consultada.
+            componente_curricular_id: ID do componente curricular consultado.
+            data_inicio_periodo: Data inicial do período consultado.
+            data_fim_periodo: Data final do período de atribuição consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(
             services.atribuicao_periodo(
                 codigo_rf,
@@ -568,6 +882,16 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
     def get(
         self, request: Request, codigo_turma: int, disciplina_id: int
     ) -> Response:
+        """Lista professores atribuídos a turma e disciplina em data.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_turma: Código EOL da turma consultada.
+            disciplina_id: Identificador do componente curricular/disciplina.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.professores_atribuidos_turma_disc(
             codigo_turma,
             disciplina_id,
@@ -596,6 +920,16 @@ class TitularPorTurmaDisciplinaView(APIView):
         codigo_turma: int,
         codigo_componente_curricular: int,
     ) -> Response:
+        """Retorna professor titular por turma e disciplina.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_turma: Código EOL da turma consultada.
+            codigo_componente_curricular: Código do componente curricular.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.titular_por_turma_disciplina(
             codigo_turma, codigo_componente_curricular
         )
@@ -622,6 +956,14 @@ class TitularesPorTurmasView(APIView):
         responses={200: TitularPorTurmaSerializer(many=True)},
     )
     def get(self, request: Request) -> Response:
+        """Lista professores titulares por turmas.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(
             services.titulares_por_turmas(
                 request.query_params.getlist("codigos_turmas")
@@ -655,6 +997,16 @@ class TitularesPorTurmaAgrupamentoView(APIView):
         codigo_turma: int,
         realiza_agrupamento: str,
     ) -> Response:
+        """Lista professores titulares por turma com agrupamento.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_turma: Código EOL da turma consultada.
+            realiza_agrupamento: Indica se titulares devem ser agrupados.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(
             services.titulares_por_turma_agrupamento(
                 codigo_turma,
@@ -689,6 +1041,16 @@ class TitularesPorUeView(APIView):
         ue_codigo: str,
         data_referencia: str,
     ) -> Response:
+        """Lista professores titulares por unidade e data de referência.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            ue_codigo: Código EOL da unidade educacional consultada.
+            data_referencia: Data de referência usada para consultar titulares.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(
             services.titulares_por_ue(
                 ue_codigo,

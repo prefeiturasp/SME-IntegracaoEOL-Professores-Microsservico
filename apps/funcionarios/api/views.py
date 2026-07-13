@@ -57,6 +57,15 @@ class FuncionariosPorUEView(APIView):
         responses={200: FuncionarioUESerializer(many=True), 400: dict},
     )
     def get(self, request: Request, codigo_ue: str) -> Response:
+        """Lista funcionários de uma unidade educacional.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_ue: Código EOL da unidade educacional consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         serializer = FuncionariosUEQuerySerializer(data=request.query_params)
         if not serializer.is_valid():
             return Response(
@@ -92,6 +101,15 @@ class FuncionariosCargosQueryView(APIView):
         responses={200: FuncionarioUESerializer(many=True)},
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
+        """Lista funcionários de uma unidade por cargos.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            ue_codigo: Código EOL da unidade educacional consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.funcionarios_por_lista_cargos(
             ue_codigo,
             request.query_params.getlist("cargos"),
@@ -119,6 +137,16 @@ class FuncionariosFuncaoAtividadeView(APIView):
         codigo_ue: str,
         codigo_funcao_atividade: int | None = None,
     ) -> Response:
+        """Lista funcionários de uma unidade por função de atividade.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_ue: Código EOL da unidade educacional consultada.
+            codigo_funcao_atividade: Código da função de atividade filtrada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.funcionarios_por_funcao_atividade(
             codigo_ue, codigo_funcao_atividade or 0
         )
@@ -147,6 +175,15 @@ class FuncionariosFuncoesAtividadesQueryView(APIView):
         responses={200: FuncionarioUESerializer(many=True)},
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
+        """Lista funcionários por funções de atividade.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            ue_codigo: Código EOL da unidade educacional consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.funcionarios_por_lista_funcoes_atividade(
             ue_codigo,
             request.query_params.getlist("funcoes_atividades"),
@@ -174,6 +211,16 @@ class FuncionariosFuncaoExternaView(APIView):
         codigo_ue: str,
         codigo_funcao_externa: int | None = None,
     ) -> Response:
+        """Lista funcionários externos de uma unidade por função.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_ue: Código EOL da unidade educacional consultada.
+            codigo_funcao_externa: Código da função externa usada no filtro.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.funcionarios_por_funcao_externa(
             codigo_ue, codigo_funcao_externa or 0
         )
@@ -202,6 +249,15 @@ class FuncionariosFuncoesExternasQueryView(APIView):
         responses={200: FuncionarioFuncaoExternaSerializer(many=True)},
     )
     def get(self, request: Request, ue_codigo: str) -> Response:
+        """Lista funcionários externos de uma unidade por funções.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            ue_codigo: Código EOL da unidade educacional consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.funcionarios_por_lista_funcoes_externas(
             ue_codigo,
             request.query_params.getlist("funcoes"),
@@ -225,6 +281,15 @@ class CargosFuncionarioView(APIView):
         },
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
+        """Lista cargos do funcionário por registro funcional.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            registro_funcional: Registro funcional do servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(services.cargos_funcionario(registro_funcional))
 
 
@@ -240,6 +305,15 @@ class FuncionarioExternoPorCpfView(APIView):
         responses={200: FuncionarioExternoCpfSerializer, 400: dict, 404: dict},
     )
     def get(self, request: Request, cpf: str) -> Response:
+        """Retorna funcionário externo por CPF.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            cpf: CPF do funcionário externo consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.funcionario_externo_por_cpf(cpf)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -258,6 +332,15 @@ class NomeCPFServidorView(APIView):
         responses={200: NomeCPFServidorSerializer, 400: dict, 404: dict},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
+        """Retorna nome e CPF do servidor por registro funcional.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            registro_funcional: Registro funcional do servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.nome_cpf_servidor(registro_funcional)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -276,6 +359,15 @@ class NomeUsuarioEOLView(APIView):
         responses={200: str, 400: dict, 404: dict},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
+        """Retorna nome usuario EOL do servidor.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            registro_funcional: Registro funcional do servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         nome = services.nome_servidor(registro_funcional)
         if nome is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -296,6 +388,15 @@ class ServidorAtivoView(APIView):
         responses={200: bool, 400: dict, 404: dict},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
+        """Verifica se o servidor está ativo.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            registro_funcional: Registro funcional do servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(services.servidor_ativo(registro_funcional))
 
 
@@ -317,6 +418,16 @@ class DreUeAtribuicaoCargoView(APIView):
         registro_funcional: str,
         codigo_cargo: int,
     ) -> Response:
+        """Retorna unidade do funcionário por cargo.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            registro_funcional: Registro funcional do servidor consultado.
+            codigo_cargo: Código do cargo usado para localizar a atribuição.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.dre_ue_cargo(registro_funcional, codigo_cargo)
         if resultado is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -347,6 +458,15 @@ class UsuariosSGPView(APIView):
         responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
     )
     def get(self, request: Request, id_perfil: str) -> Response:
+        """Lista usuários SGP por perfil.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            id_perfil: Identificador do perfil SGP usado na consulta.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.usuarios_sgp_por_perfil(
             id_perfil,
             codigo_dre=request.query_params.get("codigo_dre"),
@@ -389,6 +509,16 @@ class FuncionariosSGPDreView(APIView):
     def get(
         self, request: Request, id_perfil: str, codigo_dre: str
     ) -> Response:
+        """Lista funcionários SGP por DRE e perfil.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            id_perfil: Identificador do perfil SGP usado na consulta.
+            codigo_dre: Código EOL da DRE usada para filtrar funcionários.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         resultado = services.funcionarios_sgp_dre(
             id_perfil,
             codigo_dre,
@@ -416,6 +546,15 @@ class AcessoSondagemView(APIView):
         responses={200: bool},
     )
     def get(self, request: Request, codigo_rf: str) -> Response:
+        """Verifica se o professor tem acesso à sondagem.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional do professor ou servidor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(services.acesso_sondagem(codigo_rf))
 
 
@@ -429,6 +568,14 @@ class BuscarPorListaRFView(APIView):
         responses={200: ResumoFuncionarioSerializer(many=True)},
     )
     def post(self, request: Request) -> Response:
+        """Lista resumos de funcionários por registros funcionais.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(services.buscar_por_lista_rf(request.data))
 
 
@@ -442,4 +589,33 @@ class BuscarPorListaLoginView(APIView):
         responses={200: ResumoFuncionarioSerializer(many=True)},
     )
     def post(self, request: Request) -> Response:
+        """Lista resumos de funcionários por logins.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         return Response(services.buscar_por_lista_login(request.data))
+
+
+class BuscarFuncionariosView(APIView):
+    """Lista funcionários por filtros básicos."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Buscar funcionários por filtros básicos",
+        request=dict,
+        responses={200: ResumoFuncionarioSerializer(many=True)},
+    )
+    def post(self, request: Request) -> Response:
+        """Lista funcionários por filtros básicos.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        return Response(services.buscar_funcionarios(request.data))
