@@ -37,6 +37,14 @@ def perfil_placeholder_invalido(id_perfil: str) -> bool:
 
 
 def _dre_de_ue(ue_codigo: str | None) -> str | None:
+    """Obtém a DRE vinculada a uma unidade educacional.
+
+    Args:
+        ue_codigo: Código EOL da unidade educacional consultada.
+
+    Returns:
+        Código EOL da DRE vinculada à UE, ou ``None`` quando não encontrada.
+    """
     if not ue_codigo:
         return None
     if ue_codigo not in _UE_DRE_CACHE:
@@ -46,6 +54,14 @@ def _dre_de_ue(ue_codigo: str | None) -> str | None:
 
 
 def _nome_funcionario(funcionario: FuncionarioUnidadeEducacional) -> str:
+    """Obtém o nome exibido do funcionário.
+
+    Args:
+        funcionario: Funcionário usado para extração do nome.
+
+    Returns:
+        Nome social quando preenchido; caso contrário, nome civil.
+    """
     nome_social = funcionario.nome_social
     if nome_social and nome_social.strip():
         return str(nome_social)
@@ -53,12 +69,28 @@ def _nome_funcionario(funcionario: FuncionarioUnidadeEducacional) -> str:
 
 
 def _fmt_data_funcionario(valor: Any) -> str | None:
+    """Formata data no contrato legado de funcionários.
+
+    Args:
+        valor: Data a ser formatada.
+
+    Returns:
+        Data no formato legado, ou ``None`` quando ausente.
+    """
     if valor is None:
         return None
     return str(valor.strftime("%m/%d/%Y 00:00:00"))
 
 
 def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
+    """Monta a representação de funcionário da UE.
+
+    Args:
+        funcionario: Funcionário usado para montar o payload.
+
+    Returns:
+        Dicionário no formato esperado pelos endpoints de funcionários da UE.
+    """
     return {
         "codigo_rf": funcionario.codigo_rf,
         "nome": _nome_funcionario(funcionario),
@@ -77,6 +109,11 @@ def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
 
 
 def _lotacoes_ativas() -> Any:
+    """Retorna queryset base de lotações ativas.
+
+    Returns:
+        Queryset de lotações sem data de fim.
+    """
     return LotacaoServidor.objects.filter(dt_fim__isnull=True)
 
 

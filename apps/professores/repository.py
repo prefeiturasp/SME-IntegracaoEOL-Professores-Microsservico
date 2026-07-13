@@ -28,21 +28,37 @@ _CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO = 3
 
 
 def _filtrar_localizacao(qs: Any, ue_id: str | None) -> Any:
+    """Aplica filtro opcional de unidade educacional ao queryset.
+
+    Args:
+        qs: Queryset de atribuições ou contratos externos.
+        ue_id: Código EOL da unidade educacional usada como escopo.
+
+    Returns:
+        Queryset filtrado por UE quando o escopo for informado.
+    """
     if ue_id:
         return qs.filter(codigo_unidade_educacao=ue_id)
     return qs
 
 
 def _filtro_turma(codigo_turma: int) -> Q:
+    """Monta filtro para código EOL de turma.
+
+    Args:
+        codigo_turma: Código EOL da turma consultada.
+
+    Returns:
+        Expressão ``Q`` para filtrar a turma.
+    """
     return Q(codigo_turma_escola=codigo_turma)
 
 
 def _filtro_turmas_anos_iniciais() -> Q:
-    """Filtro para turmas de anos iniciais (1 a 6).
+    """Monta filtro para turmas de anos iniciais.
 
     Returns:
-        Q: Filtro para uso em queryset.
-
+        Expressão ``Q`` para turmas do 1º ao 6º ano.
     """
     return (
         Q(descricao_turma_escola__startswith="1")
@@ -55,12 +71,29 @@ def _filtro_turmas_anos_iniciais() -> Q:
 
 
 def _codigo_turma(atribuicao: Any) -> int | None:
+    """Retorna o código de turma da atribuição.
+
+    Args:
+        atribuicao: Atribuição efetiva ou externa com código de turma.
+
+    Returns:
+        Código EOL da turma como inteiro, ou ``None`` quando ausente.
+    """
     if atribuicao.codigo_turma_escola:
         return int(atribuicao.codigo_turma_escola)
     return None
 
 
 def _vigentes_em(qs: Any, data_ref: date) -> Any:
+    """Filtra atribuições vigentes em uma data de referência.
+
+    Args:
+        qs: Queryset de atribuições.
+        data_ref: Data usada para validar início e disponibilização.
+
+    Returns:
+        Queryset contendo apenas atribuições vigentes na data.
+    """
     return qs.filter(
         dt_cancelamento__isnull=True, dt_atribuicao_aula__lte=data_ref
     ).filter(
@@ -74,6 +107,13 @@ def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
 
     Não considera vigente a atribuição já disponibilizada — inclusive de
     turma de programa no mês corrente —, acompanhando a abrangência do legado.
+
+    Args:
+        qs: Queryset de atribuições do professor.
+        data_ref: Data usada para validar vigência e ano de atribuição.
+
+    Returns:
+        Queryset contendo atribuições vigentes para cálculo da abrangência.
     """
     qs = qs.filter(
         dt_cancelamento__isnull=True,
@@ -87,6 +127,14 @@ def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
 
 
 def _turma_row(aa: AtribuicaoAula) -> dict:
+    """Monta payload de turma atribuída efetiva.
+
+    Args:
+        aa: Atribuição de aula efetiva.
+
+    Returns:
+        Dicionário com dados da turma atribuída.
+    """
     return {
         "codigo_turma": aa.codigo_turma_escola,
         "nome_turma": aa.descricao_turma_escola,
@@ -100,6 +148,14 @@ def _turma_row(aa: AtribuicaoAula) -> dict:
 
 
 def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
+    """Monta payload de turma atribuída externa.
+
+    Args:
+        ae: Atribuição de profissional externo.
+
+    Returns:
+        Dicionário com dados da turma atribuída externa.
+    """
     return {
         "codigo_turma": ae.codigo_turma_escola,
         "nome_turma": ae.descricao_turma_escola,
@@ -113,7 +169,14 @@ def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
 
 
 def _ancora_row(aa: AtribuicaoAula) -> dict:
-    """Monta o vínculo-âncora de uma atribuição efetiva."""
+    """Monta o vínculo-âncora de uma atribuição efetiva.
+
+    Args:
+        aa: Atribuição de aula efetiva.
+
+    Returns:
+        Dicionário com dados da turma, componente e vigência da atribuição.
+    """
     codigo_turma_escola = aa.codigo_turma_escola
     return {
         "codigo_turma": (
@@ -132,7 +195,14 @@ def _ancora_row(aa: AtribuicaoAula) -> dict:
 
 
 def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
-    """Monta o vínculo-âncora de uma atribuição externa."""
+    """Monta o vínculo-âncora de uma atribuição externa.
+
+    Args:
+        ae: Atribuição de profissional externo.
+
+    Returns:
+        Dicionário com dados da turma, componente e vigência da atribuição.
+    """
     codigo_turma_escola = ae.codigo_turma_escola
     return {
         "codigo_turma": (
@@ -153,6 +223,14 @@ def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
 def _abrangencia_turma_row(
     row: dict,
 ) -> dict:
+    """Monta payload de turma para abrangência.
+
+    Args:
+        row: Linha de atribuição com dados de DRE, UE e turma.
+
+    Returns:
+        Dicionário da turma no formato de abrangência do legado.
+    """
     tipo_turma = row.get("codigo_tipo_turma")
     turma_programa = tipo_turma in (2, 3, 4, 5)
     return {
@@ -181,6 +259,14 @@ def _abrangencia_turma_row(
 
 
 def _abrangencia_retorno(rows: list[dict]) -> dict:
+    """Agrupa linhas de abrangência por DRE e UE.
+
+    Args:
+        rows: Linhas de atribuições vigentes para abrangência.
+
+    Returns:
+        Estrutura de abrangência organizada por DRE, UE e turma.
+    """
     dres: dict[str, dict] = {}
 
     for row in rows:
@@ -216,6 +302,14 @@ def _abrangencia_retorno(rows: list[dict]) -> dict:
 
 
 def _turma_atribuida_ue_row(turma: TurmaAtribuidaUe) -> dict:
+    """Monta payload de turma atribuída por vínculo com UE.
+
+    Args:
+        turma: Registro de turma atribuída por UE.
+
+    Returns:
+        Dicionário no contrato do endpoint de turmas por vínculo com UE.
+    """
     return {
         "codigo_escola": turma.codigo_escola,
         "codigo_turma": turma.codigo_turma,
@@ -244,7 +338,16 @@ def turmas_atribuidas_ue(
     cargos: list[int] | None = None,
     codigo_dre: str | None = None,
 ) -> list[dict]:
-    """Lista turmas atribuídas por vínculo com UE."""
+    """Lista turmas atribuídas por vínculo com unidade educacional.
+
+    Args:
+        codigo_rf: Registro funcional do professor ou servidor consultado.
+        cargos: Códigos de cargos usados como filtro opcional.
+        codigo_dre: Código EOL da DRE usada como filtro opcional.
+
+    Returns:
+        Turmas atribuídas ao usuário pelos vínculos com unidades escolares.
+    """
     qs = TurmaAtribuidaUe.objects.filter(usuario_rf=codigo_rf)
     if cargos:
         qs = qs.filter(Q(cargo__in=cargos) | Q(cargo_sobreposto__in=cargos))
@@ -257,6 +360,14 @@ def turmas_atribuidas_ue(
 def _disciplina_turma_atribuida_ue_row(
     disciplina: DisciplinaTurmaAtribuidaUe,
 ) -> dict:
+    """Monta payload de disciplina atribuída por vínculo com UE.
+
+    Args:
+        disciplina: Registro de disciplina atribuída por UE.
+
+    Returns:
+        Dicionário no contrato do endpoint de disciplinas por UE.
+    """
     return {
         "codigo": disciplina.codigo_componente_curricular,
         "descricao": disciplina.descricao_componente_curricular,
@@ -281,7 +392,17 @@ def disciplinas_turmas_atribuidas_ue(
     cargos: list[int] | None = None,
     codigo_dre: str | None = None,
 ) -> list[dict]:
-    """Lista disciplinas atribuídas por vínculo com UE."""
+    """Lista disciplinas atribuídas por vínculo com unidade educacional.
+
+    Args:
+        codigo_rf: Registro funcional do professor ou servidor consultado.
+        codigo_turma: Código EOL da turma consultada.
+        cargos: Códigos de cargos usados como filtro opcional.
+        codigo_dre: Código EOL da DRE usada como filtro opcional.
+
+    Returns:
+        Disciplinas da turma atribuídas ao usuário pelos vínculos com UE.
+    """
     qs = DisciplinaTurmaAtribuidaUe.objects.filter(
         usuario_rf=codigo_rf,
         codigo_turma=codigo_turma,
@@ -295,6 +416,14 @@ def disciplinas_turmas_atribuidas_ue(
 
 
 def _linhas_abrangencia_atribuicoes(qs: Any) -> list[dict]:
+    """Extrai linhas únicas de abrangência a partir de atribuições.
+
+    Args:
+        qs: Queryset de atribuições vigentes do funcionário.
+
+    Returns:
+        Linhas únicas por unidade educacional e turma.
+    """
     vistas: set[tuple] = set()
     rows = []
     for aa in qs:
