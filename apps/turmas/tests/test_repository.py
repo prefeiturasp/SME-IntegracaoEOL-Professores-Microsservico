@@ -60,9 +60,7 @@ class TestTurmasHistoricasProfessor:
 
     def test_exclui_sem_disponibilizacao(self, cargo_base):
         """Atribuição sem dt_disponibilizacao_aulas é excluída."""
-        _criar_atribuicao(
-            cargo_base, 2822488, dt_disponibilizacao_aulas=None
-        )
+        _criar_atribuicao(cargo_base, 2822488, dt_disponibilizacao_aulas=None)
 
         resultado = repository.turmas_historicas_professor(
             2025, cargo_base.professor.codigo_rf

@@ -4,8 +4,6 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
-from django.db import connection
-from django.test.utils import CaptureQueriesContext
 
 from apps.professores import repository
 from apps.professores.models import (
@@ -13,7 +11,6 @@ from apps.professores.models import (
     AtribuicaoAula,
     CargoBaseServidor,
     Professor,
-    SerieTurmaGrade,
 )
 
 pytestmark = pytest.mark.django_db
@@ -39,9 +36,13 @@ def _cria_professor_com_atribuicao(
         cargo_base=cargo,
         codigo_unidade_educacao=codigo_ue,
         codigo_turma_escola=codigo_turma,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=1,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
@@ -165,31 +166,9 @@ def test_autocomplete_exclui_cancelada_e_nomeacao_encerrada(db):
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
-    resultado = repository.autocomplete_professores(
-        2024, ue_id="000532"
-    )
+    resultado = repository.autocomplete_professores(2024, ue_id="000532")
 
     assert resultado == []
-
-
-def test_helpers_retornam_vazio_quando_nao_ha_codigos():
-    """Verifica retornos vazios dos mapas auxiliares."""
-    assert repository._serie_turma_map([]) == {}
-    assert repository._turma_map([]) == {}
-
-
-def test_helpers_retornam_mapas_preenchidos(ue, turma):
-    """Verifica montagem dos mapas auxiliares com dados."""
-    SerieTurmaGrade.objects.create(
-        codigo_serie_grade=1040353,
-        codigo_turma=turma.codigo_turma,
-        codigo_escola=ue.codigo_ue,
-        codigo_escola_grade=100,
-    )
-    atribuicao = SimpleNamespace(codigo_serie_grade=1040353)
-
-    assert repository._serie_turma_map([atribuicao]) == {1040353: 2112345}
-    assert repository._turma_map([2112345]) == {2112345: turma}
 
 
 def test_codigo_turma_retorna_none_sem_turma_ou_serie():
@@ -202,34 +181,8 @@ def test_codigo_turma_retorna_none_sem_turma_ou_serie():
     assert repository._codigo_turma(atribuicao) is None
 
 
-def test_codigo_turma_usa_mapa_informado():
-    """Verifica resolucao da turma por mapa pre-carregado."""
-    atribuicao = SimpleNamespace(
-        codigo_turma_escola=None,
-        codigo_serie_grade=1040353,
-    )
-
-    assert repository._codigo_turma(atribuicao, {1040353: 2112345}) == 2112345
-
-
-def test_codigo_turma_busca_serie_quando_mapa_nao_foi_informado(ue):
-    """Verifica resolucao da turma pela serie-grade."""
-    SerieTurmaGrade.objects.create(
-        codigo_serie_grade=1040353,
-        codigo_turma=2112345,
-        codigo_escola=ue.codigo_ue,
-        codigo_escola_grade=100,
-    )
-    atribuicao = SimpleNamespace(
-        codigo_turma_escola=None,
-        codigo_serie_grade=1040353,
-    )
-
-    assert repository._codigo_turma(atribuicao) == 2112345
-
-
-def test_codigo_turma_retorna_none_quando_serie_nao_existe():
-    """Verifica serie-grade inexistente."""
+def test_codigo_turma_nao_resolve_por_serie_grade():
+    """Verifica que serie-grade nao e convertida em turma."""
     atribuicao = SimpleNamespace(
         codigo_turma_escola=None,
         codigo_serie_grade=999999,
@@ -247,10 +200,15 @@ def test_buscar_turmas_professor_ancora_regular(db):
     assert resultado == [
         {
             "codigo_turma": 2112345,
+            "nome_turma": "1A",
             "codigo_serie_grade": None,
+            "componente_curricular": "Matematica",
             "codigo_unidade_educacao": "000532",
+            "ano": "1",
+            "etapa_ensino": 1,
             "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
             "data_disponibilizacao": None,
+            "data_inicio_turma": None,
         }
     ]
 
@@ -272,10 +230,14 @@ def test_buscar_turmas_professor_ancora_programa(db):
         cargo_base=cargo,
         codigo_unidade_educacao="000532",
         codigo_turma_escola=None,
+        descricao_turma_escola="Programa",
         codigo_serie_grade=1040353,
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Territorio do Saber",
+        ano_escolar="4",
         ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=2,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
@@ -284,10 +246,114 @@ def test_buscar_turmas_professor_ancora_programa(db):
     assert resultado == [
         {
             "codigo_turma": None,
+            "nome_turma": "Programa",
             "codigo_serie_grade": 1040353,
+            "componente_curricular": "Territorio do Saber",
             "codigo_unidade_educacao": "000532",
+            "ano": "4",
+            "etapa_ensino": 2,
             "data_atribuicao": f"01/01/{date.today().year} 00:00:00",
             "data_disponibilizacao": None,
+            "data_inicio_turma": None,
+        }
+    ]
+
+
+def test_buscar_turmas_professor_escola_ano_usa_dados_atribuicao(
+    db, cargo_base, ue
+):
+    """Verifica payload de turma com campos desnormalizados da atribuicao."""
+    fim = date(date.today().year + 1, 1, 1)
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
+        ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=1,
+        dt_atribuicao_aula=date(date.today().year, 2, 1),
+        dt_disponibilizacao_aulas=fim,
+        dt_inicio_turma=date(date.today().year, 1, 15),
+    )
+
+    resultado = repository.buscar_turmas_professor_escola_ano(
+        "7654321", ue.codigo_ue, date.today().year
+    )
+
+    assert resultado == [
+        {
+            "codigo_turma": 2112345,
+            "nome_turma": "1A",
+            "componente_curricular": "Matematica",
+            "data_inicio_atribuicao": (f"02/01/{date.today().year} 00:00:00"),
+            "data_fim_atribuicao": (f"01/01/{date.today().year + 1} 00:00:00"),
+            "data_inicio_turma": (f"01/15/{date.today().year} 00:00:00"),
+            "ano": "1",
+            "etapa_ensino": 1,
+        }
+    ]
+
+
+def test_buscar_turmas_professor_escola_ano_sem_rf_filtra_anos_iniciais(
+    db, cargo_base, ue
+):
+    """Verifica filtro de anos iniciais quando RF nao e informado."""
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
+        ano_atribuicao=2024,
+        codigo_etapa_ensino=1,
+        dt_atribuicao_aula=date(2024, 2, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_turma_escola=2112346,
+        descricao_turma_escola="7A",
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="7",
+        ano_atribuicao=2024,
+        codigo_etapa_ensino=1,
+        dt_atribuicao_aula=date(2024, 2, 1),
+    )
+
+    resultado = repository.buscar_turmas_professor_escola_ano(
+        None, ue.codigo_ue, 2024
+    )
+
+    assert [item["nome_turma"] for item in resultado] == ["1A"]
+
+
+def test_buscar_turmas_professor_ano_inclui_campos_atribuicao_externa(
+    atribuicao_externa,
+):
+    """Verifica payload de vinculo externo com dados desnormalizados."""
+    resultado = repository.buscar_turmas_professor_ano("98765432100", 2024)
+
+    assert resultado == [
+        {
+            "codigo_turma": 2112345,
+            "nome_turma": "1A",
+            "componente_curricular": "Matematica",
+            "codigo_serie_grade": None,
+            "codigo_unidade_educacao": "000532",
+            "ano": "1",
+            "etapa_ensino": 1,
+            "data_atribuicao": "02/01/2024 00:00:00",
+            "data_disponibilizacao": None,
+            "data_inicio_turma": None,
         }
     ]
 
@@ -412,18 +478,3 @@ def test_atribuicao_turmas_lista_inclui_atribuicao_externa(
             "data_atribuicao_aula": "2024-02-01T00:00:00",
         }
     ]
-
-
-def test_atribuicao_turmas_lista_nao_consulta_tabelas_inexistentes(
-    atribuicao,
-):
-    """Verifica ausencia de dependencias de tabelas fora do DB."""
-    with CaptureQueriesContext(connection) as queries:
-        repository.atribuicao_turmas_lista("7654321", 138, [2112345])
-
-    sql = "\n".join(query["sql"].lower() for query in queries)
-
-    assert 'from "turma_escola"' not in sql
-    assert 'join "turma_escola"' not in sql
-    assert 'from "serie_turma_grade"' not in sql
-    assert 'join "serie_turma_grade"' not in sql

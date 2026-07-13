@@ -7,7 +7,6 @@ import pytest
 from apps.professores.models import (
     AtribuicaoAula,
     CargoBaseServidor,
-    SerieTurmaGrade,
 )
 from conftest import date_to_ticks
 
@@ -55,8 +54,18 @@ class TestEP02TurmasAtribuidasEscola:
             f"{_BASE}/professores/escolas/000532/turmas/anos_letivos/2024/"
         )
         assert res.status_code == 200
-        assert len(res.data) >= 1
-        assert res.data[0]["codigo_turma"] == 2112345
+        assert res.data == [
+            {
+                "codigo_turma": 2112345,
+                "nome_turma": "1A",
+                "componente_curricular": "Matematica",
+                "data_inicio_atribuicao": "02/01/2024 00:00:00",
+                "data_fim_atribuicao": None,
+                "data_inicio_turma": None,
+                "ano": "1",
+                "etapa_ensino": 1,
+            }
+        ]
 
     def test_com_rf_retorna_turma_efetiva(self, client, atribuicao):
         """Verifica com RF retorna turma efetiva."""
@@ -65,8 +74,18 @@ class TestEP02TurmasAtribuidasEscola:
             "/turmas/anos_letivos/2024/"
         )
         assert res.status_code == 200
-        assert len(res.data) >= 1
-        assert res.data[0]["codigo_turma"] == 2112345
+        assert res.data == [
+            {
+                "codigo_turma": 2112345,
+                "nome_turma": "1A",
+                "componente_curricular": "Matematica",
+                "data_inicio_atribuicao": "02/01/2024 00:00:00",
+                "data_fim_atribuicao": None,
+                "data_inicio_turma": None,
+                "ano": "1",
+                "etapa_ensino": 1,
+            }
+        ]
 
     def test_com_atribuicao_externa(self, client, atribuicao_externa):
         """Verifica com atribuicao externa."""
@@ -75,7 +94,18 @@ class TestEP02TurmasAtribuidasEscola:
             "/turmas/anos_letivos/2024/"
         )
         assert res.status_code == 200
-        assert len(res.data) >= 1
+        assert res.data == [
+            {
+                "codigo_turma": 2112345,
+                "nome_turma": "1A",
+                "componente_curricular": "Matematica",
+                "data_inicio_atribuicao": "02/01/2024 00:00:00",
+                "data_fim_atribuicao": None,
+                "data_inicio_turma": None,
+                "ano": "1",
+                "etapa_ensino": 1,
+            }
+        ]
 
     def test_sem_atribuicao_retorna_lista_vazia(self, client, db):
         """Verifica sem atribuicao retorna lista vazia."""
@@ -96,11 +126,26 @@ class TestEP02TurmasAtribuidasEscola:
 
 
 class TestEP03EP04TurmasAtribuidas:
-    def test_todas_as_turmas_retorna_lista(self, client, atribuicao_ano_corrente):
+    def test_todas_as_turmas_retorna_lista(
+        self, client, atribuicao_ano_corrente
+    ):
         """Verifica todas as turmas retorna lista."""
         res = client.get(f"{_BASE}/professores/7654321/turmas/")
         assert res.status_code == 200
-        assert len(res.data) >= 1
+        assert res.data == [
+            {
+                "codigo_turma": 2112345,
+                "nome_turma": "1A",
+                "codigo_serie_grade": None,
+                "componente_curricular": "Matematica",
+                "codigo_unidade_educacao": "000532",
+                "ano": "1",
+                "etapa_ensino": 1,
+                "data_atribuicao": (f"01/01/{date.today().year} 00:00:00"),
+                "data_disponibilizacao": None,
+                "data_inicio_turma": None,
+            }
+        ]
 
     def test_todas_sem_atribuicao_retorna_vazia(self, client, db):
         """Verifica todas sem atribuicao retorna vazia."""
@@ -114,7 +159,20 @@ class TestEP03EP04TurmasAtribuidas:
             f"{_BASE}/professores/7654321/turmas/anos_letivos/2024/"
         )
         assert res.status_code == 200
-        assert any(t["codigo_turma"] == 2112345 for t in res.data)
+        assert res.data == [
+            {
+                "codigo_turma": 2112345,
+                "nome_turma": "1A",
+                "codigo_serie_grade": None,
+                "componente_curricular": "Matematica",
+                "codigo_unidade_educacao": "000532",
+                "ano": "1",
+                "etapa_ensino": 1,
+                "data_atribuicao": "02/01/2024 00:00:00",
+                "data_disponibilizacao": None,
+                "data_inicio_turma": None,
+            }
+        ]
 
     def test_por_ano_errado_retorna_vazia(self, client, atribuicao):
         """Verifica por ano errado retorna vazia."""
@@ -286,7 +344,7 @@ class TestEP09BuscarPorListaRF:
         assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
     def test_uma_entrada_por_turma_e_ignora_cancelada(self, client, professor):
-        """Um item por turma vigente; cancelada excluída; mesma turma não duplica."""
+        """Verifica deduplicacao de turma e exclusao de cancelada."""
         cargo = CargoBaseServidor.objects.create(
             professor=professor,
             codigo_cargo=3379,
@@ -467,18 +525,14 @@ class TestEP11UnidadesAtribuicaoValida:
 
     def test_atribuicao_cancelada_nao_retorna(self, client, professor):
         """Atribuição cancelada não entra (paridade com dt_cancelamento)."""
-        self._atribuir_cargo_3239(
-            professor, dt_cancelamento=date(2024, 6, 1)
-        )
+        self._atribuir_cargo_3239(professor, dt_cancelamento=date(2024, 6, 1))
         res = client.get(self._URL)
         assert res.status_code == 200
         assert res.data["codigos_ue"] == []
 
     def test_nomeacao_encerrada_nao_retorna(self, client, professor):
         """Nomeação encerrada não entra (paridade com dt_fim_nomeacao)."""
-        self._atribuir_cargo_3239(
-            professor, dt_fim_nomeacao=date(2024, 1, 1)
-        )
+        self._atribuir_cargo_3239(professor, dt_fim_nomeacao=date(2024, 1, 1))
         res = client.get(self._URL)
         assert res.status_code == 200
         assert res.data["codigos_ue"] == []
@@ -703,16 +757,12 @@ class TestEP17AtribuicaoTurmasLista:
         self,
         client,
         atribuicao_externa,
-        ue,
     ):
-        """Verifica turma com atribuicao externa retorna periodo."""
+        """Verifica externo sem turma direta nao retorna periodo."""
+        atribuicao_externa.codigo_turma_escola = None
         atribuicao_externa.codigo_serie_grade = 1040353
-        atribuicao_externa.save()
-        SerieTurmaGrade.objects.create(
-            codigo_serie_grade=1040353,
-            codigo_turma=2112345,
-            codigo_escola=ue.codigo_ue,
-            codigo_escola_grade=100,
+        atribuicao_externa.save(
+            update_fields=["codigo_turma_escola", "codigo_serie_grade"]
         )
 
         res = client.post(
@@ -797,17 +847,8 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
         assert res.status_code == 200
         assert any(p["codigo_rf"] == "7654321" for p in res.data)
 
-    def test_retorna_externo_atribuido(self, client, atribuicao_externa, ue):
+    def test_retorna_externo_atribuido(self, client, atribuicao_externa):
         """Verifica retorna externo atribuido."""
-        atribuicao_externa.codigo_serie_grade = 1040353
-        atribuicao_externa.save()
-        SerieTurmaGrade.objects.create(
-            codigo_serie_grade=1040353,
-            codigo_turma=2112345,
-            codigo_escola=ue.codigo_ue,
-            codigo_escola_grade=100,
-        )
-
         res = client.get(
             f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data/"
             f"?data_ticks={_TICK_2024_02_02}"

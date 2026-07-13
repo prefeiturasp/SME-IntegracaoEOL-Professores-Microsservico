@@ -136,4 +136,3 @@ def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):
 
     assert resultado[0]["codigo_rf"] == "7654321"
     assert resultado[0]["codigo_ue"] == "000532"
-

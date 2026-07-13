@@ -110,9 +110,7 @@ class TestEP26FuncionariosPorUEFiltros:
         assert res.status_code == 404
 
     def test_sem_api_key_retorna_403(self, anon):
-        res = anon.get(
-            f"{_BASE}/escolas/000532/funcionarios/?funcoes=0"
-        )
+        res = anon.get(f"{_BASE}/escolas/000532/funcionarios/?funcoes=0")
         assert res.status_code == 403
 
 

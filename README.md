@@ -19,7 +19,7 @@ Todos os endpoints retornam dados estáticos — sem banco de dados, sem regras 
 Os modelos ETL que cada app cobre:
 
 - **professores**: `Professor`, `CargoBaseServidor`, `LotacaoServidor`, `CargoSobrepostoServidor`, `LaudoMedico`, `AtribuicaoAula`, `AgrupamentoAtribuicaoTerritorioSaber`
-- **turmas**: `TurmaEscola`, `SerieTurmaGrade`, `TurmaEscolaGradePrograma`, `TurmaGradeTerritorioExperiencia`
+- **turmas**: `TurmaEscolaGradePrograma`, `TurmaGradeTerritorioExperiencia`
 - **funcionarios**: `FuncaoAtividadeCargoServidor`, `AtribuicaoExterno`, `Pessoa`, `ContratoExterno`, `UnidadeEducacional`
 
 ---

@@ -15,7 +15,6 @@ from apps.professores.models import (
     LotacaoServidor,
     Pessoa,
     Professor,
-    TurmaEscola,
     UnidadeEducacional,
 )
 
@@ -125,26 +124,19 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
 
 
 @pytest.fixture
-def turma(db) -> TurmaEscola:
-    """Cria turma escola para os testes."""
-    return TurmaEscola.objects.create(
-        codigo_turma=2112345,
-        codigo_escola="000532",
-        ano_letivo=2024,
-        status="A",
-    )
-
-
-@pytest.fixture
 def atribuicao(cargo_base, ue) -> AtribuicaoAula:
     """Cria atribuição de aula para os testes."""
     return AtribuicaoAula.objects.create(
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
         codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=2024,
+        codigo_etapa_ensino=1,
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
@@ -156,9 +148,13 @@ def atribuicao_ano_corrente(cargo_base, ue) -> AtribuicaoAula:
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
         codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=date.today().year,
+        codigo_etapa_ensino=1,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
@@ -188,9 +184,14 @@ def atribuicao_externa(contrato_externo, ue) -> AtribuicaoExterno:
     return AtribuicaoExterno.objects.create(
         contrato_externo=contrato_externo,
         codigo_unidade_educacao=ue.codigo_ue,
+        codigo_turma_escola=2112345,
+        descricao_turma_escola="1A",
         codigo_grade=100,
         codigo_componente_curricular=138,
+        descricao_componente_curricular="Matematica",
+        ano_escolar="1",
         ano_atribuicao=2024,
+        codigo_etapa_ensino=1,
         dt_atribuicao=date(2024, 2, 1),
     )
 
