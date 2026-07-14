@@ -22,10 +22,11 @@ Given('que possuo acesso à API de funcionários', () => {
 // TURMAS ATRIBUÍDAS DA UE
 // ======================================================
 
-When('envio uma requisição POST para buscar turmas atribuídas da UE {string}', (codigoUe) => {
+When('envio uma requisição POST para buscar turmas atribuídas da UE definida em {string}', (envKey) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
   const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const codigoUe = getEnvOrFail(envKey)
 
   const endpoint = `${apiUrl}/api/funcionarios/turmas/`
 
@@ -52,50 +53,16 @@ When('envio uma requisição POST para buscar turmas atribuídas da UE {string}'
 })
 
 // ======================================================
-// BUSCAR TURMAS ELEGÍVEIS
-// ======================================================
-
-When('envio uma requisição POST para buscar turmas elegíveis do RF {string} turma {int} componente {int}', (codigoRf, codigoTurma, componenteCurricular) => {
-
-  const apiUrl = getEnvOrFail('API_URL_NOVA')
-  const apiKey = getEnvOrFail('API_KEY_NOVA')
-
-  const endpoint = `${apiUrl}/api/funcionarios/BuscarTurmasElegiveis/`
-
-  cy.log(`Endpoint => ${endpoint}`)
-
-  return cy.request({
-    method: 'POST',
-    url: endpoint,
-    headers: {
-      accept: 'application/json',
-      'X-API-Key': apiKey,
-    },
-    body: {
-      CodigoRf: codigoRf,
-      CodigoTurma: codigoTurma,
-      ComponenteCurricular: componenteCurricular,
-    },
-    failOnStatusCode: false,
-  }).then((res) => {
-
-    response = res
-
-    cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
-
-  })
-
-})
-
-// ======================================================
 // FUNCIONÁRIOS POR RF, UE E NOME
 // ======================================================
 
-When('envio uma requisição POST para buscar funcionário RF {string} UE {string} nome {string}', (codigoRf, codigoUe, nomeServidor) => {
+When('envio uma requisição POST para buscar funcionário definido em {string}', (prefix) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
   const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const codigoRf = getEnvOrFail(`${prefix}_RF`)
+  const codigoUe = getEnvOrFail(`${prefix}_UE`)
+  const nomeServidor = getEnvOrFail(`${prefix}_NOME`)
 
   const endpoint = `${apiUrl}/api/funcionarios/`
 
@@ -129,10 +96,11 @@ When('envio uma requisição POST para buscar funcionário RF {string} UE {strin
 // DISCIPLINAS DA TURMA
 // ======================================================
 
-When('envio uma requisição GET para buscar disciplinas da turma {int}', (turmaCodigo) => {
+When('envio uma requisição GET para buscar disciplinas da turma definida em {string}', (envKey) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
   const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const turmaCodigo = getEnvOrFail(envKey)
 
   const endpoint = `${apiUrl}/api/funcionarios/turmas/${turmaCodigo}/disciplinas/`
 
@@ -161,10 +129,12 @@ When('envio uma requisição GET para buscar disciplinas da turma {int}', (turma
 // SWITCH ABRANGÊNCIA DE TURMAS
 // ======================================================
 
-When('envio uma requisição GET para buscar turmas com abrangência UE do RF {string} perfil {string}', (login, perfil) => {
+When('envio uma requisição GET para buscar turmas com abrangência UE definida em {string}', (prefix) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
   const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const login = getEnvOrFail(`${prefix}_LOGIN`)
+  const perfil = getEnvOrFail(`${prefix}_PERFIL`)
 
   const endpoint = `${apiUrl}/api/funcionarios/${login}/perfis/${perfil}/turmas/`
 
@@ -195,10 +165,12 @@ When('envio uma requisição GET para buscar turmas com abrangência UE do RF {s
 
 })
 
-When('envio uma requisição GET para buscar turmas com abrangência UE Turmas Disciplinas do RF {string} perfil {string}', (login, perfil) => {
+When('envio uma requisição GET para buscar turmas com abrangência UE Turmas Disciplinas definida em {string}', (prefix) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
   const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const login = getEnvOrFail(`${prefix}_LOGIN`)
+  const perfil = getEnvOrFail(`${prefix}_PERFIL`)
 
   const endpoint = `${apiUrl}/api/funcionarios/${login}/perfis/${perfil}/turmas/`
 
@@ -234,10 +206,13 @@ When('envio uma requisição GET para buscar turmas com abrangência UE Turmas D
 
 })
 
-When('envio uma requisição GET para buscar turmas com abrangência DRE do RF {string} perfil {string}', (login, perfil) => {
+When('envio uma requisição GET para buscar turmas com abrangência DRE definida em {string}', (prefix) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
   const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const login = getEnvOrFail(`${prefix}_LOGIN`)
+  const perfil = getEnvOrFail(`${prefix}_PERFIL`)
+  const dreCodigo = getEnvOrFail(`${prefix}_CODIGO`)
 
   const endpoint = `${apiUrl}/api/funcionarios/${login}/perfis/${perfil}/turmas/`
 
@@ -251,7 +226,7 @@ When('envio uma requisição GET para buscar turmas com abrangência DRE do RF {
       grupo: 21,
       ehPerfilManual: false,
       cargos: [434, 3351],
-      dreCodigo: '108600',
+      dreCodigo,
     },
     headers: {
       accept: 'application/json',
@@ -269,10 +244,13 @@ When('envio uma requisição GET para buscar turmas com abrangência DRE do RF {
 
 })
 
-When('envio uma requisição GET para buscar turmas com abrangência DRE Escolas Atribuídas do RF {string} perfil {string}', (login, perfil) => {
+When('envio uma requisição GET para buscar turmas com abrangência DRE Escolas Atribuídas definida em {string}', (prefix) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
   const apiKey = getEnvOrFail('API_KEY_NOVA')
+  const login = getEnvOrFail(`${prefix}_LOGIN`)
+  const perfil = getEnvOrFail(`${prefix}_PERFIL`)
+  const dreCodigo = getEnvOrFail(`${prefix}_CODIGO`)
 
   const endpoint = `${apiUrl}/api/funcionarios/${login}/perfis/${perfil}/turmas/`
 
@@ -286,7 +264,7 @@ When('envio uma requisição GET para buscar turmas com abrangência DRE Escolas
       grupo: 20,
       ehPerfilManual: false,
       cargos: [3352],
-      dreCodigo: '108600',
+      dreCodigo,
     },
     headers: {
       accept: 'application/json',
@@ -313,13 +291,5 @@ Then('a API de funcionários deve responder com status 200', () => {
   expect(response, 'response não pode ser undefined').to.exist
 
   expect(response.status).to.eq(200)
-
-})
-
-Then('a API de funcionários deve responder com status 200 ou 204', () => {
-
-  expect(response, 'response não pode ser undefined').to.exist
-
-  expect([200, 204]).to.include(response.status)
 
 })
