@@ -33,6 +33,16 @@ class TurmasHistoricasAnoProfessorView(APIView):
         ano_letivo: int,
         professor_rf: str,
     ) -> Response:
+        """Lista códigos de turma históricos do professor por ano.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.
+            professor_rf: Registro funcional do professor consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
         codigos = repository.turmas_historicas_professor(
             ano_letivo, professor_rf
         )

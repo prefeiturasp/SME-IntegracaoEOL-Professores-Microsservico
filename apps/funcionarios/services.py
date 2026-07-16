@@ -18,7 +18,15 @@ def funcionarios_por_ue(
     codigo_ue: str,
     filtros: dict[str, Any],
 ) -> list[dict]:
-    """Lista funcionarios de uma unidade educacional."""
+    """Lista funcionarios de uma unidade educacional.
+
+    Args:
+        codigo_ue: Código EOL da unidade educacional consultada.
+        filtros: Filtros opcionais aplicados à consulta de funcionários.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     return repository.funcionarios_por_ue(codigo_ue, filtros=filtros)
 
 
@@ -29,11 +37,11 @@ def funcionarios_por_lista_cargos(
     """Lista funcionarios de uma unidade por cargos.
 
     Args:
-        ue_codigo: Codigo da unidade educacional.
-        cargos_param: Codigos de cargos recebidos como texto.
+        ue_codigo: Código EOL da unidade educacional consultada.
+        cargos_param: Códigos de cargos recebidos como texto pela API.
 
     Returns:
-        Funcionarios encontrados para os cargos informados.
+        Lista de dados encontrados para os filtros informados.
     """
     cargos = [int(cargo) for cargo in cargos_param]
     if cargos:
@@ -45,7 +53,15 @@ def funcionarios_por_funcao_atividade(
     codigo_ue: str,
     codigo_funcao_atividade: int | None = None,
 ) -> list[dict]:
-    """Lista funcionarios de uma unidade por funcao de atividade."""
+    """Lista funcionarios de uma unidade por funcao de atividade.
+
+    Args:
+        codigo_ue: Código EOL da unidade educacional consultada.
+        codigo_funcao_atividade: Código da função de atividade usada no filtro.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     return repository.funcionarios_por_funcao_atividade(
         codigo_ue,
         codigo_funcao_atividade or 0,
@@ -56,7 +72,15 @@ def funcionarios_por_lista_funcoes_atividade(
     ue_codigo: str,
     funcoes_param: list[str],
 ) -> list[dict]:
-    """Lista funcionarios por funcoes de atividade."""
+    """Lista funcionarios por funcoes de atividade.
+
+    Args:
+        ue_codigo: Código EOL da unidade educacional consultada.
+        funcoes_param: Códigos de funções recebidos como texto pela API.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     funcoes = [int(funcao) for funcao in funcoes_param]
     return repository.funcionarios_por_lista_funcoes_atividade(
         ue_codigo,
@@ -68,7 +92,15 @@ def funcionarios_por_funcao_externa(
     codigo_ue: str,
     codigo_funcao_externa: int | None = None,
 ) -> list[dict]:
-    """Lista funcionarios externos de uma unidade por funcao."""
+    """Lista funcionarios externos de uma unidade por funcao.
+
+    Args:
+        codigo_ue: Código EOL da unidade educacional consultada.
+        codigo_funcao_externa: Código da função externa usada no filtro.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     return repository.funcionarios_por_funcao_externa(
         codigo_ue,
         codigo_funcao_externa or 0,
@@ -79,7 +111,15 @@ def funcionarios_por_lista_funcoes_externas(
     ue_codigo: str,
     funcoes_param: list[str],
 ) -> list[dict]:
-    """Lista funcionarios externos de uma unidade por funcoes."""
+    """Lista funcionarios externos de uma unidade por funcoes.
+
+    Args:
+        ue_codigo: Código EOL da unidade educacional consultada.
+        funcoes_param: Códigos de funções recebidos como texto pela API.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     funcoes = [int(funcao) for funcao in funcoes_param]
     return repository.funcionarios_por_lista_funcoes_externas(
         ue_codigo,
@@ -88,27 +128,62 @@ def funcionarios_por_lista_funcoes_externas(
 
 
 def cargos_funcionario(registro_funcional: str) -> list[dict]:
-    """Lista cargos do funcionario por registro funcional."""
+    """Lista cargos do funcionario por registro funcional.
+
+    Args:
+        registro_funcional: Registro funcional do servidor consultado.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     return repository.cargos_funcionario(registro_funcional)
 
 
 def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
-    """Retorna funcionario externo por CPF."""
+    """Retorna funcionario externo por CPF.
+
+    Args:
+        cpf: CPF do funcionário externo consultado.
+
+    Returns:
+        Lista de dados encontrados ou ``None`` quando não houver resultado.
+    """
     return repository.funcionario_externo_por_cpf(cpf)
 
 
 def nome_cpf_servidor(registro_funcional: str) -> dict | None:
-    """Retorna nome e CPF do servidor por registro funcional."""
+    """Retorna nome e CPF do servidor por registro funcional.
+
+    Args:
+        registro_funcional: Registro funcional do servidor consultado.
+
+    Returns:
+        Dados encontrados ou ``None`` quando não houver resultado.
+    """
     return repository.nome_cpf_servidor(registro_funcional)
 
 
 def nome_servidor(registro_funcional: str) -> str | None:
-    """Retorna nome usuario EOL do servidor."""
+    """Retorna nome usuario EOL do servidor.
+
+    Args:
+        registro_funcional: Registro funcional do servidor consultado.
+
+    Returns:
+        Texto encontrado ou ``None`` quando não houver resultado.
+    """
     return repository.nome_servidor(registro_funcional)
 
 
 def servidor_ativo(registro_funcional: str) -> bool:
-    """Verifica se o servidor esta ativo."""
+    """Verifica se o servidor esta ativo.
+
+    Args:
+        registro_funcional: Registro funcional do servidor consultado.
+
+    Returns:
+        Resultado booleano da validação solicitada.
+    """
     return repository.servidor_ativo(registro_funcional)
 
 
@@ -116,7 +191,15 @@ def dre_ue_cargo(
     registro_funcional: str,
     codigo_cargo: int,
 ) -> list[dict] | None:
-    """Retorna unidade do funcionario por cargo."""
+    """Retorna unidade do funcionario por cargo.
+
+    Args:
+        registro_funcional: Registro funcional do servidor consultado.
+        codigo_cargo: Código do cargo usado para filtrar atribuições.
+
+    Returns:
+        Lista de dados encontrados ou ``None`` quando não houver resultado.
+    """
     return repository.dre_ue_cargo(registro_funcional, codigo_cargo)
 
 
@@ -130,14 +213,14 @@ def usuarios_sgp_por_perfil(
     """Lista usuarios SGP por perfil.
 
     Args:
-        id_perfil: Identificador do perfil SGP.
-        codigo_dre: Codigo da DRE usado como filtro.
-        codigo_ue: Codigo da unidade educacional usado como filtro.
-        codigo_rf: Registro funcional usado como filtro.
-        nome_servidor: Nome do servidor usado como filtro.
+        id_perfil: Identificador do perfil SGP usado na consulta.
+        codigo_dre: Código EOL da DRE usada na consulta.
+        codigo_ue: Código EOL da unidade educacional consultada.
+        codigo_rf: Registro funcional do professor ou servidor consultado.
+        nome_servidor: Trecho do nome do servidor usado como filtro.
 
     Returns:
-        Resultado da consulta conforme as regras de serviço.
+        Resultado do serviço com payload e status HTTP.
     """
     if repository.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
         mensagem = (
@@ -170,15 +253,15 @@ def funcionarios_sgp_dre(
     """Lista funcionarios SGP por DRE e perfil.
 
     Args:
-        id_perfil: Identificador do perfil SGP.
-        codigo_dre: Codigo da DRE.
-        codigo_ue: Codigo da unidade educacional usado como filtro.
-        codigo_rf: Registro funcional usado como filtro.
-        nome_servidor: Nome do servidor usado como filtro.
-        codigo_funcao_atividade: Codigo de funcao de atividade como texto.
+        id_perfil: Identificador do perfil SGP usado na consulta.
+        codigo_dre: Código EOL da DRE usada na consulta.
+        codigo_ue: Código EOL da unidade educacional consultada.
+        codigo_rf: Registro funcional do professor ou servidor consultado.
+        nome_servidor: Trecho do nome do servidor usado como filtro.
+        codigo_funcao_atividade: Código da função de atividade usada no filtro.
 
     Returns:
-        Resultado da consulta conforme as regras de serviço.
+        Resultado do serviço com payload e status HTTP.
     """
     if repository.perfil_placeholder_invalido(id_perfil):
         return ResultadoServico(repository.MENSAGEM_ERRO_LEGADO, 400)
@@ -199,17 +282,57 @@ def funcionarios_sgp_dre(
 
 
 def acesso_sondagem(codigo_rf: str) -> bool:
-    """Verifica se o professor tem acesso a sondagem."""
+    """Verifica se o professor tem acesso a sondagem.
+
+    Args:
+        codigo_rf: Registro funcional do professor ou servidor consultado.
+
+    Returns:
+        Resultado booleano da validação solicitada.
+    """
     return repository.acesso_sondagem(codigo_rf)
 
 
 def buscar_por_lista_rf(payload: Any) -> list[dict]:
-    """Lista resumos de funcionarios por registros funcionais."""
+    """Lista resumos de funcionarios por registros funcionais.
+
+    Args:
+        payload: Lista de registros funcionais recebida no corpo.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     lista = payload if isinstance(payload, list) else []
     return repository.buscar_por_lista_rf_func(lista)
 
 
 def buscar_por_lista_login(payload: Any) -> list[dict]:
-    """Lista resumos de funcionarios por logins."""
+    """Lista resumos de funcionarios por logins.
+
+    Args:
+        payload: Lista de logins recebida no corpo.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
     lista = payload if isinstance(payload, list) else []
     return repository.buscar_por_lista_login(lista)
+
+
+def buscar_funcionarios(payload: Any) -> list[dict]:
+    """Lista funcionários por filtros básicos.
+
+    Args:
+        payload: Filtros de RF, UE e nome recebidos no corpo.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
+    filtros = payload if isinstance(payload, dict) else {}
+    return repository.buscar_funcionarios(
+        codigo_rf=filtros.get("CodigoRF") or filtros.get("codigoRF"),
+        codigo_ue=filtros.get("CodigoUE") or filtros.get("codigoUE"),
+        nome_servidor=(
+            filtros.get("NomeServidor") or filtros.get("nomeServidor")
+        ),
+    )

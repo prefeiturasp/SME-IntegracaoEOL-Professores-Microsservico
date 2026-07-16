@@ -132,3 +132,45 @@ def test_payload_invalido_usa_lista_vazia(monkeypatch, funcao, metodo):
 
     assert resultado == []
     assert chamadas["lista"] == []
+
+
+def test_buscar_funcionarios_mapeia_filtros_do_payload(monkeypatch):
+    """Verifica mapeamento dos filtros do payload para o repository."""
+    chamadas = {}
+
+    def fake(codigo_rf, codigo_ue, nome_servidor):
+        chamadas["kwargs"] = {
+            "codigo_rf": codigo_rf,
+            "codigo_ue": codigo_ue,
+            "nome_servidor": nome_servidor,
+        }
+        return [{"codigo_rf": "7654321"}]
+
+    monkeypatch.setattr(services.repository, "buscar_funcionarios", fake)
+
+    resultado = services.buscar_funcionarios(
+        {"CodigoRF": "7654321", "codigoUE": "000532", "NomeServidor": "Ana"}
+    )
+
+    assert resultado == [{"codigo_rf": "7654321"}]
+    assert chamadas["kwargs"] == {
+        "codigo_rf": "7654321",
+        "codigo_ue": "000532",
+        "nome_servidor": "Ana",
+    }
+
+
+def test_buscar_funcionarios_payload_invalido_usa_dict_vazio(monkeypatch):
+    """Payload não-dict resulta em filtros vazios."""
+    chamadas = {}
+
+    def fake(codigo_rf, codigo_ue, nome_servidor):
+        chamadas["kwargs"] = (codigo_rf, codigo_ue, nome_servidor)
+        return []
+
+    monkeypatch.setattr(services.repository, "buscar_funcionarios", fake)
+
+    resultado = services.buscar_funcionarios(None)
+
+    assert resultado == []
+    assert chamadas["kwargs"] == (None, None, None)
