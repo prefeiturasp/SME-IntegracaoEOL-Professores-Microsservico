@@ -47,6 +47,129 @@ class TestEP25FuncionariosPorUE:
         res = anon.get(f"{_BASE}/escolas/000532/funcionarios/")
         assert res.status_code == 403
 
+    def test_rota_antiga_filtra_professor(self, client, lotacao, ue):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            cpf="11111111111",
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo="3360",
+            cargo="DIRETOR",
+            eh_professor=False,
+        )
+
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
+
+        assert res.status_code == 200
+        assert all(item["codigo_rf"] != "1111111" for item in res.data)
+
+
+class TestFuncionariosUE:
+    def test_rota_legado_retorna_funcionario_nao_professor(
+        self, client, lotacao, ue
+    ):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            cpf="11111111111",
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo="3360",
+            cargo="DIRETOR",
+            eh_professor=False,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": [], "filtro": ""},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert any(item["codigo_rf"] == "1111111" for item in res.data)
+
+    def test_rota_legado_filtra_por_rf(self, client, lotacao, ue):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            cpf="11111111111",
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo="3360",
+            cargo="DIRETOR",
+            eh_professor=False,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": ["1111111"], "filtro": "Ana"},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert [item["codigo_rf"] for item in res.data] == ["1111111"]
+
+    def test_rota_legado_filtra_por_texto(self, client, lotacao):
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": [], "filtro": "Ana"},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert [item["codigo_rf"] for item in res.data] == ["7654321"]
+
+    def test_rota_legado_valida_body(self, client):
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": "invalido"},
+            format="json",
+        )
+
+        assert res.status_code == 400
+        assert "codigosRfs" in res.data
+
+    def test_rota_legado_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": [], "filtro": ""},
+            format="json",
+        )
+
+        assert res.status_code == 403
+
+
+class TestFuncionariosPorCargo:
+    def test_retorna_funcionarios_do_cargo(self, client, lotacao, ue):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            cpf="11111111111",
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo="3360",
+            cargo="DIRETOR",
+            eh_professor=False,
+        )
+
+        res = client.get(f"{_BASE}/funcionarios/cargos/3360/")
+
+        assert res.status_code == 200
+        assert res.data[0]["codigo_rf"] == "1111111"
+        assert res.data[0]["codigo_cargo"] == "3360"
+
+    def test_sem_cargo_retorna_lista_vazia(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/cargos/3360/")
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/cargos/3360/")
+
+        assert res.status_code == 403
+
 
 class TestEP26FuncionariosPorUEFiltros:
     def test_funcoes_retorna_funcionario(self, client, lotacao):
@@ -90,6 +213,7 @@ class TestEP26FuncionariosPorUEFiltros:
             data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
             codigo_cargo=str(cargo.codigo_cargo),
             cargo=cargo.descricao_cargo,
+            eh_professor=True,
         )
         LotacaoServidor.objects.create(
             cargo_base=cargo,

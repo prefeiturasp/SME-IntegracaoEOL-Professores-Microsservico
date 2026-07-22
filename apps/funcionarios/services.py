@@ -30,6 +30,44 @@ def funcionarios_por_ue(
     return repository.funcionarios_por_ue(codigo_ue, filtros=filtros)
 
 
+def funcionarios_ue(
+    codigo_ue: str,
+    filtros: dict[str, Any],
+    codigos_rfs: list[str] | None = None,
+    filtro: str | None = None,
+) -> list[dict]:
+    """Lista funcionários ativos de uma unidade educacional.
+
+    Args:
+        codigo_ue: Código EOL da unidade educacional consultada.
+        filtros: Filtros opcionais aplicados à consulta.
+        codigos_rfs: Registros funcionais usados na busca direta.
+        filtro: Texto usado na busca por nome ou RF.
+
+    Returns:
+        Lista de dados encontrados para os filtros informados.
+    """
+    return repository.funcionarios_por_ue(
+        codigo_ue,
+        filtros=filtros,
+        somente_professores=False,
+        codigos_rfs=codigos_rfs,
+        filtro=filtro,
+    )
+
+
+def funcionarios_por_cargo(codigo_cargo: int) -> list[dict]:
+    """Lista funcionários ativos por cargo.
+
+    Args:
+        codigo_cargo: Código do cargo consultado.
+
+    Returns:
+        Lista de dados encontrados para o cargo informado.
+    """
+    return repository.funcionarios_por_cargo(codigo_cargo)
+
+
 def funcionarios_por_lista_cargos(
     ue_codigo: str,
     cargos_param: list[str],

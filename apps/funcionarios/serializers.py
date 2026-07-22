@@ -10,6 +10,7 @@ class FuncionarioUESerializer(serializers.Serializer):
     nome = serializers.CharField()
     cpf = serializers.CharField()
     cargo = serializers.CharField(allow_null=True)
+    codigo_cargo = serializers.CharField(allow_null=True)
     data_inicio = serializers.CharField(allow_null=True)
     data_fim = serializers.CharField(allow_null=True)
     codigo_tipo_funcao_atividade = serializers.IntegerField()
@@ -35,6 +36,22 @@ class FuncionariosUEQuerySerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         required=False,
         allow_empty=True,
+    )
+
+
+class FuncionariosUEFiltroSerializer(serializers.Serializer):
+    """Valida filtros de funcionários por UE no contrato legado."""
+
+    codigosRfs = serializers.ListField(  # noqa: N815
+        child=serializers.CharField(allow_blank=False),
+        required=False,
+        allow_empty=True,
+        default=list,
+    )
+    filtro = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
     )
 
 

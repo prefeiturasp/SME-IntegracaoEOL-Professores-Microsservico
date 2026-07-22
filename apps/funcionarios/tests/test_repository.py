@@ -1,5 +1,7 @@
 """Testes dos repositories do dominio de funcionarios."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 from apps.funcionarios import repository
@@ -47,6 +49,22 @@ def test_nome_funcionario_prioriza_nome_social(lotacao):
     assert repository._nome_funcionario(funcionario) == "Ana Social"
 
 
+def test_funcionarios_por_ue_legado_usa_nome_civil(lotacao):
+    """Verifica nome civil no contrato legado por UE."""
+    funcionario = FuncionarioUnidadeEducacional.objects.get(
+        codigo_rf="7654321",
+    )
+    funcionario.nome_social = "Ana Social"
+    funcionario.save()
+
+    resultado = repository.funcionarios_por_ue(
+        "000532",
+        somente_professores=False,
+    )
+
+    assert resultado[0]["nome"] == "Ana Silva"
+
+
 def test_lotacoes_ativas_filtra_sem_data_fim(lotacao):
     """Verifica filtro de lotacoes ativas."""
     assert repository._lotacoes_ativas().count() == 1
@@ -57,6 +75,122 @@ def test_funcionarios_por_ue_cargo_filtra_cargo(lotacao):
     resultado = repository.funcionarios_por_ue_cargo("000532", 3379)
 
     assert resultado[0]["codigo_rf"] == "7654321"
+
+
+def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(
+    lotacao, ue
+):
+    """Verifica fim de nomeação no bloco de lotação."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        cpf="11111111111",
+        codigo_ue=ue.codigo_ue,
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
+        dt_fim_nomeacao=datetime(2024, 12, 31, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="lotacao",
+        eh_professor=False,
+    )
+
+    resultado = repository.funcionarios_por_ue(
+        "000532",
+        somente_professores=False,
+        codigos_rfs=["1111111"],
+    )
+
+    assert resultado[0]["codigo_rf"] == "1111111"
+
+
+def test_funcionarios_por_ue_legado_ignora_fim_nomeacao_sobreposto(
+    lotacao, ue
+):
+    """Verifica filtro de nomeação no bloco de cargo sobreposto."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        cpf="11111111111",
+        codigo_ue=ue.codigo_ue,
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
+        dt_fim_nomeacao=datetime(2024, 12, 31, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="cargo_sobreposto",
+        eh_professor=False,
+    )
+
+    resultado = repository.funcionarios_por_ue(
+        "000532",
+        somente_professores=False,
+        codigos_rfs=["1111111"],
+    )
+
+    assert resultado == []
+
+
+def test_funcionarios_por_ue_legado_ignora_fim_funcao(lotacao, ue):
+    """Verifica filtro de fim de função atividade no contrato legado."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        cpf="11111111111",
+        codigo_ue=ue.codigo_ue,
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        codigo_tipo_funcao_atividade=27,
+        origem_vinculo="funcao_atividade",
+        dt_fim_funcao_atividade=datetime(2024, 12, 31, tzinfo=UTC),
+        eh_professor=False,
+    )
+
+    resultado = repository.funcionarios_por_ue(
+        "000532",
+        somente_professores=False,
+        codigos_rfs=["1111111"],
+    )
+
+    assert resultado == []
+
+
+def test_funcionarios_por_ue_professor_ignora_vinculo_encerrado(lotacao, ue):
+    """Verifica filtro de professor com vínculo ativo."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Professor",
+        cpf="11111111111",
+        codigo_ue=ue.codigo_ue,
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
+        codigo_cargo="3239",
+        cargo="PROFESSOR",
+        eh_professor=True,
+    )
+
+    resultado = repository.funcionarios_por_ue("000532")
+
+    assert [item["codigo_rf"] for item in resultado] == ["7654321"]
+
+
+def test_deduplicar_funcionarios_por_rf_mantem_primeira_ocorrencia():
+    """Verifica retorno único por RF no contrato legado."""
+    rows = [
+        {"codigo_rf": "7654321", "nome": "Ana A"},
+        {"codigo_rf": "7654321", "nome": "Ana B"},
+        {"codigo_rf": "1111111", "nome": "Carlos"},
+    ]
+
+    resultado = repository._deduplicar_funcionarios_por_rf(rows)
+
+    assert resultado == (
+        [
+            {"codigo_rf": "7654321", "nome": "Ana A"},
+            {"codigo_rf": "1111111", "nome": "Carlos"},
+        ]
+    )
 
 
 def test_funcionarios_por_lista_cargos_retorna_cargo(lotacao):
@@ -111,6 +245,25 @@ def test_nome_cpf_servidor_retorna_funcionario_lotado(lotacao):
     resultado = repository.nome_cpf_servidor("7654321")
 
     assert resultado == {"nome": "Ana Silva", "cpf": "12345678900"}
+
+
+def test_buscar_funcionarios_ignora_vinculo_encerrado(lotacao, ue):
+    """Verifica busca apenas em vínculos ativos."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        cpf="11111111111",
+        codigo_ue=ue.codigo_ue,
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        eh_professor=False,
+    )
+
+    resultado = repository.buscar_funcionarios(codigo_rf="1111111")
+
+    assert resultado == []
 
 
 def test_usuarios_sgp_por_perfil_filtra_por_dre_e_nome(lotacao):

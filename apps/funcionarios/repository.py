@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from django.db.models import Q
+
 from apps.core.utils import fmt_iso, get_nome
 from apps.professores.models import (
     AtribuicaoAula,
@@ -82,18 +84,26 @@ def _fmt_data_funcionario(valor: Any) -> str | None:
     return str(valor.strftime("%m/%d/%Y 00:00:00"))
 
 
-def _func_row(funcionario: FuncionarioUnidadeEducacional) -> dict:
+def _func_row(
+    funcionario: FuncionarioUnidadeEducacional,
+    usar_nome_social: bool = True,
+) -> dict:
     """Monta a representação de funcionário da UE.
 
     Args:
         funcionario: Funcionário usado para montar o payload.
+        usar_nome_social: Indica se o nome social deve ter prioridade.
 
     Returns:
         Dicionário no formato esperado pelos endpoints de funcionários da UE.
     """
     return {
         "codigo_rf": funcionario.codigo_rf,
-        "nome": _nome_funcionario(funcionario),
+        "nome": (
+            _nome_funcionario(funcionario)
+            if usar_nome_social
+            else str(funcionario.nome)
+        ),
         "cpf": funcionario.cpf,
         "data_inicio": _fmt_data_funcionario(funcionario.data_inicio),
         "data_fim": _fmt_data_funcionario(funcionario.data_fim),
@@ -117,23 +127,96 @@ def _lotacoes_ativas() -> Any:
     return LotacaoServidor.objects.filter(dt_fim__isnull=True)
 
 
+def _deduplicar_funcionarios_por_rf(rows: list[dict]) -> list[dict]:
+    """Remove funcionários duplicados pelo RF.
+
+    Args:
+        rows: Funcionários ordenados para deduplicação.
+
+    Returns:
+        Lista com a primeira ocorrência de cada RF.
+    """
+    resultado = []
+    vistos = set()
+    for item in rows:
+        codigo_rf = item["codigo_rf"]
+        if codigo_rf in vistos:
+            continue
+        vistos.add(codigo_rf)
+        resultado.append(item)
+    return resultado
+
+
+def _deduplicar_modelos_por_rf(
+    funcionarios: Any,
+) -> list[FuncionarioUnidadeEducacional]:
+    """Remove modelos duplicados pelo RF."""
+    resultado = []
+    vistos = set()
+    for funcionario in funcionarios:
+        if funcionario.codigo_rf in vistos:
+            continue
+        vistos.add(funcionario.codigo_rf)
+        resultado.append(funcionario)
+    return resultado
+
+
+def _funcionarios_ativos() -> Any:
+    """Retorna funcionários sem data de fim de vínculo."""
+    return FuncionarioUnidadeEducacional.objects.filter(
+        data_fim__isnull=True,
+        dt_fim_nomeacao__isnull=True,
+        dt_fim_funcao_atividade__isnull=True,
+    )
+
+
+def _funcionarios_ue_legado() -> Any:
+    """Retorna vínculos conforme a consulta legada por UE."""
+    return FuncionarioUnidadeEducacional.objects.filter(
+        Q(origem_vinculo="lotacao")
+        | Q(origem_vinculo="cargo_sobreposto", dt_fim_nomeacao__isnull=True)
+        | Q(origem_vinculo="atribuicao_aula", dt_fim_nomeacao__isnull=True)
+        | Q(
+            origem_vinculo="funcao_atividade",
+            dt_fim_nomeacao__isnull=True,
+            dt_fim_funcao_atividade__isnull=True,
+        )
+        | Q(origem_vinculo="externo", data_fim__isnull=True)
+        | Q(
+            origem_vinculo__isnull=True,
+            data_fim__isnull=True,
+            dt_fim_nomeacao__isnull=True,
+            dt_fim_funcao_atividade__isnull=True,
+        )
+    )
+
+
 def funcionarios_por_ue(
-    codigo_ue: str, filtros: dict[str, Any] | None = None
+    codigo_ue: str,
+    filtros: dict[str, Any] | None = None,
+    somente_professores: bool = True,
+    codigos_rfs: list[str] | None = None,
+    filtro: str | None = None,
 ) -> list[dict]:
-    """Lista funcionários ativos de uma unidade educacional.
+    """Lista funcionários de uma unidade educacional.
 
     Args:
         codigo_ue: CodigoEOL da unidade educacional.
         filtros: Filtros opcionais. Chaves aceitas: ``cargos``,
             ``funcoes_atividades`` e ``funcoes_externas``.
+        somente_professores: Indica se a consulta deve limitar professores.
+        codigos_rfs: Registros funcionais usados na busca direta.
+        filtro: Texto usado na busca por nome ou RF.
 
     Returns:
-        Funcionários ativos da unidade, ordenados por nome.
+        Funcionários da unidade, ordenados por nome.
     """
-    qs = FuncionarioUnidadeEducacional.objects.filter(
-        codigo_ue=codigo_ue,
-        data_fim__isnull=True,
+    base_qs = _funcionarios_ativos() if somente_professores else (
+        _funcionarios_ue_legado()
     )
+    qs = base_qs.filter(codigo_ue=codigo_ue)
+    if somente_professores:
+        qs = qs.filter(eh_professor=True)
     filtros = filtros or {}
     if cargos := filtros.get("cargos"):
         qs = qs.filter(codigo_cargo__in=[str(cargo) for cargo in cargos])
@@ -141,10 +224,25 @@ def funcionarios_por_ue(
         qs = qs.filter(codigo_tipo_funcao_atividade__in=funcoes_atividades)
     if funcoes_externas := filtros.get("funcoes_externas"):
         qs = qs.filter(funcao_externo__in=funcoes_externas)
-    return sorted(
-        (_func_row(funcionario) for funcionario in qs),
+    if codigos_rfs:
+        qs = qs.filter(codigo_rf__in=codigos_rfs)
+    elif filtro:
+        qs = qs.filter(
+            Q(nome__icontains=filtro) | Q(codigo_rf__icontains=filtro),
+        )
+    rows = sorted(
+        (
+            _func_row(
+                funcionario,
+                usar_nome_social=somente_professores,
+            )
+            for funcionario in qs
+        ),
         key=lambda item: item["nome"],
     )
+    if somente_professores:
+        return rows
+    return _deduplicar_funcionarios_por_rf(rows)
 
 
 def funcionarios_por_ue_cargo(codigo_ue: str, codigo_cargo: int) -> list[dict]:
@@ -161,6 +259,36 @@ def funcionarios_por_ue_cargo(codigo_ue: str, codigo_cargo: int) -> list[dict]:
         codigo_ue,
         filtros={"cargos": [codigo_cargo]},
     )
+
+
+def funcionarios_por_cargo(codigo_cargo: int) -> list[dict]:
+    """Lista funcionários ativos por cargo.
+
+    Args:
+        codigo_cargo: Código do cargo consultado.
+
+    Returns:
+        Funcionários ativos vinculados ao cargo informado.
+    """
+    qs = _funcionarios_ativos().filter(
+        codigo_cargo=str(codigo_cargo),
+    )
+    resultado = []
+    vistos = set()
+    for funcionario in qs:
+        item = _func_row(funcionario)
+        chave = (
+            item["codigo_rf"],
+            item["codigo_cargo"],
+            item["data_inicio"],
+            item["data_fim"],
+            item["cargo"],
+        )
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        resultado.append(item)
+    return sorted(resultado, key=lambda item: item["nome"])
 
 
 def funcionarios_por_lista_cargos(
@@ -427,7 +555,7 @@ def nome_cpf_servidor(registro_funcional: str) -> dict | None:
     Returns:
         Nome e CPF do servidor, ou ``None`` quando não encontrado.
     """
-    func = FuncionarioUnidadeEducacional.objects.filter(
+    func = _funcionarios_ativos().filter(
         codigo_rf=registro_funcional,
         funcao_externo=0,
     ).first()
@@ -449,7 +577,7 @@ def nome_servidor(registro_funcional: str) -> str | None:
     Returns:
         Nome do funcionário, ou ``None`` quando não encontrado.
     """
-    func = FuncionarioUnidadeEducacional.objects.filter(
+    func = _funcionarios_ativos().filter(
         codigo_rf=registro_funcional,
         funcao_externo=0,
     ).first()
@@ -650,9 +778,9 @@ def buscar_por_lista_rf_func(lista: list[str]) -> list[dict]:
     """
     return [
         {"nome": get_nome(p), "codigo_rf": p.codigo_rf}
-        for p in FuncionarioUnidadeEducacional.objects.filter(
-            codigo_rf__in=lista
-        ).distinct("codigo_rf")
+        for p in _deduplicar_modelos_por_rf(
+            _funcionarios_ativos().filter(codigo_rf__in=lista)
+        )
     ]
 
 
@@ -690,7 +818,7 @@ def buscar_funcionarios(
     Returns:
         Funcionários encontrados para os filtros informados.
     """
-    qs = FuncionarioUnidadeEducacional.objects.all()
+    qs = _funcionarios_ativos()
     if codigo_rf:
         qs = qs.filter(codigo_rf=codigo_rf)
     if codigo_ue:
@@ -709,5 +837,5 @@ def buscar_funcionarios(
             "funcao_externo": funcionario.funcao_externo or 0,
             "tipo_funcao_externo": funcionario.tipo_funcao_externo or 0,
         }
-        for funcionario in qs.distinct("codigo_rf")
+        for funcionario in _deduplicar_modelos_por_rf(qs)
     ]

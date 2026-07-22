@@ -112,6 +112,8 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
         codigo_cargo=str(cargo_base.codigo_cargo),
         cargo=cargo_base.descricao_cargo,
         codigo_tipo_funcao_atividade=0,
+        origem_vinculo="lotacao",
+        eh_professor=True,
         esta_afastado=False,
         funcao_externo=0,
         tipo_funcao_externo=0,
