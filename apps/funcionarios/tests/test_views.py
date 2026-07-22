@@ -14,6 +14,7 @@ from apps.funcionarios.api.views import (
 )
 from apps.professores.models import (
     CargoBaseServidor,
+    FuncionarioCargo,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Professor,
@@ -141,23 +142,31 @@ class TestFuncionariosUE:
 
 
 class TestFuncionariosPorCargo:
-    def test_retorna_funcionarios_do_cargo(self, client, lotacao, ue):
-        FuncionarioUnidadeEducacional.objects.create(
+    def test_retorna_funcionarios_do_cargo(self, client):
+        FuncionarioCargo.objects.create(
             codigo_rf="1111111",
             nome="Carlos Gestor",
-            cpf="11111111111",
-            codigo_ue=ue.codigo_ue,
             data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-            codigo_cargo="3360",
+            codigo_cargo=3360,
             cargo="DIRETOR",
-            eh_professor=False,
+        )
+        FuncionarioCargo.objects.create(
+            codigo_rf="2222222",
+            nome="Gestor Encerrado",
+            data_inicio=datetime(2020, 1, 1, tzinfo=UTC),
+            data_fim=datetime(2021, 1, 1, tzinfo=UTC),
+            codigo_cargo=3360,
+            cargo="DIRETOR",
         )
 
         res = client.get(f"{_BASE}/funcionarios/cargos/3360/")
 
         assert res.status_code == 200
+        assert len(res.data) == 1
         assert res.data[0]["codigo_rf"] == "1111111"
-        assert res.data[0]["codigo_cargo"] == "3360"
+        assert res.data[0]["codigo_cargo"] == 3360
+        assert res.data[0]["codigo_tipo_funcao_atividade"] == 0
+        assert res.data[0]["esta_afastado"] is False
 
     def test_sem_cargo_retorna_lista_vazia(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/cargos/3360/")

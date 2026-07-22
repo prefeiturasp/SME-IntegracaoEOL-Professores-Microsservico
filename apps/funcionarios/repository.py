@@ -10,6 +10,7 @@ from apps.professores.models import (
     CargoBaseServidor,
     ContratoExterno,
     FuncaoAtividadeCargoServidor,
+    FuncionarioCargo,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Professor,
@@ -270,13 +271,26 @@ def funcionarios_por_cargo(codigo_cargo: int) -> list[dict]:
     Returns:
         Funcionários ativos vinculados ao cargo informado.
     """
-    qs = _funcionarios_ativos().filter(
-        codigo_cargo=str(codigo_cargo),
+    qs = FuncionarioCargo.objects.filter(
+        codigo_cargo=codigo_cargo,
+        data_fim__isnull=True,
     )
     resultado = []
     vistos = set()
     for funcionario in qs:
-        item = _func_row(funcionario)
+        item = {
+            "codigo_rf": funcionario.codigo_rf,
+            "nome": funcionario.nome,
+            "cpf": None,
+            "data_inicio": _fmt_data_funcionario(funcionario.data_inicio),
+            "data_fim": _fmt_data_funcionario(funcionario.data_fim),
+            "cargo": funcionario.cargo,
+            "codigo_cargo": funcionario.codigo_cargo,
+            "codigo_tipo_funcao_atividade": 0,
+            "esta_afastado": False,
+            "funcao_externo": 0,
+            "tipo_funcao_externo": 0,
+        }
         chave = (
             item["codigo_rf"],
             item["codigo_cargo"],

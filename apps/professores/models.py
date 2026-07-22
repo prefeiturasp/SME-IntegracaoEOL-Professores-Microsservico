@@ -185,6 +185,23 @@ class FuncionarioUnidadeEducacional(models.Model):
         ]
 
 
+class FuncionarioCargo(models.Model):
+    """Funcionário por cargo."""
+
+    id = models.BigAutoField(primary_key=True)
+    codigo_rf = models.CharField(max_length=20)
+    nome = models.CharField(max_length=200)
+    data_inicio = models.DateTimeField(null=True, blank=True)
+    data_fim = models.DateTimeField(null=True, blank=True)
+    cargo = models.CharField(max_length=100)
+    codigo_cargo = models.IntegerField()
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_cargo"
+        managed = False
+
+
 class TurmaAtribuidaUe(models.Model):
     """Turma atribuída por vínculo do funcionário com UE."""
 
