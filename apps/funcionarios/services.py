@@ -291,6 +291,8 @@ def usuarios_sgp_por_perfil(
         codigo_rf=codigo_rf,
         nome_servidor_param=nome_servidor,
     )
+    if codigo_dre:
+        return ResultadoServico(resultado)
     if not resultado:
         return ResultadoServico(None, 404)
     return ResultadoServico(resultado)

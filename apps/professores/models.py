@@ -151,6 +151,7 @@ class FuncionarioUnidadeEducacional(models.Model):
     nome_social = models.CharField(max_length=200, null=True, blank=True)
     cpf = models.CharField(max_length=14, null=True, blank=True)
     codigo_ue = models.CharField(max_length=20)
+    codigo_dre = models.CharField(max_length=20, null=True, blank=True)
     data_inicio = models.DateTimeField(null=True, blank=True)
     data_fim = models.DateTimeField(null=True, blank=True)
     dt_fim_nomeacao = models.DateTimeField(null=True, blank=True)
@@ -175,6 +176,7 @@ class FuncionarioUnidadeEducacional(models.Model):
         managed = False
         indexes = [
             models.Index(fields=["codigo_ue"], name="idx_funcionario_ue"),
+            models.Index(fields=["codigo_dre"], name="idx_funcionario_dre"),
             models.Index(
                 fields=["codigo_cargo"], name="idx_funcionario_cargo"
             ),
@@ -182,6 +184,10 @@ class FuncionarioUnidadeEducacional(models.Model):
             models.Index(
                 fields=["codigo_ue", "codigo_cargo"],
                 name="idx_funcionario_ue_cargo",
+            ),
+            models.Index(
+                fields=["codigo_dre", "codigo_cargo"],
+                name="idx_funcionario_dre_cargo",
             ),
         ]
 

@@ -110,9 +110,14 @@ class UsuarioSGPSerializer(serializers.Serializer):
     """Serializa dados de usuário SGP."""
 
     codigo_rf = serializers.CharField()
+    login = serializers.CharField(allow_null=True, required=False)
     nome_servidor = serializers.CharField()
     codigo_dre = serializers.CharField(allow_null=True)
     codigo_ue = serializers.CharField(allow_null=True)
+    cd_cargo = serializers.IntegerField(allow_null=True, required=False)
+    codigo_funcao_atividade = serializers.IntegerField(required=False)
+    funcao_externo = serializers.IntegerField(required=False)
+    tipo_funcao_externo = serializers.IntegerField(required=False)
 
 
 class ResumoFuncionarioSerializer(serializers.Serializer):

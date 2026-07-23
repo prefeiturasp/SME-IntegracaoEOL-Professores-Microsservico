@@ -121,6 +121,62 @@ def _func_row(
     }
 
 
+def _usuario_sgp_row(
+    funcionario: FuncionarioUnidadeEducacional,
+    codigo_dre: str | None = None,
+) -> dict:
+    """Monta funcionário SGP a partir do vínculo consolidado.
+
+    Args:
+        funcionario: Funcionário usado para montar o payload.
+        codigo_dre: DRE usada na consulta.
+
+    Returns:
+        Dicionário de funcionário SGP.
+    """
+    return {
+        "codigo_rf": funcionario.codigo_rf,
+        "login": funcionario.codigo_rf,
+        "nome_servidor": str(funcionario.nome),
+        "codigo_dre": codigo_dre or funcionario.codigo_dre,
+        "codigo_ue": funcionario.codigo_ue,
+        "cd_cargo": funcionario.codigo_cargo,
+        "codigo_funcao_atividade": (
+            funcionario.codigo_tipo_funcao_atividade or 0
+        ),
+        "funcao_externo": funcionario.funcao_externo or 0,
+        "tipo_funcao_externo": funcionario.tipo_funcao_externo or 0,
+    }
+
+
+def _funcionarios_sgp_por_dre_qs(
+    codigo_dre: str,
+    codigo_ue: str | None = None,
+    codigo_rf: str | None = None,
+    nome_servidor_param: str | None = None,
+) -> Any:
+    """Filtra vínculos consolidados por DRE.
+
+    Args:
+        codigo_dre: Código EOL da DRE usada no filtro.
+        codigo_ue: Código EOL da unidade usada no filtro.
+        codigo_rf: RF usado no filtro.
+        nome_servidor_param: Trecho do nome usado no filtro.
+
+    Returns:
+        Queryset com vínculos compatíveis.
+    """
+    qs = FuncionarioUnidadeEducacional.objects.all()
+    qs = qs.filter(codigo_ue=codigo_ue) if codigo_ue else qs.filter(
+        codigo_dre=codigo_dre
+    )
+    if codigo_rf:
+        return qs.filter(codigo_rf=codigo_rf)
+    if nome_servidor_param:
+        return qs.filter(nome__icontains=nome_servidor_param)
+    return qs.filter(data_fim__isnull=True)
+
+
 def _lotacoes_ativas() -> Any:
     """Retorna queryset base de lotações ativas.
 
@@ -726,6 +782,9 @@ def usuarios_sgp_por_perfil(  # NOSONAR
 ) -> list[dict]:
     """Lista usuários SGP por perfil e filtros opcionais.
 
+    Quando recebe apenas RF, retorna dados básicos do usuário para preservar
+    o contrato do legado.
+
     Args:
         _id_perfil: Identificador de perfil; mantido por compatibilidade
             de contrato, sem efeito na consulta.
@@ -737,6 +796,34 @@ def usuarios_sgp_por_perfil(  # NOSONAR
     Returns:
         Usuários com lotação ativa compatíveis com os filtros.
     """
+    if codigo_dre:
+        return funcionarios_sgp_dre(
+            _id_perfil,
+            codigo_dre,
+            codigo_ue=codigo_ue,
+            codigo_rf=codigo_rf,
+            nome_servidor_param=nome_servidor_param,
+        )
+    if codigo_rf:
+        qs = FuncionarioUnidadeEducacional.objects.filter(
+            codigo_rf=codigo_rf
+        )
+        if codigo_ue:
+            qs = qs.filter(codigo_ue=codigo_ue)
+        funcionario = qs.order_by("codigo_rf").first()
+        if not funcionario:
+            return []
+        # O legado consulta CoreSSO neste fluxo e não preenche vínculo.
+        return [
+            {
+                **_usuario_sgp_row(funcionario),
+                "cd_cargo": 0,
+                "codigo_funcao_atividade": 0,
+                "funcao_externo": 0,
+                "tipo_funcao_externo": 0,
+            }
+        ]
+
     qs = LotacaoServidor.objects.filter(dt_fim__isnull=True).select_related(
         "cargo_base__professor"
     )
@@ -794,30 +881,15 @@ def funcionarios_sgp_dre(  # NOSONAR
     Returns:
         Funcionários com lotação ativa na DRE compatíveis com os filtros.
     """
-    ues_dre = UnidadeEducacional.objects.filter(
-        codigo_dre=codigo_dre
-    ).values_list("codigo_ue", flat=True)
-    qs = LotacaoServidor.objects.filter(
-        codigo_unidade_educacao__in=ues_dre,
-        dt_fim__isnull=True,
-    ).select_related("cargo_base__professor")
-    if codigo_ue:
-        qs = qs.filter(codigo_unidade_educacao=codigo_ue)
-    if codigo_rf:
-        qs = qs.filter(cargo_base__professor__codigo_rf=codigo_rf)
-    if nome_servidor_param:
-        qs = qs.filter(
-            cargo_base__professor__nome__icontains=nome_servidor_param
-        )
-    return [
-        {
-            "codigo_rf": ls.cargo_base.professor.codigo_rf,
-            "nome_servidor": get_nome(ls.cargo_base.professor),
-            "codigo_dre": codigo_dre,
-            "codigo_ue": ls.codigo_unidade_educacao,
-        }
-        for ls in qs
-    ]
+    qs = _funcionarios_sgp_por_dre_qs(
+        codigo_dre,
+        codigo_ue=codigo_ue,
+        codigo_rf=codigo_rf,
+        nome_servidor_param=nome_servidor_param,
+    )
+    if codigo_funcao_atividade:
+        qs = qs.filter(codigo_tipo_funcao_atividade=codigo_funcao_atividade)
+    return [_usuario_sgp_row(funcionario, codigo_dre) for funcionario in qs]
 
 
 def acesso_sondagem(codigo_rf: str) -> bool:

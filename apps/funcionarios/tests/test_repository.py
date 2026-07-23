@@ -1,4 +1,4 @@
-"""Testes dos repositories do dominio de funcionarios."""
+"""Testes dos repository do dominio de funcionarios."""
 
 from datetime import UTC, date, datetime
 
@@ -37,9 +37,9 @@ def test_dre_de_ue_guarda_none_quando_ue_nao_existe():
 
 def test_funcionarios_por_lista_funcoes_externas_sem_funcoes():
     """Verifica retorno vazio sem funcoes externas."""
-    assert (
-        repository.funcionarios_por_lista_funcoes_externas("000532", []) == []
-    )
+    assert repository.funcionarios_por_lista_funcoes_externas(
+        "000532", []
+    ) == []
 
 
 def test_nome_funcionario_prioriza_nome_social(lotacao):
@@ -280,6 +280,107 @@ def test_usuarios_sgp_por_perfil_filtra_por_dre_e_nome(lotacao):
 
     assert resultado[0]["codigo_rf"] == "7654321"
     assert resultado[0]["codigo_dre"] == "108100"
+    assert resultado[0]["cd_cargo"] == "3379"
+
+
+def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(db):
+    """Verifica consulta por DRE a partir do vínculo consolidado."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="funcao_atividade",
+        codigo_tipo_funcao_atividade=1,
+    )
+
+    resultado = repository.usuarios_sgp_por_perfil(
+        "perfil-guid-123",
+        codigo_dre="108100",
+    )
+
+    assert resultado == [
+        {
+            "codigo_rf": "1111111",
+            "login": "1111111",
+            "nome_servidor": "Carlos Gestor",
+            "codigo_dre": "108100",
+            "codigo_ue": "000532",
+            "cd_cargo": "3360",
+            "codigo_funcao_atividade": 1,
+            "funcao_externo": 0,
+            "tipo_funcao_externo": 0,
+        }
+    ]
+
+
+def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(db):
+    """Verifica consulta por UE quando DRE também é enviada."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="2222222",
+        nome="Beatriz Gestora",
+        codigo_ue="000999",
+        codigo_dre="108999",
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="lotacao",
+    )
+
+    resultado = repository.usuarios_sgp_por_perfil(
+        "perfil-guid-123",
+        codigo_dre="108100",
+        codigo_ue="000999",
+    )
+
+    assert resultado == [
+        {
+            "codigo_rf": "2222222",
+            "login": "2222222",
+            "nome_servidor": "Beatriz Gestora",
+            "codigo_dre": "108100",
+            "codigo_ue": "000999",
+            "cd_cargo": "3360",
+            "codigo_funcao_atividade": 0,
+            "funcao_externo": 0,
+            "tipo_funcao_externo": 0,
+        }
+    ]
+
+
+def test_usuarios_sgp_por_perfil_com_rf_usa_funcionario_consolidado(db):
+    """Verifica consulta por RF a partir do vínculo consolidado."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="cargo_sobreposto",
+    )
+    resultado = repository.usuarios_sgp_por_perfil(
+        "perfil-guid-123",
+        codigo_rf="1111111",
+    )
+
+    assert resultado == [
+        {
+            "codigo_rf": "1111111",
+            "login": "1111111",
+            "nome_servidor": "Carlos Gestor",
+            "codigo_dre": "108100",
+            "codigo_ue": "000532",
+            "cd_cargo": 0,
+            "codigo_funcao_atividade": 0,
+            "funcao_externo": 0,
+            "tipo_funcao_externo": 0,
+        }
+    ]
 
 
 def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):

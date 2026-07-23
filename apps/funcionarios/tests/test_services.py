@@ -86,6 +86,28 @@ def test_usuarios_sgp_sem_resultado_retorna_404(monkeypatch):
     assert resultado.payload is None
 
 
+def test_usuarios_sgp_com_dre_sem_resultado_retorna_200(monkeypatch):
+    """Verifica resposta legada quando consulta por DRE vem vazia."""
+    monkeypatch.setattr(
+        services.repository,
+        "perfil_placeholder_invalido",
+        lambda id_perfil: False,
+    )
+    monkeypatch.setattr(
+        services.repository,
+        "usuarios_sgp_por_perfil",
+        lambda *args, **kwargs: [],
+    )
+
+    resultado = services.usuarios_sgp_por_perfil(
+        "perfil",
+        codigo_dre="108100",
+    )
+
+    assert resultado.status_code == 200
+    assert resultado.payload == []
+
+
 def test_funcionarios_sgp_dre_converte_funcao(monkeypatch):
     """Verifica conversao de funcao de atividade opcional."""
     chamadas = {}

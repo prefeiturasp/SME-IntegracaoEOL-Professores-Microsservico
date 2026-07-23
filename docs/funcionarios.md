@@ -15,3 +15,13 @@ Enquanto essa integração não estiver disponível neste microsserviço, o
 Transition Gateway é responsável por manter o formato de resposta esperado
 pelos consumidores. O microsserviço retorna os dados funcionais conhecidos e
 não infere ausência de usuário sem uma fonte de Identidade.
+
+## Usuários por perfil
+
+Em `GET /api/v1/professores/funcionarios/perfis/{id_perfil}/`, a presença de
+`codigo_dre` indica a consulta por vínculos de funcionários na DRE. Nesse
+fluxo, os dados de cargo, função e vínculo são preservados.
+
+Quando a consulta recebe apenas `codigo_rf`, o legado busca o usuário por login
+na Identidade corporativa. Nesse fluxo, o retorno traz os dados básicos do
+usuário e os campos de vínculo permanecem com os valores padrão.

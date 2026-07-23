@@ -1,4 +1,4 @@
-"""Testes dos repositories do dominio de professores."""
+"""Testes dos repository do dominio de professores."""
 
 from datetime import date, timedelta
 from types import SimpleNamespace

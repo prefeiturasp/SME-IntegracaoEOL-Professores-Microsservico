@@ -108,6 +108,7 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
         nome_social=cargo_base.professor.nome_social,
         cpf=cargo_base.professor.cpf,
         codigo_ue=ue.codigo_ue,
+        codigo_dre=ue.codigo_dre,
         data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
         codigo_cargo=str(cargo_base.codigo_cargo),
         cargo=cargo_base.descricao_cargo,

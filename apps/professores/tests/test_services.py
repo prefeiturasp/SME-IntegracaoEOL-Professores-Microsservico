@@ -15,7 +15,9 @@ def test_atribuicao_verificar_data_converte_data(monkeypatch):
         chamadas["args"] = (codigo_rf, codigo_turma, data_consulta)
         return True
 
-    monkeypatch.setattr(services.repository, "atribuicao_verificar_data", fake)
+    monkeypatch.setattr(
+        services.repository, "atribuicao_verificar_data", fake
+    )
 
     resultado = services.atribuicao_verificar_data(
         "7654321",
