@@ -396,6 +396,48 @@ def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):
     assert resultado[0]["codigo_ue"] == "000532"
 
 
+def test_funcionarios_sgp_dre_remove_duplicados_por_rf(lotacao, monkeypatch):
+    """Verifica que funcionários duplicados não são repetidos."""
+    funcionario = FuncionarioUnidadeEducacional.objects.get(
+        codigo_rf="7654321"
+    )
+
+    class QueryFake:
+        """Simula a cadeia de queryset usada na consulta."""
+
+        annotate_kwargs = None
+        filter_kwargs = None
+
+        def filter(self, **_kwargs):
+            """Retorna a própria query após filtro."""
+            self.filter_kwargs = _kwargs
+            if _kwargs == {"ordem_rf": 1}:
+                return [funcionario]
+            return self
+
+        def annotate(self, **kwargs):
+            """Guarda as anotações da query."""
+            self.annotate_kwargs = kwargs
+            return self
+
+    query = QueryFake()
+    monkeypatch.setattr(
+        repositories,
+        "_funcionarios_sgp_por_dre_qs",
+        lambda *args, **kwargs: query,
+    )
+
+    resultado = repositories.funcionarios_sgp_dre(
+        "perfil-guid-123",
+        "108100",
+        codigo_rf="7654321",
+    )
+
+    assert [item["codigo_rf"] for item in resultado] == ["7654321"]
+    assert "ordem_rf" in query.annotate_kwargs
+    assert query.filter_kwargs == {"ordem_rf": 1}
+
+
 def test_supervisores_por_dre_usa_dre_da_lotacao_do_cargo_base(
     cargo_base,
 ):

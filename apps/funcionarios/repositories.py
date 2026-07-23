@@ -2,7 +2,8 @@
 
 from typing import Any
 
-from django.db.models import Q
+from django.db.models import F, Q, Window
+from django.db.models.functions import RowNumber
 from django.utils import timezone
 
 from apps.core.utils import fmt_iso, get_nome
@@ -889,7 +890,21 @@ def funcionarios_sgp_dre(  # NOSONAR
     )
     if codigo_funcao_atividade:
         qs = qs.filter(codigo_tipo_funcao_atividade=codigo_funcao_atividade)
-    return [_usuario_sgp_row(funcionario, codigo_dre) for funcionario in qs]
+    funcionarios = qs.annotate(
+        ordem_rf=Window(
+            expression=RowNumber(),
+            partition_by=[F("codigo_rf")],
+            order_by=[
+                F("codigo_rf").asc(),
+                F("codigo_ue").asc(nulls_last=True),
+                F("origem_vinculo").asc(nulls_last=True),
+            ],
+        )
+    ).filter(ordem_rf=1)
+    return [
+        _usuario_sgp_row(funcionario, codigo_dre)
+        for funcionario in funcionarios
+    ]
 
 
 def acesso_sondagem(codigo_rf: str) -> bool:
