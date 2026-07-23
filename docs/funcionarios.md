@@ -15,4 +15,3 @@ Enquanto essa integração não estiver disponível neste microsserviço, o
 Transition Gateway é responsável por manter o formato de resposta esperado
 pelos consumidores. O microsserviço retorna os dados funcionais conhecidos e
 não infere ausência de usuário sem uma fonte de Identidade.
-

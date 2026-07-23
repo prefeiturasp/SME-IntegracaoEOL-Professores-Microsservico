@@ -16,6 +16,8 @@ from apps.funcionarios.serializers import (
     FuncionarioUESerializer,
     NomeCPFServidorSerializer,
     ResumoFuncionarioSerializer,
+    SupervisoresFiltroSerializer,
+    SupervisorSerializer,
     UsuarioSGPSerializer,
 )
 
@@ -356,6 +358,44 @@ class FuncionariosPorCargoView(APIView):
             Resposta HTTP com o resultado da operação.
         """
         return Response(services.funcionarios_por_cargo(codigo_cargo))
+
+
+class SupervisoresPorDreView(APIView):
+    """Lista supervisores vinculados à DRE."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Supervisores por DRE",
+        parameters=[
+            OpenApiParameter("codigo_dre", str, OpenApiParameter.PATH),
+        ],
+        request=SupervisoresFiltroSerializer,
+        responses={200: SupervisorSerializer(many=True), 400: dict},
+    )
+    def post(self, request: Request, codigo_dre: str) -> Response:
+        """Lista supervisores vinculados à DRE.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_dre: Código EOL da DRE consultada.
+
+        Returns:
+            Resposta HTTP com os supervisores encontrados.
+        """
+        serializer = SupervisoresFiltroSerializer(
+            data={"codigos_rfs": request.data or []}
+        )
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            services.supervisores_por_dre(
+                codigo_dre,
+                serializer.validated_data["codigos_rfs"],
+            )
+        )
 
 
 class FuncionarioExternoPorCpfView(APIView):

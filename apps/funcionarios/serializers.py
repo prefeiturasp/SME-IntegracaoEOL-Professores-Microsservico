@@ -55,6 +55,22 @@ class FuncionariosUEFiltroSerializer(serializers.Serializer):
     )
 
 
+class SupervisoresFiltroSerializer(serializers.Serializer):
+    """Valida RFs usados na busca de supervisores por DRE."""
+
+    codigos_rfs = serializers.ListField(
+        child=serializers.CharField(allow_blank=False),
+        allow_empty=True,
+    )
+
+
+class SupervisorSerializer(serializers.Serializer):
+    """Serializa supervisor vinculado à DRE."""
+
+    codigo_rf = serializers.CharField()
+    nome_servidor = serializers.CharField()
+
+
 class FuncionarioFuncaoExternaSerializer(serializers.Serializer):
     """Serializa dados de funcionário externo por função."""
 

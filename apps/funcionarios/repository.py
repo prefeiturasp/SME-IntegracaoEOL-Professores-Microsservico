@@ -3,6 +3,7 @@
 from typing import Any
 
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.core.utils import fmt_iso, get_nome
 from apps.professores.models import (
@@ -25,6 +26,7 @@ MENSAGEM_ERRO_PERFIL_SEM_DRE_RF = (
     "O código da Dre ou código rf/login deve ser informados."
 )
 _UE_DRE_CACHE: dict[str, str | None] = {}
+_CODIGO_CARGO_SUPERVISOR = 3352
 
 
 def perfil_placeholder_invalido(id_perfil: str) -> bool:
@@ -303,6 +305,59 @@ def funcionarios_por_cargo(codigo_cargo: int) -> list[dict]:
         vistos.add(chave)
         resultado.append(item)
     return sorted(resultado, key=lambda item: item["nome"])
+
+
+def supervisores_por_dre(
+    codigo_dre: str,
+    codigos_rfs: list[str],
+) -> list[dict]:
+    """Lista supervisores vinculados à DRE.
+
+    Args:
+        codigo_dre: Código EOL da DRE consultada.
+        codigos_rfs: Registros funcionais considerados na busca.
+
+    Returns:
+        Supervisores encontrados para a DRE informada.
+    """
+    hoje = timezone.localdate()
+    qs = (
+        CargoBaseServidor.objects.filter(
+            professor__codigo_rf__in=codigos_rfs,
+            dt_fim_nomeacao__isnull=True,
+            lotacoes__codigo_dre=codigo_dre,
+        )
+        .filter(
+            Q(codigo_cargo=_CODIGO_CARGO_SUPERVISOR)
+            | (
+                Q(cargos_sobrepostos__codigo_cargo=_CODIGO_CARGO_SUPERVISOR)
+                & (
+                    Q(
+                        cargos_sobrepostos__dt_fim_cargo_sobreposto__isnull=True
+                    )
+                    | Q(cargos_sobrepostos__dt_fim_cargo_sobreposto__gt=hoje)
+                )
+            )
+        )
+        .select_related("professor")
+        .order_by("professor__nome", "professor__codigo_rf")
+        .distinct()
+    )
+    resultado = []
+    vistos = set()
+    for cargo_base in qs:
+        funcionario = cargo_base.professor
+        chave = (funcionario.codigo_rf, funcionario.nome)
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        resultado.append(
+            {
+                "codigo_rf": funcionario.codigo_rf,
+                "nome_servidor": funcionario.nome,
+            }
+        )
+    return resultado
 
 
 def funcionarios_por_lista_cargos(

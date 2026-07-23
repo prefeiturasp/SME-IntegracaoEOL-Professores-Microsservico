@@ -121,6 +121,7 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
     return LotacaoServidor.objects.create(
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
+        codigo_dre=ue.codigo_dre,
         dt_inicio=date(2024, 2, 1),
     )
 

@@ -180,6 +180,96 @@ class TestFuncionariosPorCargo:
         assert res.status_code == 403
 
 
+class TestSupervisoresPorDre:
+    def test_retorna_supervisor_da_dre(self, client, ue):
+        supervisor = Professor.objects.create(
+            codigo_rf="1111111",
+            nome="Supervisora Silva",
+            cpf="11111111111",
+        )
+        cargo_supervisor = CargoBaseServidor.objects.create(
+            professor=supervisor,
+            codigo_cargo=3352,
+            descricao_cargo="SUPERVISOR ESCOLAR",
+            dt_posse=date(2024, 1, 1),
+        )
+        LotacaoServidor.objects.create(
+            cargo_base=cargo_supervisor,
+            codigo_unidade_educacao=ue.codigo_ue,
+            codigo_dre=ue.codigo_dre,
+            dt_inicio=date(2024, 1, 1),
+        )
+        diretor = Professor.objects.create(
+            codigo_rf="2222222",
+            nome="Diretora Fora",
+            cpf="22222222222",
+        )
+        cargo_diretor = CargoBaseServidor.objects.create(
+            professor=diretor,
+            codigo_cargo=3360,
+            descricao_cargo="DIRETOR DE ESCOLA",
+            dt_posse=date(2024, 1, 1),
+        )
+        LotacaoServidor.objects.create(
+            cargo_base=cargo_diretor,
+            codigo_unidade_educacao=ue.codigo_ue,
+            codigo_dre=ue.codigo_dre,
+            dt_inicio=date(2024, 1, 1),
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/supervisores/108100/",
+            ["1111111", "2222222"],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "codigo_rf": "1111111",
+                "nome_servidor": "Supervisora Silva",
+            }
+        ]
+
+    def test_ignora_nomeacao_encerrada(self, client, ue):
+        supervisor = Professor.objects.create(
+            codigo_rf="1111111",
+            nome="Supervisora Encerrada",
+            cpf="11111111111",
+        )
+        cargo_supervisor = CargoBaseServidor.objects.create(
+            professor=supervisor,
+            codigo_cargo=3352,
+            descricao_cargo="SUPERVISOR ESCOLAR",
+            dt_posse=date(2024, 1, 1),
+            dt_fim_nomeacao=datetime(2025, 1, 1, tzinfo=UTC),
+        )
+        LotacaoServidor.objects.create(
+            cargo_base=cargo_supervisor,
+            codigo_unidade_educacao=ue.codigo_ue,
+            codigo_dre=ue.codigo_dre,
+            dt_inicio=date(2024, 1, 1),
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/supervisores/108100/",
+            ["1111111"],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/supervisores/108100/",
+            ["1111111"],
+            format="json",
+        )
+
+        assert res.status_code == 403
+
+
 class TestEP26FuncionariosPorUEFiltros:
     def test_funcoes_retorna_funcionario(self, client, lotacao):
         res = client.get(

@@ -1,11 +1,15 @@
 """Testes dos repositories do dominio de funcionarios."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
 from apps.funcionarios import repository
-from apps.professores.models import FuncionarioUnidadeEducacional
+from apps.professores.models import (
+    CargoSobrepostoServidor,
+    FuncionarioUnidadeEducacional,
+    LotacaoServidor,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -289,3 +293,27 @@ def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):
 
     assert resultado[0]["codigo_rf"] == "7654321"
     assert resultado[0]["codigo_ue"] == "000532"
+
+
+def test_supervisores_por_dre_usa_dre_da_lotacao_do_cargo_base(
+    cargo_base,
+):
+    """Verifica supervisor por DRE conforme vínculo do cargo base."""
+    LotacaoServidor.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao="019653",
+        codigo_dre="100013",
+        dt_inicio=date(1996, 9, 12),
+        dt_fim=date(2000, 1, 1),
+    )
+    CargoSobrepostoServidor.objects.create(
+        cargo_base=cargo_base,
+        codigo_cargo=3352,
+        codigo_unidade_local_servico="108202",
+    )
+
+    resultado = repository.supervisores_por_dre("100013", ["7654321"])
+
+    assert resultado == [
+        {"codigo_rf": "7654321", "nome_servidor": "Ana Silva"}
+    ]

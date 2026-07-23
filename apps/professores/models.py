@@ -133,6 +133,7 @@ class LotacaoServidor(models.Model):
         db_constraint=False,
     )
     codigo_unidade_educacao = models.CharField(max_length=20)
+    codigo_dre = models.CharField(max_length=20, null=True, blank=True)
     dt_inicio = models.DateField(null=True, blank=True)
     dt_fim = models.DateField(null=True, blank=True)
 
