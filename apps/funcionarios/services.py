@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from apps.funcionarios import repository
+from apps.funcionarios import repositories
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ def funcionarios_por_ue(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.funcionarios_por_ue(codigo_ue, filtros=filtros)
+    return repositories.funcionarios_por_ue(codigo_ue, filtros=filtros)
 
 
 def funcionarios_ue(
@@ -47,7 +47,7 @@ def funcionarios_ue(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.funcionarios_por_ue(
+    return repositories.funcionarios_por_ue(
         codigo_ue,
         filtros=filtros,
         somente_professores=False,
@@ -65,7 +65,7 @@ def funcionarios_por_cargo(codigo_cargo: int) -> list[dict]:
     Returns:
         Lista de dados encontrados para o cargo informado.
     """
-    return repository.funcionarios_por_cargo(codigo_cargo)
+    return repositories.funcionarios_por_cargo(codigo_cargo)
 
 
 def supervisores_por_dre(
@@ -81,7 +81,7 @@ def supervisores_por_dre(
     Returns:
         Lista de supervisores encontrados.
     """
-    return repository.supervisores_por_dre(codigo_dre, codigos_rfs)
+    return repositories.supervisores_por_dre(codigo_dre, codigos_rfs)
 
 
 def funcionarios_por_lista_cargos(
@@ -99,8 +99,8 @@ def funcionarios_por_lista_cargos(
     """
     cargos = [int(cargo) for cargo in cargos_param]
     if cargos:
-        return repository.funcionarios_por_lista_cargos(ue_codigo, cargos)
-    return repository.funcionarios_por_ue(ue_codigo)
+        return repositories.funcionarios_por_lista_cargos(ue_codigo, cargos)
+    return repositories.funcionarios_por_ue(ue_codigo)
 
 
 def funcionarios_por_funcao_atividade(
@@ -116,7 +116,7 @@ def funcionarios_por_funcao_atividade(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.funcionarios_por_funcao_atividade(
+    return repositories.funcionarios_por_funcao_atividade(
         codigo_ue,
         codigo_funcao_atividade or 0,
     )
@@ -136,7 +136,7 @@ def funcionarios_por_lista_funcoes_atividade(
         Lista de dados encontrados para os filtros informados.
     """
     funcoes = [int(funcao) for funcao in funcoes_param]
-    return repository.funcionarios_por_lista_funcoes_atividade(
+    return repositories.funcionarios_por_lista_funcoes_atividade(
         ue_codigo,
         funcoes,
     )
@@ -155,7 +155,7 @@ def funcionarios_por_funcao_externa(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.funcionarios_por_funcao_externa(
+    return repositories.funcionarios_por_funcao_externa(
         codigo_ue,
         codigo_funcao_externa or 0,
     )
@@ -175,7 +175,7 @@ def funcionarios_por_lista_funcoes_externas(
         Lista de dados encontrados para os filtros informados.
     """
     funcoes = [int(funcao) for funcao in funcoes_param]
-    return repository.funcionarios_por_lista_funcoes_externas(
+    return repositories.funcionarios_por_lista_funcoes_externas(
         ue_codigo,
         funcoes,
     )
@@ -190,7 +190,7 @@ def cargos_funcionario(registro_funcional: str) -> list[dict]:
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.cargos_funcionario(registro_funcional)
+    return repositories.cargos_funcionario(registro_funcional)
 
 
 def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
@@ -202,7 +202,7 @@ def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
     Returns:
         Lista de dados encontrados ou ``None`` quando não houver resultado.
     """
-    return repository.funcionario_externo_por_cpf(cpf)
+    return repositories.funcionario_externo_por_cpf(cpf)
 
 
 def nome_cpf_servidor(registro_funcional: str) -> dict | None:
@@ -214,7 +214,7 @@ def nome_cpf_servidor(registro_funcional: str) -> dict | None:
     Returns:
         Dados encontrados ou ``None`` quando não houver resultado.
     """
-    return repository.nome_cpf_servidor(registro_funcional)
+    return repositories.nome_cpf_servidor(registro_funcional)
 
 
 def nome_servidor(registro_funcional: str) -> str | None:
@@ -226,7 +226,7 @@ def nome_servidor(registro_funcional: str) -> str | None:
     Returns:
         Texto encontrado ou ``None`` quando não houver resultado.
     """
-    return repository.nome_servidor(registro_funcional)
+    return repositories.nome_servidor(registro_funcional)
 
 
 def servidor_ativo(registro_funcional: str) -> bool:
@@ -238,7 +238,7 @@ def servidor_ativo(registro_funcional: str) -> bool:
     Returns:
         Resultado booleano da validação solicitada.
     """
-    return repository.servidor_ativo(registro_funcional)
+    return repositories.servidor_ativo(registro_funcional)
 
 
 def dre_ue_cargo(
@@ -254,7 +254,7 @@ def dre_ue_cargo(
     Returns:
         Lista de dados encontrados ou ``None`` quando não houver resultado.
     """
-    return repository.dre_ue_cargo(registro_funcional, codigo_cargo)
+    return repositories.dre_ue_cargo(registro_funcional, codigo_cargo)
 
 
 def usuarios_sgp_por_perfil(
@@ -276,15 +276,15 @@ def usuarios_sgp_por_perfil(
     Returns:
         Resultado do serviço com payload e status HTTP.
     """
-    if repository.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
+    if repositories.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
         mensagem = (
-            repository.MENSAGEM_ERRO_LEGADO
+            repositories.MENSAGEM_ERRO_LEGADO
             if codigo_dre
-            else repository.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
+            else repositories.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
         )
         return ResultadoServico(mensagem, 400)
 
-    resultado = repository.usuarios_sgp_por_perfil(
+    resultado = repositories.usuarios_sgp_por_perfil(
         id_perfil,
         codigo_dre=codigo_dre,
         codigo_ue=codigo_ue,
@@ -319,10 +319,10 @@ def funcionarios_sgp_dre(
     Returns:
         Resultado do serviço com payload e status HTTP.
     """
-    if repository.perfil_placeholder_invalido(id_perfil):
-        return ResultadoServico(repository.MENSAGEM_ERRO_LEGADO, 400)
+    if repositories.perfil_placeholder_invalido(id_perfil):
+        return ResultadoServico(repositories.MENSAGEM_ERRO_LEGADO, 400)
 
-    resultado = repository.funcionarios_sgp_dre(
+    resultado = repositories.funcionarios_sgp_dre(
         id_perfil,
         codigo_dre,
         codigo_ue=codigo_ue,
@@ -346,7 +346,7 @@ def acesso_sondagem(codigo_rf: str) -> bool:
     Returns:
         Resultado booleano da validação solicitada.
     """
-    return repository.acesso_sondagem(codigo_rf)
+    return repositories.acesso_sondagem(codigo_rf)
 
 
 def buscar_por_lista_rf(payload: Any) -> list[dict]:
@@ -359,7 +359,7 @@ def buscar_por_lista_rf(payload: Any) -> list[dict]:
         Lista de dados encontrados para os filtros informados.
     """
     lista = payload if isinstance(payload, list) else []
-    return repository.buscar_por_lista_rf_func(lista)
+    return repositories.buscar_por_lista_rf_func(lista)
 
 
 def buscar_por_lista_login(payload: Any) -> list[dict]:
@@ -372,7 +372,7 @@ def buscar_por_lista_login(payload: Any) -> list[dict]:
         Lista de dados encontrados para os filtros informados.
     """
     lista = payload if isinstance(payload, list) else []
-    return repository.buscar_por_lista_login(lista)
+    return repositories.buscar_por_lista_login(lista)
 
 
 def buscar_funcionarios(payload: Any) -> list[dict]:
@@ -385,7 +385,7 @@ def buscar_funcionarios(payload: Any) -> list[dict]:
         Lista de dados encontrados para os filtros informados.
     """
     filtros = payload if isinstance(payload, dict) else {}
-    return repository.buscar_funcionarios(
+    return repositories.buscar_funcionarios(
         codigo_rf=filtros.get("CodigoRF") or filtros.get("codigoRF"),
         codigo_ue=filtros.get("CodigoUE") or filtros.get("codigoUE"),
         nome_servidor=(
