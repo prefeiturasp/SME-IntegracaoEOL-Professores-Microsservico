@@ -95,11 +95,11 @@ def _func_row(
     """Monta a representação de funcionário da UE.
 
     Args:
-        funcionario: Funcionário usado para montar o payload.
+        funcionario: Funcionário usado para montar os dados.
         usar_nome_social: Indica se o nome social deve ter prioridade.
 
     Returns:
-        Dicionário no formato esperado pelos endpoints de funcionários da UE.
+        Dicionário no formato de funcionários da UE.
     """
     return {
         "codigo_rf": funcionario.codigo_rf,
@@ -129,7 +129,7 @@ def _usuario_sgp_row(
     """Monta funcionário SGP a partir do vínculo consolidado.
 
     Args:
-        funcionario: Funcionário usado para montar o payload.
+        funcionario: Funcionário usado para montar os dados.
         codigo_dre: DRE usada na consulta.
 
     Returns:
@@ -165,7 +165,7 @@ def _funcionarios_sgp_por_dre_qs(
         nome_servidor_param: Trecho do nome usado no filtro.
 
     Returns:
-        Queryset com vínculos compatíveis.
+        Vínculos compatíveis com os filtros.
     """
     qs = FuncionarioUnidadeEducacional.objects.all()
     qs = qs.filter(codigo_ue=codigo_ue) if codigo_ue else qs.filter(
@@ -179,10 +179,10 @@ def _funcionarios_sgp_por_dre_qs(
 
 
 def _lotacoes_ativas() -> Any:
-    """Retorna queryset base de lotações ativas.
+    """Retorna lotações ativas.
 
     Returns:
-        Queryset de lotações sem data de fim.
+        Lotações sem data de fim.
     """
     return LotacaoServidor.objects.filter(dt_fim__isnull=True)
 
