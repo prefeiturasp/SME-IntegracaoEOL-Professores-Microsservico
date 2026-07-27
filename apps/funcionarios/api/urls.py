@@ -10,11 +10,14 @@ from apps.funcionarios.api.views import (
     CargosFuncionarioView,
     DreUeAtribuicaoCargoView,
     FuncionarioExternoPorCpfView,
+    FuncionariosPorCargoView,
     FuncionariosPorUEView,
     FuncionariosSGPDreView,
+    FuncionariosUEView,
     NomeCPFServidorView,
     NomeUsuarioEOLView,
     ServidorAtivoView,
+    SupervisoresPorDreView,
     UsuariosSGPView,
 )
 
@@ -33,6 +36,21 @@ urlpatterns = [
         f"{_BASE_ESCOLAS}/<str:codigo_ue>/funcionarios/",
         FuncionariosPorUEView.as_view(),
         name="funcionarios-ue",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/ue/<str:codigo_ue>/",
+        FuncionariosUEView.as_view(),
+        name="funcionarios-ue-legado",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/cargos/<int:codigo_cargo>/",
+        FuncionariosPorCargoView.as_view(),
+        name="funcionarios-cargo-legado",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/supervisores/<str:codigo_dre>/",
+        SupervisoresPorDreView.as_view(),
+        name="funcionarios-supervisores-dre",
     ),
     path(
         f"{_BASE_FUNCIONARIOS}/cargo/<str:registro_funcional>/",

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from apps.professores import repository
+from apps.professores import repositories
 from apps.professores.models import (
     AgrupamentoAtribuicaoTerritorioSaber,
     AtribuicaoAula,
@@ -50,7 +50,7 @@ def _cria_professor_com_atribuicao(
 
 def test_autocomplete_filtra_por_ue(atribuicao):
     """Verifica filtro direto por unidade educacional."""
-    resultado = repository.autocomplete_professores(
+    resultado = repositories.autocomplete_professores(
         2024,
         ue_id="000532",
     )
@@ -68,7 +68,7 @@ def test_autocomplete_limita_dez_resultados(db):
             2110000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(date.today().year)
+    resultado = repositories.autocomplete_professores(date.today().year)
 
     assert len(resultado) == 10
 
@@ -81,7 +81,7 @@ def test_autocomplete_ordena_por_nome_no_top_10(db):
             2120000 + indice,
         )
 
-    resultado = repository.autocomplete_professores(date.today().year)
+    resultado = repositories.autocomplete_professores(date.today().year)
 
     nomes = [item["nome_servidor"] for item in resultado]
     assert nomes == sorted(nomes)
@@ -90,7 +90,7 @@ def test_autocomplete_ordena_por_nome_no_top_10(db):
 
 def test_autocomplete_inclui_professor_externo(atribuicao_externa):
     """Verifica inclusao de contrato externo no autocomplete."""
-    resultado = repository.autocomplete_professores(2024)
+    resultado = repositories.autocomplete_professores(2024)
 
     assert resultado[0]["codigo_rf"] == "98765432100"
 
@@ -120,7 +120,7 @@ def test_autocomplete_filtra_nome_por_prefixo(db):
             dt_atribuicao_aula=date(2024, 2, 1),
         )
 
-    resultado = repository.autocomplete_professores(
+    resultado = repositories.autocomplete_professores(
         2024, ue_id="000532", nome="ana"
     )
 
@@ -167,7 +167,7 @@ def test_autocomplete_exclui_cancelada_e_nomeacao_encerrada(db):
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
-    resultado = repository.autocomplete_professores(2024, ue_id="000532")
+    resultado = repositories.autocomplete_professores(2024, ue_id="000532")
 
     assert resultado == []
 
@@ -179,7 +179,7 @@ def test_codigo_turma_retorna_none_sem_turma_ou_serie():
         codigo_serie_grade=None,
     )
 
-    assert repository._codigo_turma(atribuicao) is None
+    assert repositories._codigo_turma(atribuicao) is None
 
 
 def test_codigo_turma_nao_resolve_por_serie_grade():
@@ -189,14 +189,14 @@ def test_codigo_turma_nao_resolve_por_serie_grade():
         codigo_serie_grade=999999,
     )
 
-    assert repository._codigo_turma(atribuicao) is None
+    assert repositories._codigo_turma(atribuicao) is None
 
 
 def test_buscar_turmas_professor_ancora_regular(db):
     """Âncora de turma regular: codigo_turma vem de codigo_turma_escola."""
     _cria_professor_com_atribuicao("7654321", 2112345, "000532")
 
-    resultado = repository.buscar_turmas_professor("7654321")
+    resultado = repositories.buscar_turmas_professor("7654321")
 
     assert resultado == [
         {
@@ -242,7 +242,7 @@ def test_buscar_turmas_professor_ancora_programa(db):
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 
-    resultado = repository.buscar_turmas_professor("7654322")
+    resultado = repositories.buscar_turmas_professor("7654322")
 
     assert resultado == [
         {
@@ -281,7 +281,7 @@ def test_buscar_turmas_professor_escola_ano_usa_dados_atribuicao(
         dt_inicio_turma=date(date.today().year, 1, 15),
     )
 
-    resultado = repository.buscar_turmas_professor_escola_ano(
+    resultado = repositories.buscar_turmas_professor_escola_ano(
         "7654321", ue.codigo_ue, date.today().year
     )
 
@@ -330,7 +330,7 @@ def test_buscar_turmas_professor_escola_ano_sem_rf_filtra_anos_iniciais(
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
-    resultado = repository.buscar_turmas_professor_escola_ano(
+    resultado = repositories.buscar_turmas_professor_escola_ano(
         None, ue.codigo_ue, 2024
     )
 
@@ -341,7 +341,7 @@ def test_buscar_turmas_professor_ano_inclui_campos_atribuicao_externa(
     atribuicao_externa,
 ):
     """Verifica payload de vinculo externo com dados desnormalizados."""
-    resultado = repository.buscar_turmas_professor_ano("98765432100", 2024)
+    resultado = repositories.buscar_turmas_professor_ano("98765432100", 2024)
 
     assert resultado == [
         {
@@ -363,7 +363,7 @@ def test_buscar_turmas_professor_ignora_atribuicao_externa(
     db, atribuicao_externa
 ):
     """Atribuição externa não entra no recorte de /turmas."""
-    resultado = repository.buscar_turmas_professor("98765432100")
+    resultado = repositories.buscar_turmas_professor("98765432100")
 
     assert resultado == []
 
@@ -390,7 +390,7 @@ def test_buscar_turmas_professor_ignora_atribuicao_cancelada(db):
         dt_cancelamento=date(2024, 6, 1),
     )
 
-    assert repository.buscar_turmas_professor("7654323") == []
+    assert repositories.buscar_turmas_professor("7654323") == []
 
 
 def test_atribuicao_disciplina_territorio_filtra_por_data():
@@ -402,7 +402,7 @@ def test_atribuicao_disciplina_territorio_filtra_por_data():
         dt_inicio_atribuicao=date(2024, 2, 1),
     )
 
-    assert repository.atribuicao_disciplina_data(
+    assert repositories.atribuicao_disciplina_data(
         "7654321",
         2112345,
         138,
@@ -421,7 +421,7 @@ def test_titulares_por_turma_agrupamento_com_componentes():
         dt_inicio_atribuicao=date(2024, 2, 1),
     )
 
-    resultado = repository.titulares_por_turma_agrupamento(
+    resultado = repositories.titulares_por_turma_agrupamento(
         2112345,
         True,
         codigo_rf="7654321",
@@ -439,7 +439,7 @@ def test_titulares_por_turma_agrupamento_sem_componentes():
         codigo_turma=2112345,
     )
 
-    resultado = repository.titulares_por_turma_agrupamento(2112345, True)
+    resultado = repositories.titulares_por_turma_agrupamento(2112345, True)
 
     assert resultado[0]["disciplinas_id"] is None
 
@@ -448,7 +448,7 @@ def test_atribuicao_turmas_lista_sem_turmas_retorna_vazio(
     atribuicao,
 ):
     """Verifica retorno vazio sem lista de turmas informada."""
-    resultado = repository.atribuicao_turmas_lista("7654321", 138, [])
+    resultado = repositories.atribuicao_turmas_lista("7654321", 138, [])
 
     assert resultado == []
 
@@ -466,7 +466,7 @@ def test_atribuicao_turmas_lista_inclui_atribuicao_externa(
         ]
     )
 
-    resultado = repository.atribuicao_turmas_lista(
+    resultado = repositories.atribuicao_turmas_lista(
         "98765432100",
         138,
         [2112345],
@@ -528,7 +528,7 @@ def test_buscar_abrangencia_funcionario_perfil_monta_hierarquia(db):
     """Abrangência agrupa turmas vigentes por DRE e UE."""
     _cria_atribuicao_abrangencia("770001", "000532", 2112345, "108100")
 
-    resultado = repository.buscar_abrangencia_funcionario_perfil(
+    resultado = repositories.buscar_abrangencia_funcionario_perfil(
         "770001", "perfil-x"
     )
 
@@ -549,7 +549,7 @@ def test_buscar_abrangencia_funcionario_perfil_turma_programa(db):
         "770002", "000600", 2113000, "108200", codigo_tipo_turma=2
     )
 
-    resultado = repository.buscar_abrangencia_funcionario_perfil(
+    resultado = repositories.buscar_abrangencia_funcionario_perfil(
         "770002", "perfil-x"
     )
 
@@ -580,7 +580,7 @@ def test_buscar_abrangencia_ignora_atribuicao_de_outro_ano(db):
         dt_atribuicao_aula=date(date.today().year - 1, 2, 1),
     )
 
-    resultado = repository.buscar_abrangencia_funcionario_perfil(
+    resultado = repositories.buscar_abrangencia_funcionario_perfil(
         "770003", "perfil-x"
     )
 
@@ -608,14 +608,14 @@ def test_turmas_atribuidas_ue_filtra_rf_cargo_dre(db):
     _cria("111", "000003", 30, cargo=9999, dre="200000")
     _cria("222", "000004", 40, cargo=3360)
 
-    todas = repository.turmas_atribuidas_ue("111")
+    todas = repositories.turmas_atribuidas_ue("111")
     assert {t["codigo_turma"] for t in todas} == {10, 20, 30}
     assert {t["codigo_dre"] for t in todas} == {"108100", "200000"}
 
-    por_cargo = repository.turmas_atribuidas_ue("111", cargos=[3360, 3379])
+    por_cargo = repositories.turmas_atribuidas_ue("111", cargos=[3360, 3379])
     assert {t["codigo_turma"] for t in por_cargo} == {10, 20}
 
-    por_dre = repository.turmas_atribuidas_ue("111", codigo_dre="200000")
+    por_dre = repositories.turmas_atribuidas_ue("111", codigo_dre="200000")
     assert [t["codigo_turma"] for t in por_dre] == [30]
 
 
@@ -645,7 +645,7 @@ def test_buscar_abrangencia_deduplica_turma_repetida(db):
             codigo_dre="108100",
         )
 
-    resultado = repository.buscar_abrangencia_funcionario_perfil(
+    resultado = repositories.buscar_abrangencia_funcionario_perfil(
         "770004", "perfil-x"
     )
 
@@ -687,7 +687,7 @@ def test_buscar_abrangencia_exclui_atribuicao_ja_disponibilizada(db):
         **comum,
     )
 
-    resultado = repository.buscar_abrangencia_funcionario_perfil(
+    resultado = repositories.buscar_abrangencia_funcionario_perfil(
         "770006", "perfil-x"
     )
 

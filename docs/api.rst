@@ -27,7 +27,7 @@ Professores
    :members:
    :undoc-members:
 
-.. automodule:: apps.professores.repository
+.. automodule:: apps.professores.repositories
    :members:
    :undoc-members:
 
@@ -57,7 +57,7 @@ Funcionários
    :members:
    :undoc-members:
 
-.. automodule:: apps.funcionarios.repository
+.. automodule:: apps.funcionarios.repositories
    :members:
    :undoc-members:
 

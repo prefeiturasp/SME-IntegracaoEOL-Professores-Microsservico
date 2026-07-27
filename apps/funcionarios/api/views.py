@@ -11,10 +11,13 @@ from apps.funcionarios.serializers import (
     DreUeCargoSerializer,
     FuncionarioExternoCpfSerializer,
     FuncionarioFuncaoExternaSerializer,
+    FuncionariosUEFiltroSerializer,
     FuncionariosUEQuerySerializer,
     FuncionarioUESerializer,
     NomeCPFServidorSerializer,
     ResumoFuncionarioSerializer,
+    SupervisoresFiltroSerializer,
+    SupervisorSerializer,
     UsuarioSGPSerializer,
 )
 
@@ -75,6 +78,46 @@ class FuncionariosPorUEView(APIView):
         resultado = services.funcionarios_por_ue(
             codigo_ue,
             filtros=serializer.validated_data,
+        )
+        return Response(resultado)
+
+
+class FuncionariosUEView(APIView):
+    """Lista funcionários ativos de uma unidade educacional."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Funcionários ativos de uma UE",
+        parameters=[
+            OpenApiParameter("codigo_ue", str, OpenApiParameter.PATH),
+        ],
+        request=FuncionariosUEFiltroSerializer,
+        responses={200: FuncionarioUESerializer(many=True), 400: dict},
+    )
+    def post(self, request: Request, codigo_ue: str) -> Response:
+        """Lista funcionários ativos de uma unidade educacional.
+
+        O campo de login depende da Identidade para indicar se o
+        funcionário possui usuário vinculado.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_ue: Código EOL da unidade educacional consultada.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        serializer = FuncionariosUEFiltroSerializer(data=request.data or {})
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        resultado = services.funcionarios_ue(
+            codigo_ue,
+            filtros={},
+            codigos_rfs=serializer.validated_data["codigosRfs"],
+            filtro=serializer.validated_data["filtro"],
         )
         return Response(resultado)
 
@@ -291,6 +334,68 @@ class CargosFuncionarioView(APIView):
             Resposta HTTP com o resultado da operação.
         """
         return Response(services.cargos_funcionario(registro_funcional))
+
+
+class FuncionariosPorCargoView(APIView):
+    """Lista funcionários ativos por cargo."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Funcionários ativos por cargo",
+        parameters=[
+            OpenApiParameter("codigo_cargo", int, OpenApiParameter.PATH),
+        ],
+        responses={200: FuncionarioUESerializer(many=True)},
+    )
+    def get(self, request: Request, codigo_cargo: int) -> Response:
+        """Lista funcionários ativos por cargo.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_cargo: Código do cargo consultado.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        return Response(services.funcionarios_por_cargo(codigo_cargo))
+
+
+class SupervisoresPorDreView(APIView):
+    """Lista supervisores vinculados à DRE."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Supervisores por DRE",
+        parameters=[
+            OpenApiParameter("codigo_dre", str, OpenApiParameter.PATH),
+        ],
+        request=SupervisoresFiltroSerializer,
+        responses={200: SupervisorSerializer(many=True), 400: dict},
+    )
+    def post(self, request: Request, codigo_dre: str) -> Response:
+        """Lista supervisores vinculados à DRE.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_dre: Código EOL da DRE consultada.
+
+        Returns:
+            Resposta HTTP com os supervisores encontrados.
+        """
+        serializer = SupervisoresFiltroSerializer(
+            data={"codigos_rfs": request.data or []}
+        )
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            services.supervisores_por_dre(
+                codigo_dre,
+                serializer.validated_data["codigos_rfs"],
+            )
+        )
 
 
 class FuncionarioExternoPorCpfView(APIView):

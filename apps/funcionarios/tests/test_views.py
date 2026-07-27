@@ -14,6 +14,7 @@ from apps.funcionarios.api.views import (
 )
 from apps.professores.models import (
     CargoBaseServidor,
+    FuncionarioCargo,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Professor,
@@ -45,6 +46,227 @@ class TestEP25FuncionariosPorUE:
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/escolas/000532/funcionarios/")
+        assert res.status_code == 403
+
+    def test_rota_antiga_filtra_professor(self, client, lotacao, ue):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            cpf="11111111111",
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo="3360",
+            cargo="DIRETOR",
+            eh_professor=False,
+        )
+
+        res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
+
+        assert res.status_code == 200
+        assert all(item["codigo_rf"] != "1111111" for item in res.data)
+
+
+class TestFuncionariosUE:
+    def test_rota_legado_retorna_funcionario_nao_professor(
+        self, client, lotacao, ue
+    ):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            cpf="11111111111",
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo="3360",
+            cargo="DIRETOR",
+            eh_professor=False,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": [], "filtro": ""},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert any(item["codigo_rf"] == "1111111" for item in res.data)
+
+    def test_rota_legado_filtra_por_rf(self, client, lotacao, ue):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            cpf="11111111111",
+            codigo_ue=ue.codigo_ue,
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo="3360",
+            cargo="DIRETOR",
+            eh_professor=False,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": ["1111111"], "filtro": "Ana"},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert [item["codigo_rf"] for item in res.data] == ["1111111"]
+
+    def test_rota_legado_filtra_por_texto(self, client, lotacao):
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": [], "filtro": "Ana"},
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert [item["codigo_rf"] for item in res.data] == ["7654321"]
+
+    def test_rota_legado_valida_body(self, client):
+        res = client.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": "invalido"},
+            format="json",
+        )
+
+        assert res.status_code == 400
+        assert "codigosRfs" in res.data
+
+    def test_rota_legado_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/ue/000532/",
+            {"codigosRfs": [], "filtro": ""},
+            format="json",
+        )
+
+        assert res.status_code == 403
+
+
+class TestFuncionariosPorCargo:
+    def test_retorna_funcionarios_do_cargo(self, client):
+        FuncionarioCargo.objects.create(
+            codigo_rf="1111111",
+            nome="Carlos Gestor",
+            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+            codigo_cargo=3360,
+            cargo="DIRETOR",
+        )
+        FuncionarioCargo.objects.create(
+            codigo_rf="2222222",
+            nome="Gestor Encerrado",
+            data_inicio=datetime(2020, 1, 1, tzinfo=UTC),
+            data_fim=datetime(2021, 1, 1, tzinfo=UTC),
+            codigo_cargo=3360,
+            cargo="DIRETOR",
+        )
+
+        res = client.get(f"{_BASE}/funcionarios/cargos/3360/")
+
+        assert res.status_code == 200
+        assert len(res.data) == 1
+        assert res.data[0]["codigo_rf"] == "1111111"
+        assert res.data[0]["codigo_cargo"] == 3360
+        assert res.data[0]["codigo_tipo_funcao_atividade"] == 0
+        assert res.data[0]["esta_afastado"] is False
+
+    def test_sem_cargo_retorna_lista_vazia(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/cargos/3360/")
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/cargos/3360/")
+
+        assert res.status_code == 403
+
+
+class TestSupervisoresPorDre:
+    def test_retorna_supervisor_da_dre(self, client, ue):
+        supervisor = Professor.objects.create(
+            codigo_rf="1111111",
+            nome="Supervisora Silva",
+            cpf="11111111111",
+        )
+        cargo_supervisor = CargoBaseServidor.objects.create(
+            professor=supervisor,
+            codigo_cargo=3352,
+            descricao_cargo="SUPERVISOR ESCOLAR",
+            dt_posse=date(2024, 1, 1),
+        )
+        LotacaoServidor.objects.create(
+            cargo_base=cargo_supervisor,
+            codigo_unidade_educacao=ue.codigo_ue,
+            codigo_dre=ue.codigo_dre,
+            dt_inicio=date(2024, 1, 1),
+        )
+        diretor = Professor.objects.create(
+            codigo_rf="2222222",
+            nome="Diretora Fora",
+            cpf="22222222222",
+        )
+        cargo_diretor = CargoBaseServidor.objects.create(
+            professor=diretor,
+            codigo_cargo=3360,
+            descricao_cargo="DIRETOR DE ESCOLA",
+            dt_posse=date(2024, 1, 1),
+        )
+        LotacaoServidor.objects.create(
+            cargo_base=cargo_diretor,
+            codigo_unidade_educacao=ue.codigo_ue,
+            codigo_dre=ue.codigo_dre,
+            dt_inicio=date(2024, 1, 1),
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/supervisores/108100/",
+            ["1111111", "2222222"],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "codigo_rf": "1111111",
+                "nome_servidor": "Supervisora Silva",
+            }
+        ]
+
+    def test_ignora_nomeacao_encerrada(self, client, ue):
+        supervisor = Professor.objects.create(
+            codigo_rf="1111111",
+            nome="Supervisora Encerrada",
+            cpf="11111111111",
+        )
+        cargo_supervisor = CargoBaseServidor.objects.create(
+            professor=supervisor,
+            codigo_cargo=3352,
+            descricao_cargo="SUPERVISOR ESCOLAR",
+            dt_posse=date(2024, 1, 1),
+            dt_fim_nomeacao=datetime(2025, 1, 1, tzinfo=UTC),
+        )
+        LotacaoServidor.objects.create(
+            cargo_base=cargo_supervisor,
+            codigo_unidade_educacao=ue.codigo_ue,
+            codigo_dre=ue.codigo_dre,
+            dt_inicio=date(2024, 1, 1),
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/supervisores/108100/",
+            ["1111111"],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/supervisores/108100/",
+            ["1111111"],
+            format="json",
+        )
+
         assert res.status_code == 403
 
 
@@ -90,6 +312,7 @@ class TestEP26FuncionariosPorUEFiltros:
             data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
             codigo_cargo=str(cargo.codigo_cargo),
             cargo=cargo.descricao_cargo,
+            eh_professor=True,
         )
         LotacaoServidor.objects.create(
             cargo_base=cargo,
