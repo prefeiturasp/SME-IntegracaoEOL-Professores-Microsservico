@@ -764,6 +764,10 @@ class TestEP36FuncionariosSGPDre:
         )
 
     def test_retorna_funcionario_da_dre(self, client, lotacao, ue):
+        FuncionarioUnidadeEducacional.objects.filter(
+            codigo_rf="7654321"
+        ).update(codigo_ue="108199")
+
         res = client.get(
             f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
         )
@@ -777,6 +781,10 @@ class TestEP36FuncionariosSGPDre:
         assert res.status_code == 404
 
     def test_filtro_rf_retorna_especifico(self, client, lotacao, ue):
+        FuncionarioUnidadeEducacional.objects.filter(
+            codigo_rf="7654321"
+        ).update(codigo_ue="108199")
+
         res = client.get(
             f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
             "?codigo_rf=7654321"

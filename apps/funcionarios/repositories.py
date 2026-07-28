@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from django.db.models import F, Q, Window
+from django.db.models import Case, F, IntegerField, Q, Value, When, Window
 from django.db.models.functions import RowNumber
 from django.utils import timezone
 
@@ -125,16 +125,24 @@ def _func_row(
 def _usuario_sgp_row(
     funcionario: FuncionarioUnidadeEducacional,
     codigo_dre: str | None = None,
+    codigo_funcao_atividade: int | None = None,
 ) -> dict:
     """Monta funcionário SGP a partir do vínculo consolidado.
 
     Args:
         funcionario: Funcionário usado para montar os dados.
         codigo_dre: DRE usada na consulta.
+        codigo_funcao_atividade: Função usada quando encontrada no conjunto.
 
     Returns:
         Dicionário de funcionário SGP.
     """
+    if codigo_funcao_atividade is None:
+        codigo_funcao_atividade = 0
+        if funcionario.origem_vinculo == "funcao_atividade":
+            codigo_funcao_atividade = (
+                funcionario.codigo_tipo_funcao_atividade or 0
+            )
     return {
         "codigo_rf": funcionario.codigo_rf,
         "login": funcionario.codigo_rf,
@@ -142,9 +150,7 @@ def _usuario_sgp_row(
         "codigo_dre": codigo_dre or funcionario.codigo_dre,
         "codigo_ue": funcionario.codigo_ue,
         "cd_cargo": funcionario.codigo_cargo,
-        "codigo_funcao_atividade": (
-            funcionario.codigo_tipo_funcao_atividade or 0
-        ),
+        "codigo_funcao_atividade": codigo_funcao_atividade,
         "funcao_externo": funcionario.funcao_externo or 0,
         "tipo_funcao_externo": funcionario.tipo_funcao_externo or 0,
     }
@@ -155,6 +161,7 @@ def _funcionarios_sgp_por_dre_qs(
     codigo_ue: str | None = None,
     codigo_rf: str | None = None,
     nome_servidor_param: str | None = None,
+    busca_por_prefixo_ue: bool = False,
 ) -> Any:
     """Filtra vínculos consolidados por DRE.
 
@@ -163,14 +170,18 @@ def _funcionarios_sgp_por_dre_qs(
         codigo_ue: Código EOL da unidade usada no filtro.
         codigo_rf: RF usado no filtro.
         nome_servidor_param: Trecho do nome usado no filtro.
+        busca_por_prefixo_ue: Indica busca por unidades do agrupamento da DRE.
 
     Returns:
         Vínculos compatíveis com os filtros.
     """
     qs = FuncionarioUnidadeEducacional.objects.all()
-    qs = qs.filter(codigo_ue=codigo_ue) if codigo_ue else qs.filter(
-        codigo_dre=codigo_dre
-    )
+    if codigo_ue:
+        qs = qs.filter(codigo_ue=codigo_ue)
+    elif busca_por_prefixo_ue:
+        qs = qs.filter(codigo_ue__startswith=codigo_dre[:4])
+    else:
+        qs = qs.filter(codigo_dre=codigo_dre)
     if codigo_rf:
         return qs.filter(codigo_rf=codigo_rf)
     if nome_servidor_param:
@@ -804,6 +815,7 @@ def usuarios_sgp_por_perfil(  # NOSONAR
             codigo_ue=codigo_ue,
             codigo_rf=codigo_rf,
             nome_servidor_param=nome_servidor_param,
+            busca_por_prefixo_ue=False,
         )
     if codigo_rf:
         qs = FuncionarioUnidadeEducacional.objects.filter(
@@ -866,6 +878,7 @@ def funcionarios_sgp_dre(  # NOSONAR
     codigo_rf: str | None = None,
     nome_servidor_param: str | None = None,
     codigo_funcao_atividade: int | None = None,  # NOSONAR
+    busca_por_prefixo_ue: bool = True,
 ) -> list[dict]:
     """Lista funcionários SGP por DRE e filtros opcionais.
 
@@ -878,6 +891,7 @@ def funcionarios_sgp_dre(  # NOSONAR
         nome_servidor_param: Trecho do nome usado como filtro opcional.
         codigo_funcao_atividade: Mantido por compatibilidade de contrato,
             sem efeito na consulta.
+        busca_por_prefixo_ue: Indica busca por unidades do agrupamento da DRE.
 
     Returns:
         Funcionários com lotação ativa na DRE compatíveis com os filtros.
@@ -887,22 +901,51 @@ def funcionarios_sgp_dre(  # NOSONAR
         codigo_ue=codigo_ue,
         codigo_rf=codigo_rf,
         nome_servidor_param=nome_servidor_param,
+        busca_por_prefixo_ue=busca_por_prefixo_ue,
     )
     if codigo_funcao_atividade:
         qs = qs.filter(codigo_tipo_funcao_atividade=codigo_funcao_atividade)
+    funcoes_por_rf = {
+        item["codigo_rf"]: item["codigo_tipo_funcao_atividade"]
+        for item in qs.filter(
+            origem_vinculo="funcao_atividade",
+        )
+        .exclude(codigo_tipo_funcao_atividade__isnull=True)
+        .exclude(codigo_tipo_funcao_atividade=0)
+        .order_by("codigo_rf")
+        .values("codigo_rf", "codigo_tipo_funcao_atividade")
+    }
     funcionarios = qs.annotate(
+        ordem_vinculo=Case(
+            When(
+                origem_vinculo="cargo_sobreposto",
+                codigo_cargo="3351",
+                then=Value(0),
+            ),
+            When(origem_vinculo="lotacao", then=Value(1)),
+            When(origem_vinculo="cargo_sobreposto", then=Value(2)),
+            When(origem_vinculo="atribuicao_aula", then=Value(3)),
+            When(origem_vinculo="funcao_atividade", then=Value(4)),
+            When(origem_vinculo="externo", then=Value(5)),
+            default=Value(6),
+            output_field=IntegerField(),
+        ),
         ordem_rf=Window(
             expression=RowNumber(),
             partition_by=[F("codigo_rf")],
             order_by=[
                 F("codigo_rf").asc(),
+                F("ordem_vinculo").asc(),
                 F("codigo_ue").asc(nulls_last=True),
-                F("origem_vinculo").asc(nulls_last=True),
             ],
         )
     ).filter(ordem_rf=1)
     return [
-        _usuario_sgp_row(funcionario, codigo_dre)
+        _usuario_sgp_row(
+            funcionario,
+            codigo_dre,
+            funcoes_por_rf.get(funcionario.codigo_rf),
+        )
         for funcionario in funcionarios
     ]
 

@@ -317,6 +317,37 @@ def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(db):
     ]
 
 
+def test_usuarios_sgp_por_perfil_com_dre_usa_referencia(db):
+    """Verifica consulta por DRE no fluxo de perfil."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="lotacao",
+    )
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="2222222",
+        nome="Beatriz Gestora",
+        codigo_ue="108199",
+        codigo_dre="200000",
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="lotacao",
+    )
+
+    resultado = repositories.usuarios_sgp_por_perfil(
+        "perfil-guid-123",
+        codigo_dre="108100",
+    )
+
+    assert [item["codigo_rf"] for item in resultado] == ["1111111"]
+
+
 def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(db):
     """Verifica consulta por UE quando DRE também é enviada."""
     FuncionarioUnidadeEducacional.objects.create(
@@ -396,6 +427,37 @@ def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):
     assert resultado[0]["codigo_ue"] == "000532"
 
 
+def test_funcionarios_sgp_dre_usa_prefixo_da_dre(db):
+    """Verifica consulta por DRE no fluxo legado direto."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Carlos Gestor",
+        codigo_ue="108199",
+        codigo_dre="200000",
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="lotacao",
+    )
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="2222222",
+        nome="Beatriz Gestora",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+        codigo_cargo="3360",
+        cargo="DIRETOR",
+        origem_vinculo="lotacao",
+    )
+
+    resultado = repositories.funcionarios_sgp_dre(
+        "perfil-guid-123",
+        "108100",
+    )
+
+    assert [item["codigo_rf"] for item in resultado] == ["1111111"]
+
+
 def test_funcionarios_sgp_dre_remove_duplicados_por_rf(lotacao, monkeypatch):
     """Verifica que funcionários duplicados não são repetidos."""
     funcionario = FuncionarioUnidadeEducacional.objects.get(
@@ -408,12 +470,24 @@ def test_funcionarios_sgp_dre_remove_duplicados_por_rf(lotacao, monkeypatch):
         annotate_kwargs = None
         filter_kwargs = None
 
-        def filter(self, **_kwargs):
+        def filter(self, **kwargs):
             """Retorna a própria query após filtro."""
-            self.filter_kwargs = _kwargs
-            if _kwargs == {"ordem_rf": 1}:
+            self.filter_kwargs = kwargs
+            if kwargs == {"ordem_rf": 1}:
                 return [funcionario]
             return self
+
+        def exclude(self, **_kwargs):
+            """Retorna a própria query após exclusão."""
+            return self
+
+        def order_by(self, *_args):
+            """Retorna a própria query após ordenação."""
+            return self
+
+        def values(self, *_args):
+            """Retorna mapa vazio de funções."""
+            return []
 
         def annotate(self, **kwargs):
             """Guarda as anotações da query."""
@@ -435,6 +509,7 @@ def test_funcionarios_sgp_dre_remove_duplicados_por_rf(lotacao, monkeypatch):
 
     assert [item["codigo_rf"] for item in resultado] == ["7654321"]
     assert "ordem_rf" in query.annotate_kwargs
+    assert "ordem_vinculo" in query.annotate_kwargs
     assert query.filter_kwargs == {"ordem_rf": 1}
 
 
