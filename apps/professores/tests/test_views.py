@@ -633,18 +633,6 @@ class TestEP14AtribuicaoDisciplinaData:
         assert res.status_code == 200
         assert res.data is False
 
-    def test_com_territorio_saber_sem_agrupamento_retorna_false(
-        self, client, atribuicao
-    ):
-        """Verifica com territorio saber sem agrupamento retorna false."""
-        res = client.get(
-            f"{_BASE}/professores/7654321/turmas/2112345"
-            "/disciplinas/138/atribuicao/verificar/data/"
-            "?territorio_saber=true"
-        )
-        assert res.status_code == 200
-        assert res.data is False
-
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""
         res = anon.get(

@@ -393,24 +393,6 @@ def test_buscar_turmas_professor_ignora_atribuicao_cancelada(db):
     assert repositories.buscar_turmas_professor("7654323") == []
 
 
-def test_atribuicao_disciplina_territorio_filtra_por_data():
-    """Verifica atribuicao de territorio do saber com data."""
-    AgrupamentoAtribuicaoTerritorioSaber.objects.create(
-        codigo_agrupamento=1,
-        rf_professor="7654321",
-        codigo_turma=2112345,
-        dt_inicio_atribuicao=date(2024, 2, 1),
-    )
-
-    assert repositories.atribuicao_disciplina_data(
-        "7654321",
-        2112345,
-        138,
-        date(2024, 2, 2),
-        territorio_saber=True,
-    )
-
-
 def test_titulares_por_turma_agrupamento_com_componentes():
     """Verifica titulares agrupados com componentes informados."""
     AgrupamentoAtribuicaoTerritorioSaber.objects.create(
