@@ -168,8 +168,10 @@ def _funcionarios_sgp_por_dre_qs(
         Vínculos compatíveis com os filtros.
     """
     qs = FuncionarioUnidadeEducacional.objects.all()
-    qs = qs.filter(codigo_ue=codigo_ue) if codigo_ue else qs.filter(
-        codigo_dre=codigo_dre
+    qs = (
+        qs.filter(codigo_ue=codigo_ue)
+        if codigo_ue
+        else qs.filter(codigo_dre=codigo_dre)
     )
     if codigo_rf:
         return qs.filter(codigo_rf=codigo_rf)
@@ -271,8 +273,10 @@ def funcionarios_por_ue(
     Returns:
         Funcionários da unidade, ordenados por nome.
     """
-    base_qs = _funcionarios_ativos() if somente_professores else (
-        _funcionarios_ue_legado()
+    base_qs = (
+        _funcionarios_ativos()
+        if somente_professores
+        else (_funcionarios_ue_legado())
     )
     qs = base_qs.filter(codigo_ue=codigo_ue)
     if somente_professores:
@@ -389,9 +393,7 @@ def supervisores_por_dre(
             | (
                 Q(cargos_sobrepostos__codigo_cargo=_CODIGO_CARGO_SUPERVISOR)
                 & (
-                    Q(
-                        cargos_sobrepostos__dt_fim_cargo_sobreposto__isnull=True
-                    )
+                    Q(cargos_sobrepostos__dt_fim_cargo_sobreposto__isnull=True)
                     | Q(cargos_sobrepostos__dt_fim_cargo_sobreposto__gt=hoje)
                 )
             )
@@ -681,10 +683,14 @@ def nome_cpf_servidor(registro_funcional: str) -> dict | None:
     Returns:
         Nome e CPF do servidor, ou ``None`` quando não encontrado.
     """
-    func = _funcionarios_ativos().filter(
-        codigo_rf=registro_funcional,
-        funcao_externo=0,
-    ).first()
+    func = (
+        _funcionarios_ativos()
+        .filter(
+            codigo_rf=registro_funcional,
+            funcao_externo=0,
+        )
+        .first()
+    )
     if func:
         return {"nome": get_nome(func), "cpf": func.cpf}
 
@@ -703,10 +709,14 @@ def nome_servidor(registro_funcional: str) -> str | None:
     Returns:
         Nome do funcionário, ou ``None`` quando não encontrado.
     """
-    func = _funcionarios_ativos().filter(
-        codigo_rf=registro_funcional,
-        funcao_externo=0,
-    ).first()
+    func = (
+        _funcionarios_ativos()
+        .filter(
+            codigo_rf=registro_funcional,
+            funcao_externo=0,
+        )
+        .first()
+    )
     if func:
         return get_nome(func)
 
@@ -806,9 +816,7 @@ def usuarios_sgp_por_perfil(  # NOSONAR
             nome_servidor_param=nome_servidor_param,
         )
     if codigo_rf:
-        qs = FuncionarioUnidadeEducacional.objects.filter(
-            codigo_rf=codigo_rf
-        )
+        qs = FuncionarioUnidadeEducacional.objects.filter(codigo_rf=codigo_rf)
         if codigo_ue:
             qs = qs.filter(codigo_ue=codigo_ue)
         funcionario = qs.order_by("codigo_rf").first()

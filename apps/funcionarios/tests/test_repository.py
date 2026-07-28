@@ -37,9 +37,10 @@ def test_dre_de_ue_guarda_none_quando_ue_nao_existe():
 
 def test_funcionarios_por_lista_funcoes_externas_sem_funcoes():
     """Verifica retorno vazio sem funcoes externas."""
-    assert repositories.funcionarios_por_lista_funcoes_externas(
-        "000532", []
-    ) == []
+    assert (
+        repositories.funcionarios_por_lista_funcoes_externas("000532", [])
+        == []
+    )
 
 
 def test_nome_funcionario_prioriza_nome_social(lotacao):
@@ -81,9 +82,7 @@ def test_funcionarios_por_ue_cargo_filtra_cargo(lotacao):
     assert resultado[0]["codigo_rf"] == "7654321"
 
 
-def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(
-    lotacao, ue
-):
+def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(lotacao, ue):
     """Verifica fim de nomeação no bloco de lotação."""
     FuncionarioUnidadeEducacional.objects.create(
         codigo_rf="1111111",

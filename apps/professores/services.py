@@ -301,7 +301,6 @@ def atribuicao_disciplina_data(
     codigo_turma: int,
     disciplina_id: int,
     data_consulta: str | None,
-    territorio_saber: str | None,
 ) -> bool:
     """Verifica atribuicao do professor na disciplina em uma data.
 
@@ -310,7 +309,6 @@ def atribuicao_disciplina_data(
         codigo_turma: Código EOL da turma consultada.
         disciplina_id: Identificador do componente curricular ou disciplina.
         data_consulta: Data opcional usada para validar vigência.
-        territorio_saber: Indica consulta em território do saber.
 
     Returns:
         Resultado booleano da validação solicitada.
@@ -320,7 +318,6 @@ def atribuicao_disciplina_data(
         codigo_turma,
         disciplina_id,
         _data_iso_ou_none(data_consulta),
-        (territorio_saber or "").lower() == "true",
     )
 
 
