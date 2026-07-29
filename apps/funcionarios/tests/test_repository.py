@@ -37,9 +37,10 @@ def test_dre_de_ue_guarda_none_quando_ue_nao_existe():
 
 def test_funcionarios_por_lista_funcoes_externas_sem_funcoes():
     """Verifica retorno vazio sem funcoes externas."""
-    assert repositories.funcionarios_por_lista_funcoes_externas(
-        "000532", []
-    ) == []
+    assert (
+        repositories.funcionarios_por_lista_funcoes_externas("000532", [])
+        == []
+    )
 
 
 def test_nome_funcionario_prioriza_nome_social(lotacao):
@@ -81,9 +82,7 @@ def test_funcionarios_por_ue_cargo_filtra_cargo(lotacao):
     assert resultado[0]["codigo_rf"] == "7654321"
 
 
-def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(
-    lotacao, ue
-):
+def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(lotacao, ue):
     """Verifica fim de nomeação no bloco de lotação."""
     FuncionarioUnidadeEducacional.objects.create(
         codigo_rf="1111111",
@@ -427,8 +426,8 @@ def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):
     assert resultado[0]["codigo_ue"] == "000532"
 
 
-def test_funcionarios_sgp_dre_usa_prefixo_da_dre(db):
-    """Verifica consulta por DRE no fluxo legado direto."""
+def test_funcionarios_sgp_dre_usa_codigo_dre_consolidado(db):
+    """Verifica consulta pelo código da DRE do vínculo consolidado."""
     FuncionarioUnidadeEducacional.objects.create(
         codigo_rf="1111111",
         nome="Carlos Gestor",
@@ -455,7 +454,7 @@ def test_funcionarios_sgp_dre_usa_prefixo_da_dre(db):
         "108100",
     )
 
-    assert [item["codigo_rf"] for item in resultado] == ["1111111"]
+    assert [item["codigo_rf"] for item in resultado] == ["2222222"]
 
 
 def test_funcionarios_sgp_dre_remove_duplicados_por_rf(lotacao, monkeypatch):

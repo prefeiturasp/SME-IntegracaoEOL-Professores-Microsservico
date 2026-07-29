@@ -902,7 +902,6 @@ def atribuicao_disciplina_data(
     codigo_turma: int,
     disciplina_id: int,
     data_consulta: date | None = None,
-    territorio_saber: bool = False,
 ) -> bool:
     """Verifica atribuição do professor em turma e disciplina.
 
@@ -911,20 +910,10 @@ def atribuicao_disciplina_data(
         codigo_turma: CodigoEOL da turma.
         disciplina_id: Código do componente curricular.
         data_consulta: Data opcional usada para validar vigência.
-        territorio_saber: Indica consulta em território do saber.
 
     Returns:
         ``True`` quando existe atribuição para turma e disciplina.
     """
-    if territorio_saber:
-        qs = AgrupamentoAtribuicaoTerritorioSaber.objects.filter(
-            rf_professor=codigo_rf,
-            codigo_turma=codigo_turma,
-        )
-        if data_consulta:
-            qs = qs.filter(dt_inicio_atribuicao__lte=data_consulta)
-        return bool(qs.exists())
-
     qs = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf=codigo_rf,
         codigo_componente_curricular=disciplina_id,
@@ -1140,14 +1129,14 @@ def professores_atribuidos_turma_disc(
             {
                 "codigo_turma": str(codigo_turma),
                 "ano_letivo": None,
-                "nome_turma": None,
+                "nome_turma": aa.descricao_turma_escola,
                 "data_inicio_atribuicao": fmt_iso(aa.dt_atribuicao_aula),
                 "data_fim_atribuicao": fmt_iso(aa.dt_disponibilizacao_aulas),
                 "data_fim_turma": fmt_iso(aa.dt_fim_turma),
                 "ano_atribuicao": aa.ano_atribuicao,
                 "codigo_rf": prof.codigo_rf,
                 "disciplina_id": str(disciplina_id),
-                "disciplina_nome": None,
+                "disciplina_nome": aa.descricao_componente_curricular,
                 "disciplinas_agrupadas_ids": None,
                 "nome_professor": get_nome(prof),
             }
