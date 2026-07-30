@@ -176,11 +176,13 @@ def _funcionarios_sgp_por_dre_qs(
         Vínculos compatíveis com os filtros.
     """
     qs = FuncionarioUnidadeEducacional.objects.all()
-    qs = (
-        qs.filter(codigo_ue=codigo_ue)
-        if codigo_ue
-        else qs.filter(codigo_dre=codigo_dre)
-    )
+    if codigo_ue:
+        qs = qs.filter(codigo_ue=codigo_ue)
+    elif busca_por_prefixo_ue:
+        qs = qs.filter(codigo_ue__startswith=codigo_dre[:4])
+    else:
+        qs = qs.filter(codigo_dre=codigo_dre)
+
     if codigo_rf:
         return qs.filter(codigo_rf=codigo_rf)
     if nome_servidor_param:
