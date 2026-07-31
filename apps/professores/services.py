@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from apps.professores import repository
+from apps.professores import repositories
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ def buscar_professores_escola(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.buscar_professores_escola(
+    return repositories.buscar_professores_escola(
         codigo_eol_escola,
         ano_letivo,
     )
@@ -49,7 +49,7 @@ def buscar_turmas_professor_escola_ano(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.buscar_turmas_professor_escola_ano(
+    return repositories.buscar_turmas_professor_escola_ano(
         codigo_rf or "",
         codigo_eol_escola,
         ano_letivo,
@@ -70,8 +70,8 @@ def buscar_turmas_professor(
         Lista de dados encontrados para os filtros informados.
     """
     if ano_letivo is not None:
-        return repository.buscar_turmas_professor_ano(codigo_rf, ano_letivo)
-    return repository.buscar_turmas_professor(codigo_rf)
+        return repositories.buscar_turmas_professor_ano(codigo_rf, ano_letivo)
+    return repositories.buscar_turmas_professor(codigo_rf)
 
 
 def buscar_abrangencia_funcionario_perfil(
@@ -87,7 +87,7 @@ def buscar_abrangencia_funcionario_perfil(
     Returns:
         Abrangência organizada por DRE, UE e turma.
     """
-    return repository.buscar_abrangencia_funcionario_perfil(login, id_perfil)
+    return repositories.buscar_abrangencia_funcionario_perfil(login, id_perfil)
 
 
 def turmas_atribuidas_ue(
@@ -105,7 +105,7 @@ def turmas_atribuidas_ue(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.turmas_atribuidas_ue(codigo_rf, cargos, codigo_dre)
+    return repositories.turmas_atribuidas_ue(codigo_rf, cargos, codigo_dre)
 
 
 def disciplinas_turmas_atribuidas_ue(
@@ -125,7 +125,7 @@ def disciplinas_turmas_atribuidas_ue(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.disciplinas_turmas_atribuidas_ue(
+    return repositories.disciplinas_turmas_atribuidas_ue(
         codigo_rf,
         codigo_turma,
         cargos,
@@ -142,7 +142,7 @@ def obter_nome_rf(rf_professor: str) -> str | None:
     Returns:
         Texto encontrado ou ``None`` quando não houver resultado.
     """
-    return repository.obter_nome_rf(rf_professor)
+    return repositories.obter_nome_rf(rf_professor)
 
 
 def buscar_professor_com_atribuicao_aula_ano_letivo(
@@ -157,7 +157,7 @@ def buscar_professor_com_atribuicao_aula_ano_letivo(
     Returns:
         Dados encontrados ou ``None`` quando não houver resultado.
     """
-    return repository.buscar_professor_com_atribuicao_aula_ano_letivo(
+    return repositories.buscar_professor_com_atribuicao_aula_ano_letivo(
         codigo_rf, ano_letivo
     )
 
@@ -179,7 +179,7 @@ def buscar_por_rf_dre_ue(
     Returns:
         Dados encontrados ou ``None`` quando não houver resultado.
     """
-    return repository.buscar_por_rf_dre_ue(
+    return repositories.buscar_por_rf_dre_ue(
         codigo_rf,
         ano_letivo,
         ue_id=ue_id,
@@ -202,7 +202,7 @@ def autocomplete_professores(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.autocomplete_professores(
+    return repositories.autocomplete_professores(
         ano_letivo,
         ue_id=ue_id,
         nome=nome,
@@ -220,7 +220,7 @@ def buscar_por_lista_rf(ano_letivo: int, dados: Any) -> list[dict]:
         Lista de dados encontrados para os filtros informados.
     """
     lista_rf = dados if isinstance(dados, list) else []
-    return repository.buscar_por_lista_rf(ano_letivo, lista_rf)
+    return repositories.buscar_por_lista_rf(ano_letivo, lista_rf)
 
 
 def verificar_validade(codigo_rf: str) -> bool:
@@ -232,7 +232,7 @@ def verificar_validade(codigo_rf: str) -> bool:
     Returns:
         Resultado booleano da validação solicitada.
     """
-    return repository.verificar_validade(codigo_rf)
+    return repositories.verificar_validade(codigo_rf)
 
 
 def unidades_com_atribuicao_valida(codigo_rf: str) -> list[str]:
@@ -244,7 +244,7 @@ def unidades_com_atribuicao_valida(codigo_rf: str) -> list[str]:
     Returns:
         Lista de códigos encontrados para os filtros informados.
     """
-    return repository.unidades_com_atribuicao_valida(codigo_rf)
+    return repositories.unidades_com_atribuicao_valida(codigo_rf)
 
 
 def atribuicao_status(codigo_rf: str, codigo_turma: int) -> dict:
@@ -257,7 +257,7 @@ def atribuicao_status(codigo_rf: str, codigo_turma: int) -> dict:
     Returns:
         Dados do status de atribuição mais recente na turma.
     """
-    return repository.atribuicao_status(codigo_rf, codigo_turma)
+    return repositories.atribuicao_status(codigo_rf, codigo_turma)
 
 
 def _data_iso_ou_none(data_str: str | None) -> date | None:
@@ -289,7 +289,7 @@ def atribuicao_verificar_data(
     Returns:
         Resultado booleano da validação solicitada.
     """
-    return repository.atribuicao_verificar_data(
+    return repositories.atribuicao_verificar_data(
         codigo_rf,
         codigo_turma,
         _data_iso_ou_none(data_consulta),
@@ -301,7 +301,6 @@ def atribuicao_disciplina_data(
     codigo_turma: int,
     disciplina_id: int,
     data_consulta: str | None,
-    territorio_saber: str | None,
 ) -> bool:
     """Verifica atribuicao do professor na disciplina em uma data.
 
@@ -310,17 +309,15 @@ def atribuicao_disciplina_data(
         codigo_turma: Código EOL da turma consultada.
         disciplina_id: Identificador do componente curricular ou disciplina.
         data_consulta: Data opcional usada para validar vigência.
-        territorio_saber: Indica consulta em território do saber.
 
     Returns:
         Resultado booleano da validação solicitada.
     """
-    return repository.atribuicao_disciplina_data(
+    return repositories.atribuicao_disciplina_data(
         codigo_rf,
         codigo_turma,
         disciplina_id,
         _data_iso_ou_none(data_consulta),
-        (territorio_saber or "").lower() == "true",
     )
 
 
@@ -347,7 +344,7 @@ def atribuicao_disciplina_datatick(
             400,
         )
     return ResultadoServico(
-        repository.atribuicao_disciplina_datatick(
+        repositories.atribuicao_disciplina_datatick(
             codigo_rf,
             codigo_turma,
             disciplina_id,
@@ -380,7 +377,7 @@ def atribuicao_recorrencia_datas(
             400,
         )
     return ResultadoServico(
-        repository.atribuicao_recorrencia_datas(
+        repositories.atribuicao_recorrencia_datas(
             codigo_rf,
             codigo_turma,
             disciplina_id,
@@ -413,7 +410,7 @@ def atribuicao_turmas_lista(
     except (TypeError, ValueError):
         return ResultadoServico([])
     return ResultadoServico(
-        repository.atribuicao_turmas_lista(
+        repositories.atribuicao_turmas_lista(
             codigo_rf,
             disciplina_id,
             codigos_turma,
@@ -440,7 +437,7 @@ def atribuicao_periodo(
     Returns:
         Resultado booleano da validação solicitada.
     """
-    return repository.atribuicao_periodo(
+    return repositories.atribuicao_periodo(
         codigo_rf,
         codigo_turma,
         componente_curricular_id,
@@ -470,7 +467,7 @@ def professores_atribuidos_turma_disc(
             400,
         )
     return ResultadoServico(
-        repository.professores_atribuidos_turma_disc(
+        repositories.professores_atribuidos_turma_disc(
             codigo_turma,
             disciplina_id,
             int(data_ticks),
@@ -491,7 +488,7 @@ def titular_por_turma_disciplina(
     Returns:
         Dados encontrados ou ``None`` quando não houver resultado.
     """
-    return repository.titular_por_turma_disciplina(
+    return repositories.titular_por_turma_disciplina(
         codigo_turma,
         codigo_componente_curricular,
     )
@@ -507,7 +504,7 @@ def titulares_por_turmas(codigos_turmas: list[str]) -> list[dict]:
         Lista de dados encontrados para os filtros informados.
     """
     codigos = [int(codigo) for codigo in codigos_turmas]
-    return repository.titulares_por_turmas(codigos)
+    return repositories.titulares_por_turmas(codigos)
 
 
 def titulares_por_turma_agrupamento(
@@ -527,7 +524,7 @@ def titulares_por_turma_agrupamento(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.titulares_por_turma_agrupamento(
+    return repositories.titulares_por_turma_agrupamento(
         codigo_turma,
         realiza_agrupamento.lower() == "true",
         codigo_rf=codigo_rf,
@@ -548,7 +545,7 @@ def titulares_por_ue(
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repository.titulares_por_ue(
+    return repositories.titulares_por_ue(
         ue_codigo,
         date.fromisoformat(data_referencia),
     )

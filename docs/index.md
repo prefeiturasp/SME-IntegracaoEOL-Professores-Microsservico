@@ -14,5 +14,6 @@ A documentação é gerada automaticamente pelo Sphinx a partir das docstrings d
 :maxdepth: 2
 :caption: Referência de código
 
+funcionarios
 api
 ```

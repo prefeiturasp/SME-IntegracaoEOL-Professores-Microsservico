@@ -133,6 +133,7 @@ class LotacaoServidor(models.Model):
         db_constraint=False,
     )
     codigo_unidade_educacao = models.CharField(max_length=20)
+    codigo_dre = models.CharField(max_length=20, null=True, blank=True)
     dt_inicio = models.DateField(null=True, blank=True)
     dt_fim = models.DateField(null=True, blank=True)
 
@@ -150,8 +151,12 @@ class FuncionarioUnidadeEducacional(models.Model):
     nome_social = models.CharField(max_length=200, null=True, blank=True)
     cpf = models.CharField(max_length=14, null=True, blank=True)
     codigo_ue = models.CharField(max_length=20)
+    codigo_dre = models.CharField(max_length=20, null=True, blank=True)
     data_inicio = models.DateTimeField(null=True, blank=True)
     data_fim = models.DateTimeField(null=True, blank=True)
+    dt_fim_nomeacao = models.DateTimeField(null=True, blank=True)
+    dt_fim_funcao_atividade = models.DateTimeField(null=True, blank=True)
+    origem_vinculo = models.CharField(max_length=30, null=True, blank=True)
     codigo_cargo = models.CharField(max_length=20, null=True, blank=True)
     cargo = models.CharField(max_length=100, null=True, blank=True)
     codigo_tipo_funcao_atividade = models.IntegerField(
@@ -171,6 +176,7 @@ class FuncionarioUnidadeEducacional(models.Model):
         managed = False
         indexes = [
             models.Index(fields=["codigo_ue"], name="idx_funcionario_ue"),
+            models.Index(fields=["codigo_dre"], name="idx_funcionario_dre"),
             models.Index(
                 fields=["codigo_cargo"], name="idx_funcionario_cargo"
             ),
@@ -179,7 +185,28 @@ class FuncionarioUnidadeEducacional(models.Model):
                 fields=["codigo_ue", "codigo_cargo"],
                 name="idx_funcionario_ue_cargo",
             ),
+            models.Index(
+                fields=["codigo_dre", "codigo_cargo"],
+                name="idx_funcionario_dre_cargo",
+            ),
         ]
+
+
+class FuncionarioCargo(models.Model):
+    """Funcionário por cargo."""
+
+    id = models.BigAutoField(primary_key=True)
+    codigo_rf = models.CharField(max_length=20)
+    nome = models.CharField(max_length=200)
+    data_inicio = models.DateTimeField(null=True, blank=True)
+    data_fim = models.DateTimeField(null=True, blank=True)
+    cargo = models.CharField(max_length=100)
+    codigo_cargo = models.IntegerField()
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_cargo"
+        managed = False
 
 
 class TurmaAtribuidaUe(models.Model):

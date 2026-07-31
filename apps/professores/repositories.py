@@ -28,14 +28,14 @@ _CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO = 3
 
 
 def _filtrar_localizacao(qs: Any, ue_id: str | None) -> Any:
-    """Aplica filtro opcional de unidade educacional ao queryset.
+    """Aplica filtro opcional de unidade educacional.
 
     Args:
-        qs: Queryset de atribuições ou contratos externos.
+        qs: Atribuições ou contratos externos consultados.
         ue_id: Código EOL da unidade educacional usada como escopo.
 
     Returns:
-        Queryset filtrado por UE quando o escopo for informado.
+        Dados filtrados por UE quando o escopo for informado.
     """
     if ue_id:
         return qs.filter(codigo_unidade_educacao=ue_id)
@@ -88,11 +88,11 @@ def _vigentes_em(qs: Any, data_ref: date) -> Any:
     """Filtra atribuições vigentes em uma data de referência.
 
     Args:
-        qs: Queryset de atribuições.
+        qs: Atribuições consultadas.
         data_ref: Data usada para validar início e disponibilização.
 
     Returns:
-        Queryset contendo apenas atribuições vigentes na data.
+        Atribuições vigentes na data.
     """
     return qs.filter(
         dt_cancelamento__isnull=True, dt_atribuicao_aula__lte=data_ref
@@ -109,11 +109,11 @@ def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
     turma de programa no mês corrente —, acompanhando a abrangência do legado.
 
     Args:
-        qs: Queryset de atribuições do professor.
+        qs: Atribuições do professor.
         data_ref: Data usada para validar vigência e ano de atribuição.
 
     Returns:
-        Queryset contendo atribuições vigentes para cálculo da abrangência.
+        Atribuições vigentes para cálculo da abrangência.
     """
     qs = qs.filter(
         dt_cancelamento__isnull=True,
@@ -127,7 +127,7 @@ def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
 
 
 def _turma_row(aa: AtribuicaoAula) -> dict:
-    """Monta payload de turma atribuída efetiva.
+    """Monta turma atribuída efetiva.
 
     Args:
         aa: Atribuição de aula efetiva.
@@ -148,7 +148,7 @@ def _turma_row(aa: AtribuicaoAula) -> dict:
 
 
 def _turma_row_externo(ae: AtribuicaoExterno) -> dict:
-    """Monta payload de turma atribuída externa.
+    """Monta turma atribuída externa.
 
     Args:
         ae: Atribuição de profissional externo.
@@ -223,7 +223,7 @@ def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
 def _abrangencia_turma_row(
     row: dict,
 ) -> dict:
-    """Monta payload de turma para abrangência.
+    """Monta turma para abrangência.
 
     Args:
         row: Linha de atribuição com dados de DRE, UE e turma.
@@ -302,13 +302,13 @@ def _abrangencia_retorno(rows: list[dict]) -> dict:
 
 
 def _turma_atribuida_ue_row(turma: TurmaAtribuidaUe) -> dict:
-    """Monta payload de turma atribuída por vínculo com UE.
+    """Monta turma atribuída por vínculo com UE.
 
     Args:
         turma: Registro de turma atribuída por UE.
 
     Returns:
-        Dicionário no contrato do endpoint de turmas por vínculo com UE.
+        Dicionário no contrato de turmas por vínculo com UE.
     """
     return {
         "codigo_escola": turma.codigo_escola,
@@ -360,13 +360,13 @@ def turmas_atribuidas_ue(
 def _disciplina_turma_atribuida_ue_row(
     disciplina: DisciplinaTurmaAtribuidaUe,
 ) -> dict:
-    """Monta payload de disciplina atribuída por vínculo com UE.
+    """Monta disciplina atribuída por vínculo com UE.
 
     Args:
         disciplina: Registro de disciplina atribuída por UE.
 
     Returns:
-        Dicionário no contrato do endpoint de disciplinas por UE.
+        Dicionário no contrato de disciplinas por UE.
     """
     return {
         "codigo": disciplina.codigo_componente_curricular,
@@ -419,7 +419,7 @@ def _linhas_abrangencia_atribuicoes(qs: Any) -> list[dict]:
     """Extrai linhas únicas de abrangência a partir de atribuições.
 
     Args:
-        qs: Queryset de atribuições vigentes do funcionário.
+        qs: Atribuições vigentes do funcionário.
 
     Returns:
         Linhas únicas por unidade educacional e turma.
@@ -902,7 +902,6 @@ def atribuicao_disciplina_data(
     codigo_turma: int,
     disciplina_id: int,
     data_consulta: date | None = None,
-    territorio_saber: bool = False,
 ) -> bool:
     """Verifica atribuição do professor em turma e disciplina.
 
@@ -911,20 +910,10 @@ def atribuicao_disciplina_data(
         codigo_turma: CodigoEOL da turma.
         disciplina_id: Código do componente curricular.
         data_consulta: Data opcional usada para validar vigência.
-        territorio_saber: Indica consulta em território do saber.
 
     Returns:
         ``True`` quando existe atribuição para turma e disciplina.
     """
-    if territorio_saber:
-        qs = AgrupamentoAtribuicaoTerritorioSaber.objects.filter(
-            rf_professor=codigo_rf,
-            codigo_turma=codigo_turma,
-        )
-        if data_consulta:
-            qs = qs.filter(dt_inicio_atribuicao__lte=data_consulta)
-        return bool(qs.exists())
-
     qs = AtribuicaoAula.objects.filter(
         cargo_base__professor__codigo_rf=codigo_rf,
         codigo_componente_curricular=disciplina_id,
@@ -1140,14 +1129,14 @@ def professores_atribuidos_turma_disc(
             {
                 "codigo_turma": str(codigo_turma),
                 "ano_letivo": None,
-                "nome_turma": None,
+                "nome_turma": aa.descricao_turma_escola,
                 "data_inicio_atribuicao": fmt_iso(aa.dt_atribuicao_aula),
                 "data_fim_atribuicao": fmt_iso(aa.dt_disponibilizacao_aulas),
                 "data_fim_turma": fmt_iso(aa.dt_fim_turma),
                 "ano_atribuicao": aa.ano_atribuicao,
                 "codigo_rf": prof.codigo_rf,
                 "disciplina_id": str(disciplina_id),
-                "disciplina_nome": None,
+                "disciplina_nome": aa.descricao_componente_curricular,
                 "disciplinas_agrupadas_ids": None,
                 "nome_professor": get_nome(prof),
             }

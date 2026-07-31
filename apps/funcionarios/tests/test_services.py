@@ -13,7 +13,7 @@ def test_funcionarios_por_lista_cargos_sem_cargos_usa_ue(monkeypatch):
         chamadas["codigo_ue"] = codigo_ue
         return [{"codigo_rf": "7654321"}]
 
-    monkeypatch.setattr(services.repository, "funcionarios_por_ue", fake)
+    monkeypatch.setattr(services.repositories, "funcionarios_por_ue", fake)
 
     resultado = services.funcionarios_por_lista_cargos("000532", [])
 
@@ -42,7 +42,7 @@ def test_funcoes_query_converte_lista(monkeypatch, funcao, metodo):
         chamadas["args"] = (codigo_ue, funcoes)
         return [{"ok": True}]
 
-    monkeypatch.setattr(services.repository, metodo, fake)
+    monkeypatch.setattr(services.repositories, metodo, fake)
 
     resultado = funcao("000532", ["1", "2"])
 
@@ -53,7 +53,7 @@ def test_funcoes_query_converte_lista(monkeypatch, funcao, metodo):
 def test_usuarios_sgp_perfil_placeholder_sem_dre_rf_retorna_400(monkeypatch):
     """Verifica mensagem legada para perfil placeholder sem DRE ou RF."""
     monkeypatch.setattr(
-        services.repository,
+        services.repositories,
         "perfil_placeholder_invalido",
         lambda id_perfil: True,
     )
@@ -63,19 +63,19 @@ def test_usuarios_sgp_perfil_placeholder_sem_dre_rf_retorna_400(monkeypatch):
     assert resultado.status_code == 400
     assert (
         resultado.payload
-        == services.repository.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
+        == services.repositories.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
     )
 
 
 def test_usuarios_sgp_sem_resultado_retorna_404(monkeypatch):
     """Verifica 404 quando perfil nao retorna usuarios."""
     monkeypatch.setattr(
-        services.repository,
+        services.repositories,
         "perfil_placeholder_invalido",
         lambda id_perfil: False,
     )
     monkeypatch.setattr(
-        services.repository,
+        services.repositories,
         "usuarios_sgp_por_perfil",
         lambda *args, **kwargs: [],
     )
@@ -86,11 +86,33 @@ def test_usuarios_sgp_sem_resultado_retorna_404(monkeypatch):
     assert resultado.payload is None
 
 
+def test_usuarios_sgp_com_dre_sem_resultado_retorna_200(monkeypatch):
+    """Verifica resposta legada quando consulta por DRE vem vazia."""
+    monkeypatch.setattr(
+        services.repositories,
+        "perfil_placeholder_invalido",
+        lambda id_perfil: False,
+    )
+    monkeypatch.setattr(
+        services.repositories,
+        "usuarios_sgp_por_perfil",
+        lambda *args, **kwargs: [],
+    )
+
+    resultado = services.usuarios_sgp_por_perfil(
+        "perfil",
+        codigo_dre="108100",
+    )
+
+    assert resultado.status_code == 200
+    assert resultado.payload == []
+
+
 def test_funcionarios_sgp_dre_converte_funcao(monkeypatch):
     """Verifica conversao de funcao de atividade opcional."""
     chamadas = {}
     monkeypatch.setattr(
-        services.repository,
+        services.repositories,
         "perfil_placeholder_invalido",
         lambda id_perfil: False,
     )
@@ -99,7 +121,7 @@ def test_funcionarios_sgp_dre_converte_funcao(monkeypatch):
         chamadas["kwargs"] = kwargs
         return [{"codigo_rf": "7654321"}]
 
-    monkeypatch.setattr(services.repository, "funcionarios_sgp_dre", fake)
+    monkeypatch.setattr(services.repositories, "funcionarios_sgp_dre", fake)
 
     resultado = services.funcionarios_sgp_dre(
         "perfil",
@@ -126,7 +148,7 @@ def test_payload_invalido_usa_lista_vazia(monkeypatch, funcao, metodo):
         chamadas["lista"] = lista
         return []
 
-    monkeypatch.setattr(services.repository, metodo, fake)
+    monkeypatch.setattr(services.repositories, metodo, fake)
 
     resultado = funcao({"invalido": True})
 
@@ -135,7 +157,7 @@ def test_payload_invalido_usa_lista_vazia(monkeypatch, funcao, metodo):
 
 
 def test_buscar_funcionarios_mapeia_filtros_do_payload(monkeypatch):
-    """Verifica mapeamento dos filtros do payload para o repository."""
+    """Verifica mapeamento dos filtros do payload para o repositories."""
     chamadas = {}
 
     def fake(codigo_rf, codigo_ue, nome_servidor):
@@ -146,7 +168,7 @@ def test_buscar_funcionarios_mapeia_filtros_do_payload(monkeypatch):
         }
         return [{"codigo_rf": "7654321"}]
 
-    monkeypatch.setattr(services.repository, "buscar_funcionarios", fake)
+    monkeypatch.setattr(services.repositories, "buscar_funcionarios", fake)
 
     resultado = services.buscar_funcionarios(
         {"CodigoRF": "7654321", "codigoUE": "000532", "NomeServidor": "Ana"}
@@ -168,7 +190,7 @@ def test_buscar_funcionarios_payload_invalido_usa_dict_vazio(monkeypatch):
         chamadas["kwargs"] = (codigo_rf, codigo_ue, nome_servidor)
         return []
 
-    monkeypatch.setattr(services.repository, "buscar_funcionarios", fake)
+    monkeypatch.setattr(services.repositories, "buscar_funcionarios", fake)
 
     resultado = services.buscar_funcionarios(None)
 

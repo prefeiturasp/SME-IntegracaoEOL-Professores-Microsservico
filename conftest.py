@@ -108,10 +108,13 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
         nome_social=cargo_base.professor.nome_social,
         cpf=cargo_base.professor.cpf,
         codigo_ue=ue.codigo_ue,
+        codigo_dre=ue.codigo_dre,
         data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
         codigo_cargo=str(cargo_base.codigo_cargo),
         cargo=cargo_base.descricao_cargo,
         codigo_tipo_funcao_atividade=0,
+        origem_vinculo="lotacao",
+        eh_professor=True,
         esta_afastado=False,
         funcao_externo=0,
         tipo_funcao_externo=0,
@@ -119,6 +122,7 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
     return LotacaoServidor.objects.create(
         cargo_base=cargo_base,
         codigo_unidade_educacao=ue.codigo_ue,
+        codigo_dre=ue.codigo_dre,
         dt_inicio=date(2024, 2, 1),
     )
 

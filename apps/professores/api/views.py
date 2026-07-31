@@ -635,12 +635,6 @@ class AtribuicaoDisciplinaDataView(APIView):
             OpenApiParameter(
                 "data_consulta", str, OpenApiParameter.QUERY, required=False
             ),
-            OpenApiParameter(
-                "territorio_saber",
-                bool,
-                OpenApiParameter.QUERY,
-                required=False,
-            ),
         ],
         responses={200: bool, 400: dict, 422: dict, 500: dict},
     )
@@ -668,7 +662,6 @@ class AtribuicaoDisciplinaDataView(APIView):
                 codigo_turma,
                 disciplina_id,
                 request.query_params.get("data_consulta"),
-                request.query_params.get("territorio_saber"),
             )
         )
 

@@ -15,7 +15,9 @@ def test_atribuicao_verificar_data_converte_data(monkeypatch):
         chamadas["args"] = (codigo_rf, codigo_turma, data_consulta)
         return True
 
-    monkeypatch.setattr(services.repository, "atribuicao_verificar_data", fake)
+    monkeypatch.setattr(
+        services.repositories, "atribuicao_verificar_data", fake
+    )
 
     resultado = services.atribuicao_verificar_data(
         "7654321",
@@ -27,16 +29,8 @@ def test_atribuicao_verificar_data_converte_data(monkeypatch):
     assert chamadas["args"] == ("7654321", 2112345, date(2024, 2, 2))
 
 
-@pytest.mark.parametrize(
-    ("valor", "esperado"),
-    [("true", True), ("TRUE", True), ("false", False), (None, False)],
-)
-def test_atribuicao_disciplina_data_converte_territorio(
-    monkeypatch,
-    valor,
-    esperado,
-):
-    """Verifica conversao do indicador de territorio do saber."""
+def test_atribuicao_disciplina_data_converte_data(monkeypatch):
+    """Verifica conversao da data opcional."""
     chamadas = {}
 
     def fake(
@@ -44,19 +38,17 @@ def test_atribuicao_disciplina_data_converte_territorio(
         codigo_turma,
         disciplina_id,
         data_consulta=None,
-        territorio_saber=False,
     ):
         chamadas["args"] = (
             codigo_rf,
             codigo_turma,
             disciplina_id,
             data_consulta,
-            territorio_saber,
         )
-        return territorio_saber
+        return True
 
     monkeypatch.setattr(
-        services.repository,
+        services.repositories,
         "atribuicao_disciplina_data",
         fake,
     )
@@ -65,12 +57,16 @@ def test_atribuicao_disciplina_data_converte_territorio(
         "7654321",
         2112345,
         138,
-        None,
-        valor,
+        "2024-02-02",
     )
 
-    assert resultado is esperado
-    assert chamadas["args"][-1] is esperado
+    assert resultado is True
+    assert chamadas["args"] == (
+        "7654321",
+        2112345,
+        138,
+        date(2024, 2, 2),
+    )
 
 
 def test_atribuicao_disciplina_datatick_sem_tick_retorna_400():
@@ -136,7 +132,7 @@ def test_titulares_por_turmas_converte_codigos(monkeypatch):
         chamadas["codigos"] = codigos_turmas
         return [{"turma_id": 2112345}]
 
-    monkeypatch.setattr(services.repository, "titulares_por_turmas", fake)
+    monkeypatch.setattr(services.repositories, "titulares_por_turmas", fake)
 
     resultado = services.titulares_por_turmas(["2112345"])
 
@@ -145,7 +141,7 @@ def test_titulares_por_turmas_converte_codigos(monkeypatch):
 
 
 def test_buscar_abrangencia_funcionario_perfil_delega(monkeypatch):
-    """Service delega a abrangência ao repository."""
+    """Service delega a abrangência ao repositories."""
     chamadas = {}
 
     def fake(login, id_perfil):
@@ -153,7 +149,7 @@ def test_buscar_abrangencia_funcionario_perfil_delega(monkeypatch):
         return {"abrangencia": None, "dres": []}
 
     monkeypatch.setattr(
-        services.repository,
+        services.repositories,
         "buscar_abrangencia_funcionario_perfil",
         fake,
     )
@@ -165,14 +161,14 @@ def test_buscar_abrangencia_funcionario_perfil_delega(monkeypatch):
 
 
 def test_turmas_atribuidas_ue_delega(monkeypatch):
-    """Service delega as turmas por vínculo de UE ao repository."""
+    """Service delega as turmas por vínculo de UE ao repositories."""
     chamadas = {}
 
     def fake(codigo_rf, cargos, codigo_dre):
         chamadas["args"] = (codigo_rf, cargos, codigo_dre)
         return [{"codigo_turma": 10}]
 
-    monkeypatch.setattr(services.repository, "turmas_atribuidas_ue", fake)
+    monkeypatch.setattr(services.repositories, "turmas_atribuidas_ue", fake)
 
     resultado = services.turmas_atribuidas_ue("111", [3360], "108100")
 

@@ -10,6 +10,7 @@ class FuncionarioUESerializer(serializers.Serializer):
     nome = serializers.CharField()
     cpf = serializers.CharField()
     cargo = serializers.CharField(allow_null=True)
+    codigo_cargo = serializers.CharField(allow_null=True)
     data_inicio = serializers.CharField(allow_null=True)
     data_fim = serializers.CharField(allow_null=True)
     codigo_tipo_funcao_atividade = serializers.IntegerField()
@@ -36,6 +37,38 @@ class FuncionariosUEQuerySerializer(serializers.Serializer):
         required=False,
         allow_empty=True,
     )
+
+
+class FuncionariosUEFiltroSerializer(serializers.Serializer):
+    """Valida filtros de funcionários por UE no contrato legado."""
+
+    codigosRfs = serializers.ListField(  # noqa: N815
+        child=serializers.CharField(allow_blank=False),
+        required=False,
+        allow_empty=True,
+        default=list,
+    )
+    filtro = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+
+
+class SupervisoresFiltroSerializer(serializers.Serializer):
+    """Valida RFs usados na busca de supervisores por DRE."""
+
+    codigos_rfs = serializers.ListField(
+        child=serializers.CharField(allow_blank=False),
+        allow_empty=True,
+    )
+
+
+class SupervisorSerializer(serializers.Serializer):
+    """Serializa supervisor vinculado à DRE."""
+
+    codigo_rf = serializers.CharField()
+    nome_servidor = serializers.CharField()
 
 
 class FuncionarioFuncaoExternaSerializer(serializers.Serializer):
@@ -77,9 +110,14 @@ class UsuarioSGPSerializer(serializers.Serializer):
     """Serializa dados de usuário SGP."""
 
     codigo_rf = serializers.CharField()
+    login = serializers.CharField(allow_null=True, required=False)
     nome_servidor = serializers.CharField()
     codigo_dre = serializers.CharField(allow_null=True)
     codigo_ue = serializers.CharField(allow_null=True)
+    cd_cargo = serializers.IntegerField(allow_null=True, required=False)
+    codigo_funcao_atividade = serializers.IntegerField(required=False)
+    funcao_externo = serializers.IntegerField(required=False)
+    tipo_funcao_externo = serializers.IntegerField(required=False)
 
 
 class ResumoFuncionarioSerializer(serializers.Serializer):
