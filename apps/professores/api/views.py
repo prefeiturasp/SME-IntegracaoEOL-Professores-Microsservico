@@ -324,7 +324,7 @@ class ObterNomePeloRFView(APIView):
         parameters=[
             OpenApiParameter("rf_professor", str, OpenApiParameter.PATH),
         ],
-        responses={200: NomePorRFSerializer, 404: dict},
+        responses={200: NomePorRFSerializer, 204: None},
     )
     def get(self, request: Request, rf_professor: str) -> Response:
         """Retorna o nome do professor pelo registro funcional.
@@ -338,7 +338,7 @@ class ObterNomePeloRFView(APIView):
         """
         nome = services.obter_nome_rf(rf_professor)
         if nome is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         from django.http import HttpResponse
 
         return HttpResponse(nome, content_type="text/plain")
