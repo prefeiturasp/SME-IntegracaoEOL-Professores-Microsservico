@@ -434,7 +434,7 @@ class NomeCPFServidorView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: NomeCPFServidorSerializer, 400: dict, 404: dict},
+        responses={200: NomeCPFServidorSerializer, 400: dict, 204: None},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
         """Retorna nome e CPF do servidor por registro funcional.
@@ -448,7 +448,7 @@ class NomeCPFServidorView(APIView):
         """
         resultado = services.nome_cpf_servidor(registro_funcional)
         if resultado is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(resultado)
 
 
@@ -461,7 +461,7 @@ class NomeUsuarioEOLView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: str, 400: dict, 404: dict},
+        responses={200: str, 400: dict, 204: None},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
         """Retorna nome usuario EOL do servidor.
@@ -475,7 +475,7 @@ class NomeUsuarioEOLView(APIView):
         """
         nome = services.nome_servidor(registro_funcional)
         if nome is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         from django.http import HttpResponse
 
         return HttpResponse(nome, content_type="text/plain")

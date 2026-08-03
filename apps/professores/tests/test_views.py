@@ -195,10 +195,10 @@ class TestEP05ObterNomePeloRF:
         assert res.status_code == 200
         assert res.content.decode() == "Ana Silva"
 
-    def test_nao_encontrado_retorna_404(self, client, db):
+    def test_nao_encontrado_retorna_204(self, client, db):
         """Verifica ausência de professor."""
         res = client.get(f"{_BASE}/professores/0000000/")
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""

@@ -602,9 +602,9 @@ class TestEP31NomeServidor:
         assert res.data["nome"] == "Ana Silva"
         assert res.data["cpf"] == "12345678900"
 
-    def test_nao_encontrado_retorna_404(self, client, db):
+    def test_nao_encontrado_retorna_204(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/nome-servidor/0000000/")
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/nome-servidor/7654321/")
@@ -622,9 +622,9 @@ class TestEP32DreUeAtribuicao:
         assert res.status_code == 200
         assert "text/plain" in res["Content-Type"]
 
-    def test_nao_encontrado_retorna_404(self, client, db):
+    def test_nao_encontrado_retorna_204(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/nome-usuario-eol/0000000/")
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/nome-usuario-eol/7654321/")
