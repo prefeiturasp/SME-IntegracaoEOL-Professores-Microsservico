@@ -67,8 +67,8 @@ def test_usuarios_sgp_perfil_placeholder_sem_dre_rf_retorna_400(monkeypatch):
     )
 
 
-def test_usuarios_sgp_sem_resultado_retorna_404(monkeypatch):
-    """Verifica 404 quando perfil nao retorna usuarios."""
+def test_usuarios_sgp_sem_resultado_retorna_lista_vazia(monkeypatch):
+    """Verifica lista vazia quando perfil nao retorna usuarios."""
     monkeypatch.setattr(
         services.repositories,
         "perfil_placeholder_invalido",
@@ -82,8 +82,8 @@ def test_usuarios_sgp_sem_resultado_retorna_404(monkeypatch):
 
     resultado = services.usuarios_sgp_por_perfil("perfil")
 
-    assert resultado.status_code == 404
-    assert resultado.payload is None
+    assert resultado.status_code == 200
+    assert resultado.payload == []
 
 
 def test_usuarios_sgp_com_dre_sem_resultado_retorna_200(monkeypatch):

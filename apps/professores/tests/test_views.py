@@ -207,10 +207,10 @@ class TestEP05ObterNomePeloRF:
 
 
 class TestEP06BuscarPorRf:
-    def test_sem_atribuicao_retorna_404(self, client, professor):
-        """Verifica que professor sem atribuicao no ano retorna 404."""
+    def test_sem_atribuicao_retorna_204(self, client, professor):
+        """Verifica que professor sem atribuicao no ano retorna 204."""
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRf/2024/")
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_com_atribuicao_retorna_turma(self, client, atribuicao):
         """Verifica com atribuicao retorna turma."""
@@ -224,10 +224,10 @@ class TestEP06BuscarPorRf:
         assert res.status_code == 200
         assert res.data["nome"] == "Ana Silva"
 
-    def test_nao_encontrado_retorna_404(self, client, db):
+    def test_nao_encontrado_retorna_204(self, client, db):
         """Verifica ausência de professor."""
         res = client.get(f"{_BASE}/professores/0000000/BuscarPorRf/2024/")
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""
@@ -255,11 +255,11 @@ class TestEP07BuscarPorRfDreUe:
     def test_filtro_ue_errado_nao_encontra_atribuicao(
         self, client, professor, atribuicao
     ):
-        """UE errada (sem outros cargos) não encontra atribuição → 404."""
+        """UE errada sem outros cargos não encontra atribuição."""
         res = client.get(
             f"{_BASE}/professores/7654321/BuscarPorRfDreUe/2024/?ue_id=999999"
         )
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_buscar_outros_cargos_ignora_filtro_ue(
         self, client, professor, atribuicao
@@ -285,10 +285,10 @@ class TestEP07BuscarPorRfDreUe:
         res = client.get(f"{_BASE}/professores/7654321/BuscarPorRfDreUe/0/")
         assert res.status_code == 400
 
-    def test_nao_encontrado_retorna_404(self, client, db):
+    def test_nao_encontrado_retorna_204(self, client, db):
         """Verifica ausência de professor."""
         res = client.get(f"{_BASE}/professores/0000000/BuscarPorRfDreUe/2024/")
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""
@@ -880,13 +880,13 @@ class TestEP20TitularPorTurmaDisciplina:
         assert res.status_code == 200
         assert res.data["professor_rf"] == "7654321"
 
-    def test_nao_encontrado_retorna_404(self, client, db):
+    def test_nao_encontrado_retorna_204(self, client, db):
         """Verifica ausência de professor."""
         res = client.get(
             f"{_BASE}/professores/titular/turmas/2112345"
             "/componentes-curriculares/138/"
         )
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""

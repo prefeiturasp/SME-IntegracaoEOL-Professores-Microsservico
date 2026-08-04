@@ -293,8 +293,6 @@ def usuarios_sgp_por_perfil(
     )
     if codigo_dre:
         return ResultadoServico(resultado)
-    if not resultado:
-        return ResultadoServico(None, 404)
     return ResultadoServico(resultado)
 
 
@@ -332,8 +330,6 @@ def funcionarios_sgp_dre(
             int(codigo_funcao_atividade) if codigo_funcao_atividade else None
         ),
     )
-    if not resultado:
-        return ResultadoServico(None, 404)
     return ResultadoServico(resultado)
 
 

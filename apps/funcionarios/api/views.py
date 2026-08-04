@@ -407,7 +407,7 @@ class FuncionarioExternoPorCpfView(APIView):
         parameters=[
             OpenApiParameter("cpf", str, OpenApiParameter.PATH),
         ],
-        responses={200: FuncionarioExternoCpfSerializer, 400: dict, 404: dict},
+        responses={200: FuncionarioExternoCpfSerializer, 204: None, 400: dict},
     )
     def get(self, request: Request, cpf: str) -> Response:
         """Retorna funcionário externo por CPF.
@@ -421,7 +421,7 @@ class FuncionarioExternoPorCpfView(APIView):
         """
         resultado = services.funcionario_externo_por_cpf(cpf)
         if resultado is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(resultado)
 
 
@@ -515,7 +515,7 @@ class DreUeAtribuicaoCargoView(APIView):
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
             OpenApiParameter("codigo_cargo", int, OpenApiParameter.PATH),
         ],
-        responses={200: DreUeCargoSerializer, 400: dict, 404: dict},
+        responses={200: DreUeCargoSerializer(many=True), 400: dict},
     )
     def get(
         self,
@@ -535,7 +535,7 @@ class DreUeAtribuicaoCargoView(APIView):
         """
         resultado = services.dre_ue_cargo(registro_funcional, codigo_cargo)
         if resultado is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response([])
         return Response(resultado)
 
 
@@ -560,7 +560,7 @@ class UsuariosSGPView(APIView):
                 "nome_servidor", str, OpenApiParameter.QUERY, required=False
             ),
         ],
-        responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
+        responses={200: UsuarioSGPSerializer(many=True), 400: dict},
     )
     def get(self, request: Request, id_perfil: str) -> Response:
         """Lista usuários SGP por perfil.
@@ -572,15 +572,18 @@ class UsuariosSGPView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
+        codigo_dre = request.query_params.get("codigo_dre")
+        codigo_rf = request.query_params.get("codigo_rf")
+        if not codigo_dre and not codigo_rf:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
         resultado = services.usuarios_sgp_por_perfil(
             id_perfil,
-            codigo_dre=request.query_params.get("codigo_dre"),
+            codigo_dre=codigo_dre,
             codigo_ue=request.query_params.get("codigo_ue"),
-            codigo_rf=request.query_params.get("codigo_rf"),
+            codigo_rf=codigo_rf,
             nome_servidor=request.query_params.get("nome_servidor"),
         )
-        if resultado.status_code == status.HTTP_404_NOT_FOUND:
-            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado.payload, status=resultado.status_code)
 
 
@@ -609,7 +612,7 @@ class FuncionariosSGPDreView(APIView):
                 required=False,
             ),
         ],
-        responses={200: UsuarioSGPSerializer(many=True), 400: dict, 404: dict},
+        responses={200: UsuarioSGPSerializer(many=True), 400: dict},
     )
     def get(
         self, request: Request, id_perfil: str, codigo_dre: str
@@ -634,8 +637,6 @@ class FuncionariosSGPDreView(APIView):
                 "codigo_funcao_atividade"
             ),
         )
-        if resultado.status_code == status.HTTP_404_NOT_FOUND:
-            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(resultado.payload, status=resultado.status_code)
 
 
