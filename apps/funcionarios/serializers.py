@@ -83,10 +83,19 @@ class FuncionarioFuncaoExternaSerializer(serializers.Serializer):
 class FuncionarioExternoCpfSerializer(serializers.Serializer):
     """Serializa dados de funcionário externo."""
 
+    nome_pessoa = serializers.CharField()
+    nome_pai = serializers.CharField(allow_null=True)
+    nome_mae = serializers.CharField(allow_null=True)
+    data_nascimento = serializers.CharField(allow_null=True)
+    rg = serializers.CharField(allow_null=True)
     cpf = serializers.CharField()
-    nome = serializers.CharField()
+    titulo_eleitoral = serializers.CharField(allow_null=True)
+    pis_pasep = serializers.CharField(allow_null=True)
+    codigo_contrato_externo = serializers.IntegerField()
     codigo_ue = serializers.CharField(allow_null=True)
-    codigo_tipo_funcao = serializers.IntegerField(allow_null=True)
+    nome_ue = serializers.CharField(allow_null=True)
+    funcao = serializers.CharField(allow_null=True)
+    tipo_funcionario = serializers.CharField(allow_null=True)
 
 
 class NomeCPFServidorSerializer(serializers.Serializer):

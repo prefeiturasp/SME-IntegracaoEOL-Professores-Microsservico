@@ -17,6 +17,7 @@ from apps.funcionarios.api.views import (
     NomeCPFServidorView,
     NomeUsuarioEOLView,
     ServidorAtivoView,
+    SupervisoresDreConsolidadoView,
     SupervisoresPorDreView,
     UsuariosSGPView,
 )
@@ -51,6 +52,11 @@ urlpatterns = [
         f"{_BASE_FUNCIONARIOS}/supervisores/<str:codigo_dre>/",
         SupervisoresPorDreView.as_view(),
         name="funcionarios-supervisores-dre",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/dres/<str:codigo_dre>/supervisores/",
+        SupervisoresDreConsolidadoView.as_view(),
+        name="funcionarios-dre-supervisores",
     ),
     path(
         f"{_BASE_FUNCIONARIOS}/cargo/<str:registro_funcional>/",

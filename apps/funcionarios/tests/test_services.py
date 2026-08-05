@@ -21,6 +21,28 @@ def test_funcionarios_por_lista_cargos_sem_cargos_usa_ue(monkeypatch):
     assert chamadas["codigo_ue"] == "000532"
 
 
+def test_supervisores_dres_delega_repository(monkeypatch):
+    """Verifica delegacao da busca de supervisores consolidados."""
+    chamadas = {}
+
+    def fake(codigo_dre):
+        chamadas["codigo_dre"] = codigo_dre
+        return [{"codigo_rf": "1111111", "nome_servidor": "Supervisor"}]
+
+    monkeypatch.setattr(
+        services.repositories,
+        "supervisores_dres",
+        fake,
+    )
+
+    resultado = services.supervisores_dres("108100")
+
+    assert resultado == [
+        {"codigo_rf": "1111111", "nome_servidor": "Supervisor"}
+    ]
+    assert chamadas["codigo_dre"] == "108100"
+
+
 @pytest.mark.parametrize(
     ("funcao", "metodo"),
     [

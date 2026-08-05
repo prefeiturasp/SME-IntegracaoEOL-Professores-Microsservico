@@ -534,3 +534,138 @@ def test_supervisores_por_dre_usa_dre_da_lotacao_do_cargo_base(
     assert resultado == [
         {"codigo_rf": "7654321", "nome_servidor": "Ana Silva"}
     ]
+
+
+def test_supervisores_dres_filtra_por_dre_e_marcacao(db):
+    """Verifica supervisores da DRE no consolidado de funcionarios."""
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="1111111",
+        nome="Supervisora Silva",
+        nome_social="Supervisora Social",
+        cpf="11111111111",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        codigo_tipo_funcao_atividade=0,
+        eh_professor=False,
+        esta_afastado=False,
+        supervisor_dre=True,
+    )
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="2222222",
+        nome="Funcionario Fora",
+        cpf="22222222222",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        codigo_tipo_funcao_atividade=0,
+        eh_professor=False,
+        esta_afastado=False,
+        supervisor_dre=False,
+    )
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="3333333",
+        nome="Supervisora Outra DRE",
+        cpf="33333333333",
+        codigo_ue="000533",
+        codigo_dre="108200",
+        codigo_tipo_funcao_atividade=0,
+        eh_professor=False,
+        esta_afastado=False,
+        supervisor_dre=True,
+    )
+
+    resultado = repositories.supervisores_dres("108100")
+
+    assert resultado == [
+        {
+            "codigo_rf": "1111111",
+            "nome_servidor": "Supervisora Social",
+        }
+    ]
+
+
+def test_supervisores_dres_sem_registros_retorna_lista_vazia(db):
+    """Verifica lista vazia quando DRE nao possui supervisores."""
+    assert repositories.supervisores_dres("108100") == []
+
+
+def test_funcionario_externo_por_cpf_usa_vinculo_consolidado(
+    contrato_externo,
+):
+    """Verifica retorno enriquecido pelo vinculo externo consolidado."""
+    pessoa = contrato_externo.pessoa
+    pessoa.nome = "Nome Pessoa"
+    pessoa.nome_social = "Nome social"
+    pessoa.nome_pai = "Pai Externo"
+    pessoa.nome_mae = "Mae Externa"
+    pessoa.data_nascimento = date(1985, 3, 2)
+    pessoa.rg = "1234567"
+    pessoa.titulo_eleitoral = "987654"
+    pessoa.pis_pasep = "11223344"
+    pessoa.save()
+
+    FuncionarioUnidadeEducacional.objects.create(
+        codigo_rf="EXT123",
+        nome="Nome consolidado",
+        nome_social=None,
+        cpf="98765432100",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
+        codigo_tipo_funcao_atividade=0,
+        origem_vinculo="externo",
+        eh_professor=False,
+        esta_afastado=False,
+        funcao_externo=99,
+        tipo_funcao_externo=2,
+        nome_ue="EMEF Teste",
+        tipo_funcionario_externo="Terceirizado",
+        dc_funcao_externo="Auxiliar tecnico",
+        pessoa=pessoa,
+    )
+
+    resultado = repositories.funcionario_externo_por_cpf("98765432100")
+
+    assert resultado == [
+        {
+            "nome_pessoa": "Nome social",
+            "nome_pai": "Pai Externo",
+            "nome_mae": "Mae Externa",
+            "data_nascimento": "1985-03-02T00:00:00",
+            "rg": "1234567",
+            "cpf": "98765432100",
+            "titulo_eleitoral": "987654",
+            "pis_pasep": "11223344",
+            "codigo_contrato_externo": contrato_externo.codigo_contrato,
+            "codigo_ue": "000532",
+            "nome_ue": "EMEF Teste",
+            "funcao": "Auxiliar tecnico",
+            "tipo_funcionario": "Terceirizado",
+        }
+    ]
+
+
+def test_funcionario_externo_por_cpf_sem_vinculo_retorna_campos_nulos(
+    contrato_externo,
+):
+    """Verifica contrato externo sem vinculo consolidado."""
+    pessoa = contrato_externo.pessoa
+
+    resultado = repositories.funcionario_externo_por_cpf("98765432100")
+
+    assert resultado == [
+        {
+            "nome_pessoa": pessoa.nome,
+            "nome_pai": pessoa.nome_pai,
+            "nome_mae": pessoa.nome_mae,
+            "data_nascimento": None,
+            "rg": pessoa.rg,
+            "cpf": "98765432100",
+            "titulo_eleitoral": pessoa.titulo_eleitoral,
+            "pis_pasep": pessoa.pis_pasep,
+            "codigo_contrato_externo": contrato_externo.codigo_contrato,
+            "codigo_ue": contrato_externo.codigo_unidade_educacao,
+            "nome_ue": None,
+            "funcao": None,
+            "tipo_funcionario": None,
+        }
+    ]

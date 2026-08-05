@@ -398,6 +398,30 @@ class SupervisoresPorDreView(APIView):
         )
 
 
+class SupervisoresDreConsolidadoView(APIView):
+    """Lista supervisores da DRE."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Supervisores por DRE no consolidado",
+        parameters=[
+            OpenApiParameter("codigo_dre", str, OpenApiParameter.PATH),
+        ],
+        responses={200: SupervisorSerializer(many=True)},
+    )
+    def get(self, request: Request, codigo_dre: str) -> Response:
+        """Lista supervisores da DRE.
+
+        Args:
+            request: Requisicao HTTP recebida pela API.
+            codigo_dre: Codigo EOL da DRE consultada.
+
+        Returns:
+            Resposta HTTP com os supervisores encontrados.
+        """
+        return Response(services.supervisores_dres(codigo_dre))
+
+
 class FuncionarioExternoPorCpfView(APIView):
     """Retorna funcionário externo por CPF."""
 
@@ -407,7 +431,11 @@ class FuncionarioExternoPorCpfView(APIView):
         parameters=[
             OpenApiParameter("cpf", str, OpenApiParameter.PATH),
         ],
-        responses={200: FuncionarioExternoCpfSerializer, 204: None, 400: dict},
+        responses={
+            200: FuncionarioExternoCpfSerializer(many=True),
+            400: dict,
+            204: dict,
+        },
     )
     def get(self, request: Request, cpf: str) -> Response:
         """Retorna funcionário externo por CPF.

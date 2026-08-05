@@ -270,6 +270,71 @@ class TestSupervisoresPorDre:
         assert res.status_code == 403
 
 
+class TestSupervisoresDreConsolidado:
+    def test_get_retorna_supervisores_do_consolidado(self, client):
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="1111111",
+            nome="Supervisora Silva",
+            nome_social="Supervisora Social",
+            cpf="11111111111",
+            codigo_ue="000532",
+            codigo_dre="108100",
+            codigo_tipo_funcao_atividade=0,
+            eh_professor=False,
+            esta_afastado=False,
+            supervisor_dre=True,
+        )
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="2222222",
+            nome="Funcionario Fora",
+            cpf="22222222222",
+            codigo_ue="000532",
+            codigo_dre="108100",
+            codigo_tipo_funcao_atividade=0,
+            eh_professor=False,
+            esta_afastado=False,
+            supervisor_dre=False,
+        )
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="3333333",
+            nome="Supervisora Outra DRE",
+            cpf="33333333333",
+            codigo_ue="000533",
+            codigo_dre="108200",
+            codigo_tipo_funcao_atividade=0,
+            eh_professor=False,
+            esta_afastado=False,
+            supervisor_dre=True,
+        )
+
+        res = client.get(
+            f"{_BASE}/funcionarios/dres/108100/supervisores/"
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "codigo_rf": "1111111",
+                "nome_servidor": "Supervisora Social",
+            }
+        ]
+
+    def test_get_sem_supervisores_retorna_lista_vazia(self, client, db):
+        res = client.get(
+            f"{_BASE}/funcionarios/dres/108100/supervisores/"
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_get_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/funcionarios/dres/108100/supervisores/"
+        )
+
+        assert res.status_code == 403
+
+
 class TestEP26FuncionariosPorUEFiltros:
     def test_funcoes_retorna_funcionario(self, client, lotacao):
         res = client.get(
@@ -576,13 +641,55 @@ class TestEP29CargosFuncionario:
 
 class TestEP30FuncionarioExternoPorCpf:
     def test_encontrado_retorna_dados(self, client, contrato_externo):
+        pessoa = contrato_externo.pessoa
+        pessoa.nome = "Nome Pessoa"
+        pessoa.nome_social = "Nome social"
+        pessoa.nome_pai = "Pai Externo"
+        pessoa.nome_mae = "Mae Externa"
+        pessoa.data_nascimento = date(1985, 3, 2)
+        pessoa.rg = "1234567"
+        pessoa.titulo_eleitoral = "987654"
+        pessoa.pis_pasep = "11223344"
+        pessoa.save()
+
+        FuncionarioUnidadeEducacional.objects.create(
+            codigo_rf="EXT123",
+            nome="Nome consolidado",
+            nome_social=None,
+            cpf="98765432100",
+            codigo_ue="000532",
+            codigo_dre="108100",
+            data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
+            codigo_tipo_funcao_atividade=0,
+            origem_vinculo="externo",
+            eh_professor=False,
+            esta_afastado=False,
+            funcao_externo=99,
+            tipo_funcao_externo=2,
+            nome_ue="EMEF Teste",
+            tipo_funcionario_externo="Terceirizado",
+            dc_funcao_externo="Auxiliar tecnico",
+            pessoa=pessoa,
+        )
+
         res = client.get(
             f"{_BASE}/funcionarios/funcionario-externo/98765432100/"
         )
+
         assert res.status_code == 200
         assert res.data[0]["cpf"] == "98765432100"
+        assert res.data[0]["nome_pessoa"] == "Nome social"
+        assert res.data[0]["nome_pai"] == "Pai Externo"
+        assert res.data[0]["nome_mae"] == "Mae Externa"
+        assert res.data[0]["data_nascimento"] == "1985-03-02T00:00:00"
+        assert res.data[0]["rg"] == "1234567"
+        assert res.data[0]["titulo_eleitoral"] == "987654"
+        assert res.data[0]["pis_pasep"] == "11223344"
+        assert res.data[0]["nome_ue"] == "EMEF Teste"
+        assert res.data[0]["funcao"] == "Auxiliar tecnico"
+        assert res.data[0]["tipo_funcionario"] == "Terceirizado"
 
-    def test_nao_encontrado_retorna_204(self, client, db):
+    def test_nao_encontrado_retorna(self, client, db):
         res = client.get(
             f"{_BASE}/funcionarios/funcionario-externo/00000000000/"
         )
@@ -893,7 +1000,7 @@ class TestEP38BuscarPorListaRF:
 
 
 class TestEP39BuscarPorListaLogin:
-    def test_login_existente_retorna_funcionario(self, client, professor):
+    def test_login_existente_retorna_funcionario(self, client, lotacao):
         res = client.post(
             f"{_BASE}/funcionarios/BuscarPorListaLogin/",
             ["7654321"],

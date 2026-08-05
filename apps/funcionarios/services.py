@@ -84,6 +84,18 @@ def supervisores_por_dre(
     return repositories.supervisores_por_dre(codigo_dre, codigos_rfs)
 
 
+def supervisores_dres(codigo_dre: str) -> list[dict]:
+    """Lista supervisores da DRE.
+
+    Args:
+        codigo_dre: Codigo EOL da DRE consultada.
+
+    Returns:
+        Lista de supervisores encontrados.
+    """
+    return repositories.supervisores_dres(codigo_dre)
+
+
 def funcionarios_por_lista_cargos(
     ue_codigo: str,
     cargos_param: list[str],
