@@ -492,3 +492,20 @@ class AtribuicaoExterno(models.Model):
         app_label = "professores"
         db_table = "atribuicao_externo"
         managed = False
+
+
+class AdministradorEscola(models.Model):
+    """Administradores SGP vinculados a unidades educacionais.
+    """
+
+    codigo_ue = models.CharField(max_length=20, db_index=True)
+    rf_login = models.CharField(max_length=50)
+    data_sincronizacao = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "professores"
+        db_table = "administrador_escola"
+        managed = False
+
+    def __str__(self) -> str:
+        return f"{self.rf_login} @ {self.codigo_ue}"

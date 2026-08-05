@@ -985,3 +985,62 @@ class TestEP23TitularesPorUe:
         """Verifica bloqueio sem API key."""
         res = anon.get(f"{_BASE}/professores/titulares/ue/000532/2024-06-01/")
         assert res.status_code == 403
+
+
+class TestE01AdministradorSgpEscola:
+    """Testes do endpoint de administradores."""
+
+    @pytest.fixture
+    def administradores(self, db):
+        """Cria administradores de teste."""
+        from apps.professores.models import AdministradorEscola
+
+        AdministradorEscola.objects.create(
+            codigo_ue="019251", rf_login="1234567"
+        )
+        AdministradorEscola.objects.create(
+            codigo_ue="019251", rf_login="7654321"
+        )
+        AdministradorEscola.objects.create(
+            codigo_ue="019252", rf_login="9999999"
+        )
+
+    def test_retorna_lista_de_rfs_da_escola(self, client, administradores):
+        """Deve retornar lista de RFs da escola."""
+        res = client.get(f"{_BASE}/escolas/019251/administrador-sgp")
+        
+        assert res.status_code == 200
+        assert isinstance(res.data, list)
+        assert len(res.data) == 2
+        assert "1234567" in res.data
+        assert "7654321" in res.data
+
+    def test_retorna_lista_vazia_quando_sem_administradores(
+        self, client, administradores
+    ):
+        """Deve retornar lista vazia quando escola não tem administradores."""
+        res = client.get(f"{_BASE}/escolas/999999/administrador-sgp")
+        
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_aceita_codigo_ue_com_zeros_esquerda(
+        self, client, administradores
+    ):
+        """Deve aceitar código UE com zeros à esquerda."""
+        res = client.get(f"{_BASE}/escolas/019251/administrador-sgp")
+        
+        assert res.status_code == 200
+        assert len(res.data) == 2
+
+    def test_escola_sem_dados_retorna_vazio(self, client, db):
+        """Deve retornar lista vazia quando não há dados sincronizados."""
+        res = client.get(f"{_BASE}/escolas/108500/administrador-sgp")
+        
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_api_key_retorna_403(self, anon):
+        """Verifica bloqueio sem API key."""
+        res = anon.get(f"{_BASE}/escolas/019251/administrador-sgp")
+        assert res.status_code == 403

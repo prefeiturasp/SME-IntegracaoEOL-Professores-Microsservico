@@ -1050,3 +1050,38 @@ class TitularesPorUeView(APIView):
                 data_referencia,
             )
         )
+
+
+class AdministradorSgpEscolaView(APIView):
+    """Retorna RFs dos administradores SGP de uma escola."""
+
+    @extend_schema(
+        tags=["Escolas"],
+        operation_id="E01_administrador_sgp",
+        summary="Lista administradores SGP da escola",
+        description=(
+            "Retorna lista de RFs/logins de administradores SGP da escola. "
+            "Inclui administradores da UE e da DRE associada. "
+            "Dados sincronizados do CoreSSO via ETL."
+        ),
+        responses={
+            200: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request: Request, codigo_ue: str) -> Response:
+        """Busca administradores.
+
+        Args:
+            request: Requisição HTTP.
+            codigo_ue: Código EOL da unidade educacional.
+
+        Returns:
+            Lista de RFs.
+        """
+        from apps.professores.models import AdministradorEscola
+
+        administradores = AdministradorEscola.objects.filter(
+            codigo_ue=codigo_ue
+        ).values_list("rf_login", flat=True)
+
+        return Response(list(administradores), status=status.HTTP_200_OK)
