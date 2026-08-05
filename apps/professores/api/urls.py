@@ -3,6 +3,7 @@
 from django.urls import path
 
 from apps.professores.api.views import (
+    AdministradorSgpEscolaView,
     AtribuicaoDisciplinaDataTickView,
     AtribuicaoDisciplinaDataView,
     AtribuicaoPeriodoView,
@@ -191,5 +192,10 @@ urlpatterns = [
         f"{_BASE_PROF}/<str:rf_professor>/",
         ObterNomePeloRFView.as_view(),
         name="professor-nome-rf",
+    ),
+    path(
+        f"{_BASE_ESC}/<str:codigo_ue>/administrador-sgp",
+        AdministradorSgpEscolaView.as_view(),
+        name="escola-administrador-sgp",
     ),
 ]
