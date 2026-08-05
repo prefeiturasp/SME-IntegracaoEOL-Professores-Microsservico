@@ -1007,7 +1007,7 @@ class TestE01AdministradorSgpEscola:
 
     def test_retorna_lista_de_rfs_da_escola(self, client, administradores):
         """Deve retornar lista de RFs da escola."""
-        res = client.get(f"{_BASE}/escolas/019251/administrador-sgp")
+        res = client.get(f"{_BASE}/professores/escolas/019251/administrador-sgp")
         
         assert res.status_code == 200
         assert isinstance(res.data, list)
@@ -1019,7 +1019,7 @@ class TestE01AdministradorSgpEscola:
         self, client, administradores
     ):
         """Deve retornar lista vazia quando escola não tem administradores."""
-        res = client.get(f"{_BASE}/escolas/999999/administrador-sgp")
+        res = client.get(f"{_BASE}/professores/escolas/999999/administrador-sgp")
         
         assert res.status_code == 200
         assert res.data == []
@@ -1028,19 +1028,19 @@ class TestE01AdministradorSgpEscola:
         self, client, administradores
     ):
         """Deve aceitar código UE com zeros à esquerda."""
-        res = client.get(f"{_BASE}/escolas/019251/administrador-sgp")
+        res = client.get(f"{_BASE}/professores/escolas/019251/administrador-sgp")
         
         assert res.status_code == 200
         assert len(res.data) == 2
 
     def test_escola_sem_dados_retorna_vazio(self, client, db):
         """Deve retornar lista vazia quando não há dados sincronizados."""
-        res = client.get(f"{_BASE}/escolas/108500/administrador-sgp")
+        res = client.get(f"{_BASE}/professores/escolas/108500/administrador-sgp")
         
         assert res.status_code == 200
         assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""
-        res = anon.get(f"{_BASE}/escolas/019251/administrador-sgp")
+        res = anon.get(f"{_BASE}/professores/escolas/019251/administrador-sgp")
         assert res.status_code == 403
