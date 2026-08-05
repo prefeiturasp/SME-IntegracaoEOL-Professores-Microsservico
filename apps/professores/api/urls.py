@@ -194,7 +194,7 @@ urlpatterns = [
         name="professor-nome-rf",
     ),
     path(
-        f"{_BASE_ESC}/<str:codigo_ue>/administrador-sgp",
+        f"{_BASE_PROF}/{_BASE_ESC}/<str:codigo_ue>/administrador-sgp",
         AdministradorSgpEscolaView.as_view(),
         name="escola-administrador-sgp",
     ),
