@@ -354,7 +354,7 @@ class BuscarPorRfAnoLetivoView(APIView):
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
             OpenApiParameter("ano_letivo", int, OpenApiParameter.PATH),
         ],
-        responses={200: ProfessorPerfilSerializer, 404: dict},
+        responses={200: ProfessorPerfilSerializer, 204: None},
     )
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
@@ -373,7 +373,7 @@ class BuscarPorRfAnoLetivoView(APIView):
             codigo_rf, ano_letivo
         )
         if resultado is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(resultado)
 
 
@@ -399,7 +399,7 @@ class BuscarPorRfDreUeView(APIView):
                 required=False,
             ),
         ],
-        responses={200: ProfessorPerfilSerializer, 400: dict, 404: dict},
+        responses={200: ProfessorPerfilSerializer, 204: None, 400: dict},
     )
     def get(
         self, request: Request, codigo_rf: str, ano_letivo: int
@@ -430,7 +430,7 @@ class BuscarPorRfDreUeView(APIView):
             buscar_outros_cargos=buscar_outros_cargos,
         )
         if resultado is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(resultado)
 
 
@@ -905,7 +905,7 @@ class TitularPorTurmaDisciplinaView(APIView):
                 "codigo_componente_curricular", int, OpenApiParameter.PATH
             ),
         ],
-        responses={200: TitularSerializer, 404: dict},
+        responses={200: TitularSerializer, 204: None},
     )
     def get(
         self,
@@ -927,7 +927,7 @@ class TitularPorTurmaDisciplinaView(APIView):
             codigo_turma, codigo_componente_curricular
         )
         if resultado is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(resultado)
 
 

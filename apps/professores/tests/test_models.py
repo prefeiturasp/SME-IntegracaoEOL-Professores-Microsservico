@@ -3,6 +3,7 @@
 from apps.professores.models import (
     AtribuicaoAula,
     AtribuicaoExterno,
+    FuncionarioSistemaPerfil,
     Pessoa,
     Professor,
 )
@@ -50,3 +51,15 @@ def test_atribuicao_externo_mapeia_campos_desnormalizados():
 
     assert all(campo.null for campo in campos)
     assert all(campo.blank for campo in campos)
+
+
+def test_funcionario_sistema_perfil_nao_gerenciado():
+    """Verifica metadados da tabela de perfis de funcionario."""
+    assert FuncionarioSistemaPerfil._meta.db_table == (
+        "funcionario_sistema_perfil"
+    )
+    assert FuncionarioSistemaPerfil._meta.managed is False
+    cpf = FuncionarioSistemaPerfil._meta.get_field("cpf")
+    assert cpf.max_length == 50
+    assert cpf.null is True
+    assert cpf.blank is True
