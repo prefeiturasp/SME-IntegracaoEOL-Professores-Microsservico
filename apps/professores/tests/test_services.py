@@ -140,6 +140,49 @@ def test_titulares_por_turmas_converte_codigos(monkeypatch):
     assert chamadas["codigos"] == [2112345]
 
 
+def test_buscar_turmas_professor_todos_anos_delega(monkeypatch):
+    """Delega a consulta de todos os anos ao repository."""
+    esperado = [{"ano_letivo": "2024"}]
+
+    def fake(codigo_rf):
+        assert codigo_rf == "7654321"
+        return esperado
+
+    monkeypatch.setattr(
+        services.repositories,
+        "buscar_turmas_professor_todos_anos",
+        fake,
+    )
+
+    resultado = services.buscar_turmas_professor_todos_anos("7654321")
+
+    assert resultado == esperado
+
+
+def test_titulares_por_turma_converte_data_e_delega(monkeypatch):
+    """Converte a data opcional e delega os filtros ao repository."""
+    chamadas = {}
+
+    def fake(codigo_turma, codigo_rf=None, data_referencia=None):
+        chamadas["args"] = (codigo_turma, codigo_rf, data_referencia)
+        return [{"turma_id": codigo_turma}]
+
+    monkeypatch.setattr(services.repositories, "titulares_por_turma", fake)
+
+    resultado = services.titulares_por_turma(
+        2112345,
+        codigo_rf="7654321",
+        data_referencia="2024-02-02",
+    )
+
+    assert resultado == [{"turma_id": 2112345}]
+    assert chamadas["args"] == (
+        2112345,
+        "7654321",
+        date(2024, 2, 2),
+    )
+
+
 def test_buscar_abrangencia_funcionario_perfil_delega(monkeypatch):
     """Service delega a abrangência ao repositories."""
     chamadas = {}

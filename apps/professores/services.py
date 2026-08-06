@@ -74,6 +74,18 @@ def buscar_turmas_professor(
     return repositories.buscar_turmas_professor(codigo_rf)
 
 
+def buscar_turmas_professor_todos_anos(codigo_rf: str) -> list[dict]:
+    """Lista turmas atribuídas ao professor sem filtro de ano letivo.
+
+    Args:
+        codigo_rf: Registro funcional ou CPF do professor.
+
+    Returns:
+        Atribuições de turma de todos os anos letivos.
+    """
+    return repositories.buscar_turmas_professor_todos_anos(codigo_rf)
+
+
 def buscar_abrangencia_funcionario_perfil(
     login: str,
     id_perfil: str,
@@ -507,26 +519,23 @@ def titulares_por_turmas(codigos_turmas: list[str]) -> list[dict]:
     return repositories.titulares_por_turmas(codigos)
 
 
-def titulares_por_turma_agrupamento(
+def titulares_por_turma(
     codigo_turma: int,
-    realiza_agrupamento: str,
     codigo_rf: str | None = None,
     data_referencia: str | None = None,
 ) -> list[dict]:
-    """Lista professores titulares por turma com agrupamento.
+    """Lista professores titulares por turma.
 
     Args:
         codigo_turma: Código EOL da turma consultada.
-        realiza_agrupamento: Indica se titulares devem ser agrupados.
         codigo_rf: Registro funcional do professor ou servidor consultado.
         data_referencia: Data de referência usada para validar vigência.
 
     Returns:
         Lista de dados encontrados para os filtros informados.
     """
-    return repositories.titulares_por_turma_agrupamento(
+    return repositories.titulares_por_turma(
         codigo_turma,
-        realiza_agrupamento.lower() == "true",
         codigo_rf=codigo_rf,
         data_referencia=_data_iso_ou_none(data_referencia),
     )

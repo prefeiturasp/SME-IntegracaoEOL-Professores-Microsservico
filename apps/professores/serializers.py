@@ -35,6 +35,16 @@ class TurmaAtribuidaSerializer(serializers.Serializer):
     codigo_grade = serializers.IntegerField(allow_null=True)
     codigo_serie_grade = serializers.IntegerField(allow_null=True)
     ano_atribuicao = serializers.IntegerField(allow_null=True)
+    ano_letivo = serializers.CharField(allow_null=True)
+    codigo_rf = serializers.CharField(allow_null=True)
+    disciplina_id = serializers.CharField(allow_null=True)
+    disciplina_nome = serializers.CharField(allow_null=True)
+    disciplinas_agrupadas_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_null=True,
+    )
+    nome_professor = serializers.CharField(allow_null=True)
+    data_fim_turma = serializers.DateTimeField(allow_null=True)
     ano = serializers.CharField(allow_null=True)
     etapa_ensino = serializers.IntegerField(allow_null=True)
 
@@ -187,3 +197,14 @@ class TitularAgrupamentoSerializer(serializers.Serializer):
     codigo_componente_curricular = serializers.IntegerField(allow_null=True)
     codigo_territorio_saber = serializers.IntegerField(allow_null=True)
     codigo_experiencia_pedagogica = serializers.IntegerField(allow_null=True)
+
+
+class TitularTurmaSerializer(serializers.Serializer):
+    """Serializa professor titular com dados de turma."""
+
+    professor_rf = serializers.CharField()
+    nome_professor = serializers.CharField()
+    disciplina = serializers.CharField(allow_null=True)
+    disciplina_id = serializers.IntegerField(allow_null=True)
+    disciplinas_id = serializers.CharField()
+    turma_id = serializers.IntegerField()

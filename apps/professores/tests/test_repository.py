@@ -7,7 +7,6 @@ import pytest
 
 from apps.professores import repositories
 from apps.professores.models import (
-    AgrupamentoAtribuicaoTerritorioSaber,
     AtribuicaoAula,
     CargoBaseServidor,
     Professor,
@@ -355,6 +354,16 @@ def test_buscar_turmas_professor_ano_inclui_campos_atribuicao_externa(
             "data_atribuicao": "02/01/2024 00:00:00",
             "data_disponibilizacao": None,
             "data_inicio_turma": None,
+            "ano_letivo": "2024",
+            "data_inicio_atribuicao": "2024-02-01T00:00:00",
+            "data_fim_atribuicao": None,
+            "data_fim_turma": None,
+            "ano_atribuicao": 2024,
+            "codigo_rf": "98765432100",
+            "disciplina_id": "138",
+            "disciplina_nome": "Matematica",
+            "disciplinas_agrupadas_ids": None,
+            "nome_professor": "João Ext",
         }
     ]
 
@@ -393,37 +402,125 @@ def test_buscar_turmas_professor_ignora_atribuicao_cancelada(db):
     assert repositories.buscar_turmas_professor("7654323") == []
 
 
-def test_titulares_por_turma_agrupamento_com_componentes():
-    """Verifica titulares agrupados com componentes informados."""
-    AgrupamentoAtribuicaoTerritorioSaber.objects.create(
-        codigo_agrupamento=1,
-        rf_professor="7654321",
-        codigo_turma=2112345,
-        codigos_componentes_curriculares="138, 139",
-        dt_inicio_atribuicao=date(2024, 2, 1),
-    )
+def test_titulares_por_turma_filtra_rf(atribuicao):
+    """Verifica titulares por RF com disciplina sem espaços à direita."""
+    atribuicao.descricao_componente_curricular = "Matematica   "
+    atribuicao.save(update_fields=["descricao_componente_curricular"])
 
-    resultado = repositories.titulares_por_turma_agrupamento(
+    resultado = repositories.titulares_por_turma(
         2112345,
-        True,
         codigo_rf="7654321",
         data_referencia=date(2024, 2, 2),
     )
 
-    assert [item["disciplinas_id"] for item in resultado] == ["138", "139"]
+    assert resultado == [
+        {
+            "professor_rf": "7654321",
+            "nome_professor": "Ana Silva",
+            "disciplina": "Matematica",
+            "disciplina_id": 138,
+            "disciplinas_id": "138",
+            "turma_id": 2112345,
+        }
+    ]
 
 
-def test_titulares_por_turma_agrupamento_sem_componentes():
-    """Verifica titulares agrupados sem componentes informados."""
-    AgrupamentoAtribuicaoTerritorioSaber.objects.create(
-        codigo_agrupamento=1,
-        rf_professor="7654321",
-        codigo_turma=2112345,
+def test_titular_por_turma_disciplina_retorna_payload(atribuicao):
+    """Retorna diretamente os dados do titular e da disciplina."""
+    atribuicao.descricao_componente_curricular = "Matematica   "
+    atribuicao.save(update_fields=["descricao_componente_curricular"])
+
+    resultado = repositories.titular_por_turma_disciplina(2112345, 138)
+
+    assert resultado == {
+        "professor_rf": "7654321",
+        "nome_professor": "Ana Silva",
+        "disciplina": "Matematica",
+        "disciplina_id": "138",
+        "disciplinas_id": "138",
+        "turma_id": 2112345,
+    }
+
+
+def test_titulares_por_turmas_retorna_payload(atribuicao_ano_corrente):
+    """Retorna diretamente os titulares das turmas informadas."""
+    resultado = repositories.titulares_por_turmas([2112345])
+
+    assert resultado == [
+        {
+            "professor_rf": "7654321",
+            "nome_professor": "Ana Silva",
+            "disciplina": "Matematica",
+            "disciplina_id": "138",
+            "disciplinas_id": "138",
+            "turma_id": 2112345,
+        }
+    ]
+
+
+def test_titulares_por_ue_retorna_payload(atribuicao):
+    """Retorna diretamente os titulares vigentes da unidade."""
+    resultado = repositories.titulares_por_ue(
+        "000532",
+        date(2024, 6, 1),
     )
 
-    resultado = repositories.titulares_por_turma_agrupamento(2112345, True)
+    assert resultado == [
+        {
+            "professor_rf": "7654321",
+            "nome_professor": "Ana Silva",
+            "disciplina": "Matematica",
+            "disciplina_id": "138",
+            "disciplinas_id": "138",
+            "turma_id": 2112345,
+        }
+    ]
 
-    assert resultado[0]["disciplinas_id"] is None
+
+def test_buscar_turmas_professor_todos_anos_nao_filtra_ano(atribuicao):
+    """Retorna atribuição efetiva sem restringir o ano letivo."""
+    atribuicao.dt_atribuicao_aula = date.today() + timedelta(days=30)
+    atribuicao.save(update_fields=["dt_atribuicao_aula"])
+
+    resultado = repositories.buscar_turmas_professor_todos_anos("7654321")
+
+    assert len(resultado) == 1
+    assert resultado[0]["ano_letivo"] == "2024"
+    assert resultado[0]["ano_atribuicao"] == 2024
+
+
+def test_buscar_turmas_professor_todos_anos_ignora_cancelada(atribuicao):
+    """Ignora atribuição com data de cancelamento."""
+    atribuicao.dt_cancelamento = date(2024, 3, 1)
+    atribuicao.save(update_fields=["dt_cancelamento"])
+
+    resultado = repositories.buscar_turmas_professor_todos_anos("7654321")
+
+    assert resultado == []
+
+
+def test_buscar_turmas_professor_todos_anos_inclui_disponibilizada(
+    atribuicao,
+):
+    """Inclui atribuição mesmo quando já foi disponibilizada."""
+    atribuicao.dt_disponibilizacao_aulas = date(2024, 3, 1)
+    atribuicao.save(update_fields=["dt_disponibilizacao_aulas"])
+
+    resultado = repositories.buscar_turmas_professor_todos_anos("7654321")
+
+    assert len(resultado) == 1
+    assert resultado[0]["data_fim_atribuicao"] == "2024-03-01T00:00:00"
+
+
+def test_buscar_turmas_professor_todos_anos_inclui_externo(
+    atribuicao_externa,
+):
+    """Retorna atribuição externa sem restringir o ano letivo."""
+    resultado = repositories.buscar_turmas_professor_todos_anos("98765432100")
+
+    assert len(resultado) == 1
+    assert resultado[0]["ano_letivo"] == "2024"
+    assert resultado[0]["codigo_rf"] == "98765432100"
 
 
 def test_atribuicao_turmas_lista_sem_turmas_retorna_vazio(
