@@ -222,6 +222,53 @@ class FuncionarioCargo(models.Model):
         managed = False
 
 
+class FuncionarioSistemaPerfil(models.Model):
+    """Perfil de sistema associado ao login do funcionario."""
+
+    id = models.BigAutoField(primary_key=True)
+    login = models.CharField(max_length=500)
+    nome_servidor = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    email = models.CharField(
+        max_length=500,
+        null=True,
+        blank=True,
+    )
+    cpf = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+    uad_codigo = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+    perfil = models.UUIDField()
+    sis_id = models.IntegerField()
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_sistema_perfil"
+        managed = False
+        verbose_name = "perfil de sistema do funcionario"
+        verbose_name_plural = "perfis de sistema dos funcionarios"
+        indexes = [
+            models.Index(fields=["login"], name="idx_fsp_login"),
+            models.Index(fields=["sis_id"], name="idx_fsp_sis_id"),
+            models.Index(fields=["perfil"], name="idx_fsp_perfil"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["login", "perfil", "sis_id"],
+                name="uq_fsp_login_perfil_sis",
+            ),
+        ]
+
+
 class TurmaAtribuidaUe(models.Model):
     """Turma atribuída por vínculo do funcionário com UE."""
 
@@ -495,8 +542,7 @@ class AtribuicaoExterno(models.Model):
 
 
 class AdministradorEscola(models.Model):
-    """Administradores SGP vinculados a unidades educacionais.
-    """
+    """Administradores SGP vinculados a unidades educacionais."""
 
     codigo_ue = models.CharField(max_length=20, db_index=True)
     rf_login = models.CharField(max_length=50)

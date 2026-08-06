@@ -5,6 +5,10 @@ from typing import Any
 
 from apps.funcionarios import repositories
 
+MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS = (
+    "Não foram encontrados funcionários."
+)
+
 
 @dataclass(frozen=True)
 class ResultadoServico:
@@ -400,3 +404,37 @@ def buscar_funcionarios(payload: Any) -> list[dict]:
             filtros.get("NomeServidor") or filtros.get("nomeServidor")
         ),
     )
+
+
+def funcionarios_por_unidade_perfis(
+    codigo_dre_ue: str,
+    perfis: list,
+) -> ResultadoServico:
+    """Lista funcionarios de unidade por perfis de sistema."""
+    if not perfis:
+        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
+    resultado = repositories.funcionarios_por_unidade_perfis(
+        codigo_dre_ue,
+        perfis,
+    )
+    if not resultado:
+        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
+    return ResultadoServico(resultado)
+
+
+def logins_admins_sme_por_perfis(perfis: list) -> ResultadoServico:
+    """Lista logins de administradores SME por perfis."""
+    if not perfis:
+        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
+    resultado = repositories.logins_admins_sme_por_perfis(perfis)
+    if not resultado:
+        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
+    return ResultadoServico(resultado)
+
+
+def dados_sigpae(codigo_rf: str) -> ResultadoServico:
+    """Retorna dados de funcionario para o SIGPAE."""
+    resultado = repositories.dados_sigpae_por_rf(codigo_rf)
+    if resultado is None:
+        return ResultadoServico(repositories.MENSAGEM_SIGPAE_SEM_DADOS, 601)
+    return ResultadoServico(resultado)

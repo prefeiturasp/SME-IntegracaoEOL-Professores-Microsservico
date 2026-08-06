@@ -8,9 +8,11 @@ from rest_framework.views import APIView
 
 from apps.funcionarios import services
 from apps.funcionarios.serializers import (
+    DadosSigpaeSerializer,
     DreUeCargoSerializer,
     FuncionarioExternoCpfSerializer,
     FuncionarioFuncaoExternaSerializer,
+    FuncionarioPerfilSerializer,
     FuncionariosUEFiltroSerializer,
     FuncionariosUEQuerySerializer,
     FuncionarioUESerializer,
@@ -668,6 +670,71 @@ class FuncionariosSGPDreView(APIView):
         return Response(resultado.payload, status=resultado.status_code)
 
 
+class FuncionariosPorUnidadePerfisView(APIView):
+    """Lista funcionarios de unidade por perfis de sistema."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Buscar funcionarios de unidade por perfis",
+        parameters=[
+            OpenApiParameter("codigo_dre_ue", str, OpenApiParameter.PATH),
+        ],
+        request=list[str],
+        responses={
+            200: FuncionarioPerfilSerializer(many=True),
+            404: str,
+        },
+    )
+    def post(self, request: Request, codigo_dre_ue: str) -> Response:
+        """Lista funcionarios de unidade por perfis de sistema."""
+        resultado = services.funcionarios_por_unidade_perfis(
+            codigo_dre_ue,
+            request.data if isinstance(request.data, list) else [],
+        )
+        return Response(resultado.payload, status=resultado.status_code)
+
+
+class FuncionariosAdminsSmeView(APIView):
+    """Lista logins de administradores SME por perfis."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Buscar administradores SME por perfis",
+        request=list[str],
+        responses={200: list[str], 404: str},
+    )
+    def post(self, request: Request) -> Response:
+        """Lista logins de administradores SME por perfis."""
+        resultado = services.logins_admins_sme_por_perfis(
+            request.data if isinstance(request.data, list) else [],
+        )
+        return Response(resultado.payload, status=resultado.status_code)
+
+
+class DadosSigpaeView(APIView):
+    """Retorna dados de funcionario para o SIGPAE."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Buscar dados SIGPAE por RF",
+        parameters=[
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
+        ],
+        responses={200: DadosSigpaeSerializer, "default": str},
+    )
+    def get(self, request: Request, codigo_rf: str) -> Response:
+        """Retorna dados de funcionario para o SIGPAE."""
+        resultado = services.dados_sigpae(codigo_rf)
+        if resultado.status_code == 601:
+            response = Response(
+                resultado.payload,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            response.status_code = resultado.status_code
+            return response
+        return Response(resultado.payload, status=resultado.status_code)
+
+
 class AcessoSondagemView(APIView):
     """Verifica se o professor tem acesso à sondagem."""
 
@@ -719,7 +786,7 @@ class BuscarPorListaLoginView(APIView):
     @extend_schema(
         tags=_TAG_FUNC,
         summary="Buscar resumo de funcionários por lista de login",
-        request=list,
+        request=list[str],
         responses={200: ResumoFuncionarioSerializer(many=True)},
     )
     def post(self, request: Request) -> Response:

@@ -7,11 +7,15 @@ import pytest
 from apps.funcionarios import repositories
 from apps.professores.models import (
     CargoSobrepostoServidor,
+    FuncionarioSistemaPerfil,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
 )
 
 pytestmark = pytest.mark.django_db
+
+_PERFIL_1 = "ea741bf4-47ea-486d-8b88-5327521bcfc5"
+_PERFIL_2 = "5f7d2f11-a7d6-4055-9a02-4af25e94b640"
 
 
 def test_dre_de_ue_retorna_none_sem_codigo():
@@ -100,6 +104,147 @@ def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(
     )
 
     assert resultado[0]["codigo_rf"] == "1111111"
+
+
+def test_funcionarios_por_unidade_perfis_filtra_unidade_e_perfil(db):
+    """Verifica funcionarios por unidade e perfis do sistema."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Perfil",
+        email="ana@sme.prefeitura.sp.gov.br",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000002",
+        nome_servidor="Fora Perfil",
+        uad_codigo="108100",
+        perfil=_PERFIL_2,
+        sis_id=1,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000003",
+        nome_servidor="Fora Unidade",
+        uad_codigo="999999",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.funcionarios_por_unidade_perfis(
+        "108100",
+        [_PERFIL_1],
+    )
+
+    assert resultado == [
+        {
+            "login": "0000001",
+            "nome_servidor": "Ana Perfil",
+            "perfil": _PERFIL_1,
+        }
+    ]
+
+
+def test_logins_admins_sme_por_perfis_remove_duplicados(db):
+    """Verifica logins de administradores por perfis."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Perfil",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Outro Sistema",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=2,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000002",
+        nome_servidor="Outro Perfil",
+        uad_codigo="108100",
+        perfil=_PERFIL_2,
+        sis_id=1,
+    )
+
+    resultado = repositories.logins_admins_sme_por_perfis([_PERFIL_1])
+
+    assert resultado == ["0000001"]
+
+
+def test_dados_sigpae_por_rf_retorna_dados_consolidados(
+    criar_funcionario_ue,
+):
+    """Verifica dados SIGPAE de funcionario existente no EOL."""
+    criar_funcionario_ue(
+        codigo_rf="0000001",
+        nome="Vanessa Santicioli Guerreiro",
+        cpf="000000000000",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        codigo_cargo="3379",
+        cargo="SUPERVISOR ESCOLAR",
+        nome_ue="SUPERVISAO ESCOLAR - PE",
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Vanessa Santicioli Guerreiro",
+        email="email@sme.prefeitura.sp.gov.br",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.dados_sigpae_por_rf("0000001")
+
+    assert resultado == {
+        "rf": "0000001",
+        "cpf": "000000000000",
+        "email": "email@sme.prefeitura.sp.gov.br",
+        "cargos": [
+            {
+                "codigo_cargo": 3379,
+                "descricao_cargo": "SUPERVISOR ESCOLAR",
+                "codigo_unidade": "000532",
+                "descricao_unidade": "SUPERVISAO ESCOLAR - PE",
+                "codigo_dre": "108100",
+                "contrato_externo": False,
+            }
+        ],
+        "nome": "Vanessa Santicioli Guerreiro",
+        "inexistente_eol": False,
+    }
+
+
+def test_dados_sigpae_por_rf_retorna_fallback_sem_eol(db):
+    """Verifica fallback SIGPAE quando funcionario inexiste no EOL."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Usuario CoreSSO",
+        email="core@sme.prefeitura.sp.gov.br",
+        cpf="12345678900",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.dados_sigpae_por_rf("0000001")
+
+    assert resultado == {
+        "rf": "0000001",
+        "cpf": "12345678900",
+        "email": "core@sme.prefeitura.sp.gov.br",
+        "cargos": None,
+        "nome": "Usuario CoreSSO",
+        "inexistente_eol": True,
+    }
+
+
+def test_dados_sigpae_por_rf_sem_dados_retorna_none(db):
+    """Verifica ausencia total de dados SIGPAE."""
+    assert repositories.dados_sigpae_por_rf("0000001") is None
 
 
 def test_funcionarios_por_ue_legado_ignora_fim_nomeacao_sobreposto(

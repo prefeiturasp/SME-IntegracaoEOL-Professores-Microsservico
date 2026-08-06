@@ -4,6 +4,11 @@ import pytest
 
 from apps.funcionarios import services
 
+_MENSAGEM_NAO_ENCONTRADO = "Não foram encontrados funcionários."
+_MENSAGEM_SIGPAE_SEM_DADOS = (
+    "Sem informações na base de dados para o Código Rf informado"
+)
+
 
 def test_funcionarios_por_lista_cargos_sem_cargos_usa_ue(monkeypatch):
     """Verifica consulta da unidade quando cargos não são informados."""
@@ -218,3 +223,75 @@ def test_buscar_funcionarios_payload_invalido_usa_dict_vazio(monkeypatch):
 
     assert resultado == []
     assert chamadas["kwargs"] == (None, None, None)
+
+
+def test_funcionarios_por_unidade_perfis_vazio_retorna_404(monkeypatch):
+    """Verifica 404 para lista vazia de perfis por unidade."""
+    monkeypatch.setattr(
+        services.repositories,
+        "funcionarios_por_unidade_perfis",
+        lambda *_args: [{"login": "0000001"}],
+    )
+
+    resultado = services.funcionarios_por_unidade_perfis("108100", [])
+
+    assert resultado.status_code == 404
+    assert resultado.payload == _MENSAGEM_NAO_ENCONTRADO
+
+
+def test_funcionarios_por_unidade_perfis_sem_resultado_retorna_404(
+    monkeypatch,
+):
+    """Verifica 404 quando unidade e perfis nao retornam funcionarios."""
+    monkeypatch.setattr(
+        services.repositories,
+        "funcionarios_por_unidade_perfis",
+        lambda *_args: [],
+    )
+
+    resultado = services.funcionarios_por_unidade_perfis("108100", ["perfil"])
+
+    assert resultado.status_code == 404
+    assert resultado.payload == _MENSAGEM_NAO_ENCONTRADO
+
+
+def test_logins_admins_sme_por_perfis_retorna_resultado(monkeypatch):
+    """Verifica retorno de admins SME por perfis."""
+    monkeypatch.setattr(
+        services.repositories,
+        "logins_admins_sme_por_perfis",
+        lambda _perfis: ["0000001"],
+    )
+
+    resultado = services.logins_admins_sme_por_perfis(["perfil"])
+
+    assert resultado.status_code == 200
+    assert resultado.payload == ["0000001"]
+
+
+def test_logins_admins_sme_por_perfis_vazio_retorna_404(monkeypatch):
+    """Verifica 404 para lista vazia de perfis admins SME."""
+    monkeypatch.setattr(
+        services.repositories,
+        "logins_admins_sme_por_perfis",
+        lambda _perfis: ["0000001"],
+    )
+
+    resultado = services.logins_admins_sme_por_perfis([])
+
+    assert resultado.status_code == 404
+    assert resultado.payload == _MENSAGEM_NAO_ENCONTRADO
+
+
+def test_dados_sigpae_sem_dados_retorna_601(monkeypatch):
+    """Verifica erro legado quando SIGPAE nao encontra dados."""
+    monkeypatch.setattr(
+        services.repositories,
+        "dados_sigpae_por_rf",
+        lambda _codigo_rf: None,
+    )
+
+    resultado = services.dados_sigpae("0000001")
+
+    assert resultado.status_code == 601
+    assert resultado.payload == _MENSAGEM_SIGPAE_SEM_DADOS

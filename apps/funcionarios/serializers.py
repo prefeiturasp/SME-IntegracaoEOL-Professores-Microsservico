@@ -19,6 +19,36 @@ class FuncionarioUESerializer(serializers.Serializer):
     tipo_funcao_externo = serializers.IntegerField()
 
 
+class FuncionarioPerfilSerializer(serializers.Serializer):
+    """Serializa funcionario associado a perfil de sistema."""
+
+    login = serializers.CharField()
+    nome_servidor = serializers.CharField(allow_null=True)
+    perfil = serializers.CharField()
+
+
+class CargoSigpaeSerializer(serializers.Serializer):
+    """Serializa cargo retornado para o SIGPAE."""
+
+    codigo_cargo = serializers.IntegerField(allow_null=True)
+    descricao_cargo = serializers.CharField(allow_null=True)
+    codigo_unidade = serializers.CharField(allow_null=True)
+    descricao_unidade = serializers.CharField(allow_null=True)
+    codigo_dre = serializers.CharField(allow_null=True)
+    contrato_externo = serializers.BooleanField()
+
+
+class DadosSigpaeSerializer(serializers.Serializer):
+    """Serializa dados de funcionario retornados ao SIGPAE."""
+
+    rf = serializers.CharField()
+    cpf = serializers.CharField(allow_null=True)
+    email = serializers.CharField(allow_null=True)
+    cargos = CargoSigpaeSerializer(many=True, allow_null=True)
+    nome = serializers.CharField(allow_null=True)
+    inexistente_eol = serializers.BooleanField()
+
+
 class FuncionariosUEQuerySerializer(serializers.Serializer):
     """Valida filtros de funcionarios em unidade educacional."""
 

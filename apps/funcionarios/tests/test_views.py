@@ -15,6 +15,7 @@ from apps.funcionarios.api.views import (
 from apps.professores.models import (
     CargoBaseServidor,
     FuncionarioCargo,
+    FuncionarioSistemaPerfil,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Professor,
@@ -24,6 +25,7 @@ pytestmark = pytest.mark.django_db
 
 _BASE = "/api/v1/professores"
 _API_KEY = "test-key"
+_PERFIL_1 = "ea741bf4-47ea-486d-8b88-5327521bcfc5"
 
 
 def _request(settings, path: str):
@@ -949,4 +951,157 @@ class TestEP39BuscarPorListaLogin:
             [],
             format="json",
         )
+        assert res.status_code == 403
+
+
+class TestFuncionariosPorUnidadePerfis:
+    def test_retorna_funcionarios_filtrados_por_perfil(self, client, db):
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Ana Perfil",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/unidade/108100/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "login": "0000001",
+                "nome_servidor": "Ana Perfil",
+                "perfil": _PERFIL_1,
+            }
+        ]
+
+    def test_perfis_vazio_retorna_404(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/unidade/108100/",
+            [],
+            format="json",
+        )
+
+        assert res.status_code == 404
+        assert res.data == "Não foram encontrados funcionários."
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/unidade/108100/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 403
+
+
+class TestFuncionariosAdminsSme:
+    def test_retorna_logins_por_perfil(self, client, db):
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Ana Perfil",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/admins/sme/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == ["0000001"]
+
+    def test_perfis_vazio_retorna_404(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/admins/sme/",
+            [],
+            format="json",
+        )
+
+        assert res.status_code == 404
+        assert res.data == "Não foram encontrados funcionários."
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/admins/sme/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 403
+
+
+class TestDadosSigpae:
+    def test_retorna_dados_sigpae(self, client, criar_funcionario_ue):
+        criar_funcionario_ue(
+            codigo_rf="0000001",
+            nome="Vanessa",
+            cpf="000000000000",
+            codigo_cargo="3379",
+            cargo="SUPERVISOR ESCOLAR",
+            nome_ue="SUPERVISAO ESCOLAR - PE",
+        )
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Vanessa",
+            email="email@sme.prefeitura.sp.gov.br",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
+        assert res.status_code == 200
+        assert res.data["rf"] == "0000001"
+        assert res.data["email"] == "email@sme.prefeitura.sp.gov.br"
+        assert res.data["inexistente_eol"] is False
+        assert res.data["cargos"][0]["codigo_cargo"] == 3379
+
+    def test_sem_eol_com_usuario_local_retorna_fallback(
+        self,
+        client,
+        db,
+    ):
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Usuario Local",
+            email="local@sme.prefeitura.sp.gov.br",
+            cpf="12345678900",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
+        assert res.status_code == 200
+        assert res.data == {
+            "rf": "0000001",
+            "cpf": "12345678900",
+            "email": "local@sme.prefeitura.sp.gov.br",
+            "cargos": None,
+            "nome": "Usuario Local",
+            "inexistente_eol": True,
+        }
+
+    def test_sem_dados_retorna_601(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
+        assert res.status_code == 601
+        assert (
+            res.data
+            == "Sem informações na base de dados para o Código Rf informado"
+        )
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
         assert res.status_code == 403
