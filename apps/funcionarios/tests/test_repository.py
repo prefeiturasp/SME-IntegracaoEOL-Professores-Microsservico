@@ -82,20 +82,15 @@ def test_funcionarios_por_ue_cargo_filtra_cargo(lotacao):
     assert resultado[0]["codigo_rf"] == "7654321"
 
 
-def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(lotacao, ue):
+def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica fim de nomeação no bloco de lotação."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+    criar_funcionario_ue(
         data_fim=datetime(2024, 12, 31, tzinfo=UTC),
         dt_fim_nomeacao=datetime(2024, 12, 31, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
         origem_vinculo="lotacao",
-        eh_professor=False,
     )
 
     resultado = repositories.funcionarios_por_ue(
@@ -108,21 +103,14 @@ def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(lotacao, ue):
 
 
 def test_funcionarios_por_ue_legado_ignora_fim_nomeacao_sobreposto(
-    lotacao, ue
+    lotacao,
+    criar_funcionario_ue,
 ):
     """Verifica filtro de nomeação no bloco de cargo sobreposto."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+    criar_funcionario_ue(
         data_fim=datetime(2024, 12, 31, tzinfo=UTC),
         dt_fim_nomeacao=datetime(2024, 12, 31, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
         origem_vinculo="cargo_sobreposto",
-        eh_professor=False,
     )
 
     resultado = repositories.funcionarios_por_ue(
@@ -134,20 +122,15 @@ def test_funcionarios_por_ue_legado_ignora_fim_nomeacao_sobreposto(
     assert resultado == []
 
 
-def test_funcionarios_por_ue_legado_ignora_fim_funcao(lotacao, ue):
+def test_funcionarios_por_ue_legado_ignora_fim_funcao(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica filtro de fim de função atividade no contrato legado."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
+    criar_funcionario_ue(
         codigo_tipo_funcao_atividade=27,
         origem_vinculo="funcao_atividade",
         dt_fim_funcao_atividade=datetime(2024, 12, 31, tzinfo=UTC),
-        eh_professor=False,
     )
 
     resultado = repositories.funcionarios_por_ue(
@@ -159,14 +142,13 @@ def test_funcionarios_por_ue_legado_ignora_fim_funcao(lotacao, ue):
     assert resultado == []
 
 
-def test_funcionarios_por_ue_professor_ignora_vinculo_encerrado(lotacao, ue):
+def test_funcionarios_por_ue_professor_ignora_vinculo_encerrado(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica filtro de professor com vínculo ativo."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
+    criar_funcionario_ue(
         nome="Carlos Professor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
         data_fim=datetime(2024, 12, 31, tzinfo=UTC),
         codigo_cargo="3239",
         cargo="PROFESSOR",
@@ -250,19 +232,12 @@ def test_nome_cpf_servidor_retorna_funcionario_lotado(lotacao):
     assert resultado == {"nome": "Ana Silva", "cpf": "12345678900"}
 
 
-def test_buscar_funcionarios_ignora_vinculo_encerrado(lotacao, ue):
+def test_buscar_funcionarios_ignora_vinculo_encerrado(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica busca apenas em vínculos ativos."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        eh_professor=False,
-    )
+    criar_funcionario_ue(data_fim=datetime(2024, 12, 31, tzinfo=UTC))
 
     resultado = repositories.buscar_funcionarios(codigo_rf="1111111")
 
@@ -282,16 +257,11 @@ def test_usuarios_sgp_por_perfil_filtra_por_dre_e_nome(lotacao):
     assert resultado[0]["cd_cargo"] == "3379"
 
 
-def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(db):
+def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(
+    criar_funcionario_ue,
+):
     """Verifica consulta por DRE a partir do vínculo consolidado."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
+    criar_funcionario_ue(
         origem_vinculo="funcao_atividade",
         codigo_tipo_funcao_atividade=1,
     )
@@ -316,27 +286,16 @@ def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(db):
     ]
 
 
-def test_usuarios_sgp_por_perfil_com_dre_usa_referencia(db):
+def test_usuarios_sgp_por_perfil_com_dre_usa_referencia(
+    criar_funcionario_ue,
+):
     """Verifica consulta por DRE no fluxo de perfil."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
-    )
-    FuncionarioUnidadeEducacional.objects.create(
+    criar_funcionario_ue()
+    criar_funcionario_ue(
         codigo_rf="2222222",
         nome="Beatriz Gestora",
         codigo_ue="108199",
         codigo_dre="200000",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
 
     resultado = repositories.usuarios_sgp_por_perfil(
@@ -347,17 +306,15 @@ def test_usuarios_sgp_por_perfil_com_dre_usa_referencia(db):
     assert [item["codigo_rf"] for item in resultado] == ["1111111"]
 
 
-def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(db):
+def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(
+    criar_funcionario_ue,
+):
     """Verifica consulta por UE quando DRE também é enviada."""
-    FuncionarioUnidadeEducacional.objects.create(
+    criar_funcionario_ue(
         codigo_rf="2222222",
         nome="Beatriz Gestora",
         codigo_ue="000999",
         codigo_dre="108999",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
 
     resultado = repositories.usuarios_sgp_por_perfil(
@@ -381,18 +338,11 @@ def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(db):
     ]
 
 
-def test_usuarios_sgp_por_perfil_com_rf_usa_funcionario_consolidado(db):
+def test_usuarios_sgp_por_perfil_com_rf_usa_funcionario_consolidado(
+    criar_funcionario_ue,
+):
     """Verifica consulta por RF a partir do vínculo consolidado."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="cargo_sobreposto",
-    )
+    criar_funcionario_ue(origem_vinculo="cargo_sobreposto")
     resultado = repositories.usuarios_sgp_por_perfil(
         "perfil-guid-123",
         codigo_rf="1111111",
@@ -426,27 +376,17 @@ def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):
     assert resultado[0]["codigo_ue"] == "000532"
 
 
-def test_funcionarios_sgp_dre_usa_prefixo_da_dre(db):
+def test_funcionarios_sgp_dre_usa_prefixo_da_dre(criar_funcionario_ue):
     """Verifica consulta por DRE no fluxo legado direto."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
+    criar_funcionario_ue(
         codigo_ue="108199",
         codigo_dre="200000",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
-    FuncionarioUnidadeEducacional.objects.create(
+    criar_funcionario_ue(
         codigo_rf="2222222",
         nome="Beatriz Gestora",
         codigo_ue="000532",
         codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
 
     resultado = repositories.funcionarios_sgp_dre(
@@ -536,42 +476,11 @@ def test_supervisores_por_dre_usa_dre_da_lotacao_do_cargo_base(
     ]
 
 
-def test_supervisores_dres_filtra_por_dre_e_marcacao(db):
+def test_supervisores_dres_filtra_por_dre_e_marcacao(
+    criar_supervisores_dre,
+):
     """Verifica supervisores da DRE no consolidado de funcionarios."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Supervisora Silva",
-        nome_social="Supervisora Social",
-        cpf="11111111111",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        codigo_tipo_funcao_atividade=0,
-        eh_professor=False,
-        esta_afastado=False,
-        supervisor_dre=True,
-    )
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="2222222",
-        nome="Funcionario Fora",
-        cpf="22222222222",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        codigo_tipo_funcao_atividade=0,
-        eh_professor=False,
-        esta_afastado=False,
-        supervisor_dre=False,
-    )
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="3333333",
-        nome="Supervisora Outra DRE",
-        cpf="33333333333",
-        codigo_ue="000533",
-        codigo_dre="108200",
-        codigo_tipo_funcao_atividade=0,
-        eh_professor=False,
-        esta_afastado=False,
-        supervisor_dre=True,
-    )
+    criar_supervisores_dre()
 
     resultado = repositories.supervisores_dres("108100")
 
@@ -590,38 +499,13 @@ def test_supervisores_dres_sem_registros_retorna_lista_vazia(db):
 
 def test_funcionario_externo_por_cpf_usa_vinculo_consolidado(
     contrato_externo,
+    preparar_pessoa_externa,
+    criar_vinculo_externo_consolidado,
 ):
     """Verifica retorno enriquecido pelo vinculo externo consolidado."""
     pessoa = contrato_externo.pessoa
-    pessoa.nome = "Nome Pessoa"
-    pessoa.nome_social = "Nome social"
-    pessoa.nome_pai = "Pai Externo"
-    pessoa.nome_mae = "Mae Externa"
-    pessoa.data_nascimento = date(1985, 3, 2)
-    pessoa.rg = "1234567"
-    pessoa.titulo_eleitoral = "987654"
-    pessoa.pis_pasep = "11223344"
-    pessoa.save()
-
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="EXT123",
-        nome="Nome consolidado",
-        nome_social=None,
-        cpf="98765432100",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
-        codigo_tipo_funcao_atividade=0,
-        origem_vinculo="externo",
-        eh_professor=False,
-        esta_afastado=False,
-        funcao_externo=99,
-        tipo_funcao_externo=2,
-        nome_ue="EMEF Teste",
-        tipo_funcionario_externo="Terceirizado",
-        dc_funcao_externo="Auxiliar tecnico",
-        pessoa=pessoa,
-    )
+    preparar_pessoa_externa(pessoa)
+    criar_vinculo_externo_consolidado(pessoa)
 
     resultado = repositories.funcionario_externo_por_cpf("98765432100")
 

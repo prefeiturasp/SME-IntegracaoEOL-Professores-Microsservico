@@ -48,17 +48,10 @@ class TestEP25FuncionariosPorUE:
         res = anon.get(f"{_BASE}/escolas/000532/funcionarios/")
         assert res.status_code == 403
 
-    def test_rota_antiga_filtra_professor(self, client, lotacao, ue):
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="1111111",
-            nome="Carlos Gestor",
-            cpf="11111111111",
-            codigo_ue=ue.codigo_ue,
-            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-            codigo_cargo="3360",
-            cargo="DIRETOR",
-            eh_professor=False,
-        )
+    def test_rota_antiga_filtra_professor(
+        self, client, lotacao, criar_funcionario_ue
+    ):
+        criar_funcionario_ue()
 
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
 
@@ -68,18 +61,9 @@ class TestEP25FuncionariosPorUE:
 
 class TestFuncionariosUE:
     def test_rota_legado_retorna_funcionario_nao_professor(
-        self, client, lotacao, ue
+        self, client, lotacao, criar_funcionario_ue
     ):
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="1111111",
-            nome="Carlos Gestor",
-            cpf="11111111111",
-            codigo_ue=ue.codigo_ue,
-            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-            codigo_cargo="3360",
-            cargo="DIRETOR",
-            eh_professor=False,
-        )
+        criar_funcionario_ue()
 
         res = client.post(
             f"{_BASE}/funcionarios/ue/000532/",
@@ -90,17 +74,10 @@ class TestFuncionariosUE:
         assert res.status_code == 200
         assert any(item["codigo_rf"] == "1111111" for item in res.data)
 
-    def test_rota_legado_filtra_por_rf(self, client, lotacao, ue):
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="1111111",
-            nome="Carlos Gestor",
-            cpf="11111111111",
-            codigo_ue=ue.codigo_ue,
-            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-            codigo_cargo="3360",
-            cargo="DIRETOR",
-            eh_professor=False,
-        )
+    def test_rota_legado_filtra_por_rf(
+        self, client, lotacao, criar_funcionario_ue
+    ):
+        criar_funcionario_ue()
 
         res = client.post(
             f"{_BASE}/funcionarios/ue/000532/",
@@ -271,41 +248,10 @@ class TestSupervisoresPorDre:
 
 
 class TestSupervisoresDreConsolidado:
-    def test_get_retorna_supervisores_do_consolidado(self, client):
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="1111111",
-            nome="Supervisora Silva",
-            nome_social="Supervisora Social",
-            cpf="11111111111",
-            codigo_ue="000532",
-            codigo_dre="108100",
-            codigo_tipo_funcao_atividade=0,
-            eh_professor=False,
-            esta_afastado=False,
-            supervisor_dre=True,
-        )
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="2222222",
-            nome="Funcionario Fora",
-            cpf="22222222222",
-            codigo_ue="000532",
-            codigo_dre="108100",
-            codigo_tipo_funcao_atividade=0,
-            eh_professor=False,
-            esta_afastado=False,
-            supervisor_dre=False,
-        )
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="3333333",
-            nome="Supervisora Outra DRE",
-            cpf="33333333333",
-            codigo_ue="000533",
-            codigo_dre="108200",
-            codigo_tipo_funcao_atividade=0,
-            eh_professor=False,
-            esta_afastado=False,
-            supervisor_dre=True,
-        )
+    def test_get_retorna_supervisores_do_consolidado(
+        self, client, criar_supervisores_dre
+    ):
+        criar_supervisores_dre()
 
         res = client.get(
             f"{_BASE}/funcionarios/dres/108100/supervisores/"
@@ -640,37 +586,16 @@ class TestEP29CargosFuncionario:
 
 
 class TestEP30FuncionarioExternoPorCpf:
-    def test_encontrado_retorna_dados(self, client, contrato_externo):
+    def test_encontrado_retorna_dados(
+        self,
+        client,
+        contrato_externo,
+        preparar_pessoa_externa,
+        criar_vinculo_externo_consolidado,
+    ):
         pessoa = contrato_externo.pessoa
-        pessoa.nome = "Nome Pessoa"
-        pessoa.nome_social = "Nome social"
-        pessoa.nome_pai = "Pai Externo"
-        pessoa.nome_mae = "Mae Externa"
-        pessoa.data_nascimento = date(1985, 3, 2)
-        pessoa.rg = "1234567"
-        pessoa.titulo_eleitoral = "987654"
-        pessoa.pis_pasep = "11223344"
-        pessoa.save()
-
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="EXT123",
-            nome="Nome consolidado",
-            nome_social=None,
-            cpf="98765432100",
-            codigo_ue="000532",
-            codigo_dre="108100",
-            data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
-            codigo_tipo_funcao_atividade=0,
-            origem_vinculo="externo",
-            eh_professor=False,
-            esta_afastado=False,
-            funcao_externo=99,
-            tipo_funcao_externo=2,
-            nome_ue="EMEF Teste",
-            tipo_funcionario_externo="Terceirizado",
-            dc_funcao_externo="Auxiliar tecnico",
-            pessoa=pessoa,
-        )
+        preparar_pessoa_externa(pessoa)
+        criar_vinculo_externo_consolidado(pessoa)
 
         res = client.get(
             f"{_BASE}/funcionarios/funcionario-externo/98765432100/"
