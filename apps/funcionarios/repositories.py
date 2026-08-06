@@ -40,6 +40,12 @@ MENSAGEM_SIGPAE_SEM_DADOS = (
 )
 _UE_DRE_CACHE: dict[str, str | None] = {}
 _CODIGO_CARGO_SUPERVISOR = 3352
+_CODIGOS_CARGOS_GESTAO_SIGPAE = {
+    3085,
+    3352,
+    3360,
+    3379,
+}
 _ChaveFuncionarioExterno = tuple[int | None, str]
 
 
@@ -255,6 +261,18 @@ def _funcionarios_ativos() -> Any:
     )
 
 
+def _funcionarios_sigpae_por_rf(codigo_rf: str) -> Any:
+    """Retorna vínculos de funcionário ordenados para o SIGPAE."""
+    return FuncionarioUnidadeEducacional.objects.filter(
+        codigo_rf=codigo_rf,
+    ).order_by(
+        "data_inicio",
+        "origem_vinculo",
+        "codigo_ue",
+        "codigo_cargo",
+    )
+
+
 def _perfis_sistema_por_login(codigo_rf: str) -> Any:
     """Retorna perfis de sistema associados ao login."""
     return FuncionarioSistemaPerfil.objects.filter(login=codigo_rf).order_by(
@@ -308,6 +326,72 @@ def _cargo_sigpae(funcionario: FuncionarioUnidadeEducacional) -> dict:
         "codigo_dre": funcionario.codigo_dre,
         "contrato_externo": _contrato_externo_sigpae(funcionario),
     }
+
+
+def _cargo_sigpae_preenchido(cargo: dict) -> bool:
+    """Verifica se o cargo mapeado possui dados de vínculo."""
+    return (
+        cargo["codigo_cargo"] is not None
+        or bool(cargo["descricao_cargo"])
+    )
+
+
+def _cargo_sigpae_gestao(cargo: dict) -> bool:
+    """Verifica se o cargo SIGPAE representa gestão escolar."""
+    return cargo["codigo_cargo"] in _CODIGOS_CARGOS_GESTAO_SIGPAE
+
+
+def _funcionario_com_funcao_atividade(
+    funcionario: FuncionarioUnidadeEducacional,
+) -> bool:
+    """Verifica se o vínculo consolidado representa função atividade."""
+    return (
+        funcionario.origem_vinculo == "funcao_atividade"
+        or bool(funcionario.codigo_tipo_funcao_atividade)
+    )
+
+
+def _funcionario_com_cargo_sobreposto(
+    funcionario: FuncionarioUnidadeEducacional,
+) -> bool:
+    """Verifica se o vínculo consolidado representa cargo sobreposto."""
+    return funcionario.origem_vinculo == "cargo_sobreposto"
+
+
+def _cargos_sigpae(
+    funcionarios: list[FuncionarioUnidadeEducacional],
+    ultimo_funcionario: FuncionarioUnidadeEducacional | None,
+) -> list[dict]:
+    """Retorna cargos SIGPAE filtrados por prioridade."""
+    funcionarios_sobrepostos = [
+        funcionario
+        for funcionario in funcionarios
+        if _funcionario_com_cargo_sobreposto(funcionario)
+    ]
+    if funcionarios_sobrepostos:
+        return [_cargo_sigpae(funcionarios_sobrepostos[-1])]
+
+    funcionarios_sem_funcao = [
+        funcionario
+        for funcionario in funcionarios
+        if not _funcionario_com_funcao_atividade(funcionario)
+    ]
+    funcionarios_considerados = funcionarios_sem_funcao or funcionarios
+    cargos_mapeados = [
+        _cargo_sigpae(funcionario)
+        for funcionario in funcionarios_considerados
+    ]
+    cargos = _deduplicar_dicts(
+        [cargo for cargo in cargos_mapeados if _cargo_sigpae_preenchido(cargo)]
+    )
+    cargos_gestao = [cargo for cargo in cargos if _cargo_sigpae_gestao(cargo)]
+    if cargos_gestao:
+        return cargos_gestao
+    if cargos:
+        return [cargos[-1]]
+    if ultimo_funcionario is None:
+        return []
+    return [_cargo_sigpae(ultimo_funcionario)]
 
 
 def _deduplicar_dicts(rows: list[dict]) -> list[dict]:
@@ -1150,6 +1234,7 @@ def logins_admins_sme_por_perfis(perfis: list) -> list[str]:
 
 def dados_sigpae_por_rf(codigo_rf: str) -> dict | None:
     """Retorna dados de funcionario para o SIGPAE."""
+    ultimo_funcionario = _funcionarios_sigpae_por_rf(codigo_rf).last()
     funcionarios = list(
         _funcionarios_ativos()
         .filter(codigo_rf=codigo_rf)
@@ -1161,10 +1246,18 @@ def dados_sigpae_por_rf(codigo_rf: str) -> dict | None:
             "rf": funcionario.codigo_rf,
             "cpf": funcionario.cpf,
             "email": _email_funcionario_sistema(codigo_rf),
-            "cargos": _deduplicar_dicts(
-                [_cargo_sigpae(item) for item in funcionarios]
-            ),
+            "cargos": _cargos_sigpae(funcionarios, ultimo_funcionario),
             "nome": _nome_funcionario(funcionario),
+            "inexistente_eol": False,
+        }
+
+    if ultimo_funcionario is not None:
+        return {
+            "rf": ultimo_funcionario.codigo_rf,
+            "cpf": ultimo_funcionario.cpf,
+            "email": _email_funcionario_sistema(codigo_rf),
+            "cargos": [_cargo_sigpae(ultimo_funcionario)],
+            "nome": _nome_funcionario(ultimo_funcionario),
             "inexistente_eol": False,
         }
 

@@ -218,6 +218,88 @@ def test_dados_sigpae_por_rf_retorna_dados_consolidados(
     }
 
 
+def test_cargos_sigpae_prioriza_cargo_de_gestao():
+    """Verifica seleção de cargo de gestão conforme compatibilidade legada."""
+    funcionarios = [
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="3085",
+            cargo="ASSISTENTE DE DIRETOR DE ESCOLA",
+            codigo_ue="093130",
+            nome_ue="EMEF TESTE",
+            codigo_dre="108100",
+        ),
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="3182",
+            cargo="SECRETARIO DE ESCOLA                    ",
+            codigo_ue="093131",
+            nome_ue="EMEF - MARIA ANTONIETA D'ALKIMIN BASTO, PROFA.",
+            codigo_dre="108100",
+        ),
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="4906",
+            cargo="AUXILIAR TECNICO DE EDUCACAO",
+            codigo_ue="093203",
+            nome_ue="LAERTE RAMOS DE CARVALHO, PROF.",
+            codigo_dre="109100",
+        ),
+    ]
+
+    resultado = repositories._cargos_sigpae(funcionarios, funcionarios[-1])
+
+    assert resultado == [
+        {
+            "codigo_cargo": 3085,
+            "descricao_cargo": "ASSISTENTE DE DIRETOR DE ESCOLA",
+            "codigo_unidade": "093130",
+            "descricao_unidade": "EMEF TESTE",
+            "codigo_dre": "108100",
+            "contrato_externo": False,
+        }
+    ]
+
+
+def test_cargos_sigpae_prioriza_cargo_sobreposto():
+    """Verifica seleção de cargo sobreposto conforme compatibilidade legada."""
+    funcionarios = [
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="3182",
+            cargo="SECRETARIO DE ESCOLA                    ",
+            codigo_ue="093131",
+            nome_ue="EMEF - MARIA ANTONIETA D'ALKIMIN BASTO, PROFA.",
+            codigo_dre="108100",
+            origem_vinculo="cargo_sobreposto",
+        ),
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="4906",
+            cargo="AUXILIAR TECNICO DE EDUCACAO",
+            codigo_ue="093203",
+            nome_ue="LAERTE RAMOS DE CARVALHO, PROF.",
+            codigo_dre="109100",
+            origem_vinculo="lotacao",
+        ),
+    ]
+
+    resultado = repositories._cargos_sigpae(funcionarios, funcionarios[-1])
+
+    assert resultado == [
+        {
+            "codigo_cargo": 3182,
+            "descricao_cargo": "SECRETARIO DE ESCOLA                    ",
+            "codigo_unidade": "093131",
+            "descricao_unidade": (
+                "EMEF - MARIA ANTONIETA D'ALKIMIN BASTO, PROFA."
+            ),
+            "codigo_dre": "108100",
+            "contrato_externo": False,
+        }
+    ]
+
+
 def test_dados_sigpae_por_rf_retorna_fallback_sem_eol(db):
     """Verifica fallback SIGPAE quando funcionario inexiste no EOL."""
     FuncionarioSistemaPerfil.objects.create(
@@ -239,6 +321,52 @@ def test_dados_sigpae_por_rf_retorna_fallback_sem_eol(db):
         "cargos": None,
         "nome": "Usuario CoreSSO",
         "inexistente_eol": True,
+    }
+
+
+def test_dados_sigpae_por_rf_retorna_ultimo_cargo_sem_cargo_ativo(
+    criar_funcionario_ue,
+):
+    """Verifica retorno do último cargo quando cargos ativos ficam vazios."""
+    criar_funcionario_ue(
+        codigo_rf="0000001",
+        nome="Usuario EOL",
+        cpf="12345678900",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        codigo_cargo="3085",
+        cargo="PROFESSOR",
+        nome_ue="EMEF TESTE",
+        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Usuario CoreSSO",
+        email="core@sme.prefeitura.sp.gov.br",
+        cpf="12345678900",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.dados_sigpae_por_rf("0000001")
+
+    assert resultado == {
+        "rf": "0000001",
+        "cpf": "12345678900",
+        "email": "core@sme.prefeitura.sp.gov.br",
+        "cargos": [
+            {
+                "codigo_cargo": 3085,
+                "descricao_cargo": "PROFESSOR",
+                "codigo_unidade": "000532",
+                "descricao_unidade": "EMEF TESTE",
+                "codigo_dre": "108100",
+                "contrato_externo": False,
+            }
+        ],
+        "nome": "Usuario EOL",
+        "inexistente_eol": False,
     }
 
 
