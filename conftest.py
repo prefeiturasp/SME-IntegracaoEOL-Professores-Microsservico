@@ -1,6 +1,8 @@
 """Fixtures globais de teste."""
 
+from collections.abc import Callable
 from datetime import UTC, date, datetime
+from typing import Any
 
 import pytest
 from rest_framework.test import APIClient
@@ -125,6 +127,117 @@ def lotacao(cargo_base, ue) -> LotacaoServidor:
         codigo_dre=ue.codigo_dre,
         dt_inicio=date(2024, 2, 1),
     )
+
+
+@pytest.fixture
+def criar_funcionario_ue(
+    db,
+) -> Callable[..., FuncionarioUnidadeEducacional]:
+    """Cria funcionario consolidado com dados padrao para testes."""
+
+    def _criar_funcionario_ue(
+        codigo_rf: str = "1111111",
+        nome: str = "Carlos Gestor",
+        cpf: str = "11111111111",
+        codigo_ue: str = "000532",
+        codigo_dre: str = "108100",
+        **campos: Any,
+    ) -> FuncionarioUnidadeEducacional:
+        dados = {
+            "codigo_rf": codigo_rf,
+            "nome": nome,
+            "cpf": cpf,
+            "codigo_ue": codigo_ue,
+            "codigo_dre": codigo_dre,
+            "data_inicio": datetime(2024, 1, 1, tzinfo=UTC),
+            "codigo_cargo": "3360",
+            "cargo": "DIRETOR",
+            "codigo_tipo_funcao_atividade": 0,
+            "origem_vinculo": "lotacao",
+            "eh_professor": False,
+            "esta_afastado": False,
+            "funcao_externo": 0,
+            "tipo_funcao_externo": 0,
+        }
+        dados.update(campos)
+        return FuncionarioUnidadeEducacional.objects.create(**dados)
+
+    return _criar_funcionario_ue
+
+
+@pytest.fixture
+def criar_supervisores_dre(
+    criar_funcionario_ue,
+) -> Callable[[], None]:
+    """Cria funcionarios para validar filtro de supervisores da DRE."""
+
+    def _criar_supervisores_dre() -> None:
+        criar_funcionario_ue(
+            nome="Supervisora Silva",
+            nome_social="Supervisora Social",
+            supervisor_dre=True,
+        )
+        criar_funcionario_ue(
+            codigo_rf="2222222",
+            nome="Funcionario Fora",
+            cpf="22222222222",
+            supervisor_dre=False,
+        )
+        criar_funcionario_ue(
+            codigo_rf="3333333",
+            nome="Supervisora Outra DRE",
+            cpf="33333333333",
+            codigo_ue="000533",
+            codigo_dre="108200",
+            supervisor_dre=True,
+        )
+
+    return _criar_supervisores_dre
+
+
+@pytest.fixture
+def preparar_pessoa_externa() -> Callable[..., None]:
+    """Atualiza pessoa externa com dados completos para testes."""
+
+    def _preparar_pessoa_externa(pessoa: Pessoa) -> None:
+        pessoa.nome = "Nome Pessoa"
+        pessoa.nome_social = "Nome social"
+        pessoa.nome_pai = "Pai Externo"
+        pessoa.nome_mae = "Mae Externa"
+        pessoa.data_nascimento = date(1985, 3, 2)
+        pessoa.rg = "1234567"
+        pessoa.titulo_eleitoral = "987654"
+        pessoa.pis_pasep = "11223344"
+        pessoa.save()
+
+    return _preparar_pessoa_externa
+
+
+@pytest.fixture
+def criar_vinculo_externo_consolidado(
+    criar_funcionario_ue,
+) -> Callable[..., FuncionarioUnidadeEducacional]:
+    """Cria vinculo externo consolidado para testes."""
+
+    def _criar_vinculo_externo_consolidado(
+        pessoa: Pessoa,
+    ) -> FuncionarioUnidadeEducacional:
+        return criar_funcionario_ue(
+            codigo_rf="EXT123",
+            nome="Nome consolidado",
+            nome_social=None,
+            cpf="98765432100",
+            data_inicio=datetime(2024, 2, 1, tzinfo=UTC),
+            origem_vinculo="externo",
+            funcao_externo=99,
+            tipo_funcao_externo=2,
+            nome_ue="EMEF Teste",
+            tipo_funcionario_externo="Terceirizado",
+            dc_funcao_externo="Auxiliar tecnico",
+            pessoa=pessoa,
+        )
+
+    return _criar_vinculo_externo_consolidado
 
 
 @pytest.fixture
