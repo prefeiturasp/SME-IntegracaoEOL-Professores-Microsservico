@@ -16,7 +16,7 @@ pytestmark = pytest.mark.django_db
 
 _PERFIL_1 = "ea741bf4-47ea-486d-8b88-5327521bcfc5"
 _PERFIL_2 = "5f7d2f11-a7d6-4055-9a02-4af25e94b640"
-
+_GUID_VAZIO = "00000000-0000-0000-0000-000000000000"
 
 def test_dre_de_ue_retorna_none_sem_codigo():
     """Verifica consulta de DRE sem UE informada."""
@@ -172,6 +172,27 @@ def test_logins_admins_sme_por_perfis_remove_duplicados(db):
     resultado = repositories.logins_admins_sme_por_perfis([_PERFIL_1])
 
     assert resultado == ["0000001"]
+
+
+def test_buscar_por_lista_login_consulta_funcionario_sistema_perfil(db):
+    """Verifica busca de logins na tabela de perfis do sistema."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Perfil",
+        uad_codigo="108100",
+        perfil=_GUID_VAZIO,
+        sis_id=1,
+    )
+
+    resultado = repositories.buscar_por_lista_login(["0000001"])
+
+    assert resultado == [
+        {
+            "login": "0000001",
+            "nome_servidor": "Ana Perfil",
+            "perfil": _GUID_VAZIO,
+        }
+    ]
 
 
 def test_dados_sigpae_por_rf_retorna_dados_consolidados(
@@ -778,7 +799,9 @@ def test_funcionario_externo_por_cpf_usa_vinculo_consolidado(
     """Verifica retorno enriquecido pelo vinculo externo consolidado."""
     pessoa = contrato_externo.pessoa
     preparar_pessoa_externa(pessoa)
-    criar_vinculo_externo_consolidado(pessoa)
+    funcionario = criar_vinculo_externo_consolidado(pessoa)
+    funcionario.nome_ue = "CEI INDIR - JARDIM NORONHA"
+    funcionario.save()
 
     resultado = repositories.funcionario_externo_por_cpf("98765432100")
 
@@ -794,7 +817,7 @@ def test_funcionario_externo_por_cpf_usa_vinculo_consolidado(
             "pis_pasep": "11223344",
             "codigo_contrato_externo": contrato_externo.codigo_contrato,
             "codigo_ue": "000532",
-            "nome_ue": "EMEF Teste",
+            "nome_ue": "JARDIM NORONHA",
             "funcao": "Auxiliar tecnico",
             "tipo_funcionario": "Terceirizado",
         }

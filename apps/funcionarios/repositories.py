@@ -434,6 +434,13 @@ def _funcionarios_externos_por_contrato(
     }
 
 
+def _nome_ue_sem_tipo_escola(nome_ue: str | None) -> str | None:
+    """Remove o tipo de escola do nome da unidade."""
+    if not nome_ue or " - " not in nome_ue:
+        return nome_ue
+    return nome_ue.split(" - ", maxsplit=1)[1].strip()
+
+
 def _funcionarios_ue_legado() -> Any:
     """Retorna vínculos conforme a consulta legada por UE."""
     return FuncionarioUnidadeEducacional.objects.filter(
@@ -893,7 +900,9 @@ def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
                 ce.codigo_unidade_educacao,
             )
         )
-        nome_ue = funcionario.nome_ue if funcionario else None
+        nome_ue = _nome_ue_sem_tipo_escola(
+            funcionario.nome_ue if funcionario else None
+        )
         funcao = funcionario.dc_funcao_externo if funcionario else None
         tipo_funcionario = (
             funcionario.tipo_funcionario_externo if funcionario else None
@@ -1316,19 +1325,19 @@ def buscar_por_lista_login(lista: list[str]) -> list[dict]:
     Returns:
         Funcionários encontrados para os logins informados.
     """
-    return [
+    rows = [
         {
-            "login": p.codigo_rf,
-            "nome_servidor": get_nome(p),
+            "login": item.login,
+            "nome_servidor": item.nome_servidor,
             "perfil": _GUID_VAZIO,
         }
-        for p in _deduplicar_modelos_por_rf(
-            _funcionarios_ativos().filter(
-                codigo_rf__in=lista,
-                funcao_externo=0
-            )
+        for item in (
+            FuncionarioSistemaPerfil.objects.filter(login__in=lista)
+            .exclude(login="")
+            .order_by("nome_servidor")
         )
     ]
+    return _deduplicar_dicts(rows)
 
 
 def buscar_funcionarios(
