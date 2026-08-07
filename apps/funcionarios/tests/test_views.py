@@ -927,7 +927,15 @@ class TestEP38BuscarPorListaRF:
 
 
 class TestEP39BuscarPorListaLogin:
-    def test_login_existente_retorna_funcionario(self, client, lotacao):
+    def test_login_existente_retorna_funcionario(self, client, db):
+        FuncionarioSistemaPerfil.objects.create(
+            login="7654321",
+            nome_servidor="Maria Perfil",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
         res = client.post(
             f"{_BASE}/funcionarios/BuscarPorListaLogin/",
             ["7654321"],
