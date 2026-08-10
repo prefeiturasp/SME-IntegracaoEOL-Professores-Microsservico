@@ -222,6 +222,115 @@ class FuncionarioCargo(models.Model):
         managed = False
 
 
+class FuncionarioVinculoFuncional(models.Model):
+    """Vínculo funcional consolidado do servidor."""
+
+    id = models.BigAutoField(primary_key=True)
+    rf = models.CharField(max_length=20)
+    cpf = models.CharField(max_length=14, null=True, blank=True)
+    cd_cargo_base = models.IntegerField(null=True, blank=True)
+    cargo_base = models.CharField(max_length=120, null=True, blank=True)
+    cd_dre_cargo_base = models.CharField(max_length=20, null=True, blank=True)
+    cd_ue_cargo_base = models.CharField(max_length=20, null=True, blank=True)
+    ue_cargo_base = models.CharField(max_length=200, null=True, blank=True)
+    tipo_vinculo_cargo_base = models.IntegerField(null=True, blank=True)
+    data_inicio_cargo_base = models.DateTimeField(null=True, blank=True)
+    cd_cargo_sobreposto = models.IntegerField(null=True, blank=True)
+    cargo_sobreposto = models.CharField(max_length=120, null=True, blank=True)
+    cd_dre_cargo_sobreposto = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+    cd_ue_cargo_sobreposto = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+    ue_cargo_sobreposto = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    tipo_vinculo_cargo_sobreposto = models.IntegerField(null=True, blank=True)
+    data_inicio_cargo_sobreposto = models.DateTimeField(null=True, blank=True)
+    cd_funcao_atividade = models.IntegerField(null=True, blank=True)
+    funcao_atividade = models.CharField(max_length=120, null=True, blank=True)
+    cd_dre_funcao_atividade = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+    cd_ue_funcao_atividade = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+    ue_funcao_atividade = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    tipo_vinculo_funcao_atividade = models.IntegerField(null=True, blank=True)
+    data_inicio_funcao_atividade = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    dt_cancelamento_funcao_atividade = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    dt_fim_funcao_atividade = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_vinculo_funcional"
+        managed = False
+
+
+class FuncionarioConectaFormacao(models.Model):
+    """Funcionário elegível para consultas do Conecta Formação."""
+
+    id = models.BigAutoField(primary_key=True)
+    rf = models.CharField(max_length=20)
+    nome = models.CharField(max_length=200)
+    cpf = models.CharField(max_length=14, null=True, blank=True)
+    cargo_codigo = models.IntegerField(null=True, blank=True)
+    cargo = models.CharField(max_length=120, null=True, blank=True)
+    cargo_dre_codigo = models.CharField(max_length=20, null=True, blank=True)
+    cargo_ue_codigo = models.CharField(max_length=20, null=True, blank=True)
+    funcao_codigo = models.IntegerField(null=True, blank=True)
+    funcao = models.CharField(max_length=120, null=True, blank=True)
+    funcao_dre_codigo = models.CharField(max_length=20, null=True, blank=True)
+    funcao_ue_codigo = models.CharField(max_length=20, null=True, blank=True)
+    tipo_vinculo = models.IntegerField(null=True, blank=True)
+    codigo_modalidade = models.IntegerField(null=True, blank=True)
+    ano_turma = models.CharField(max_length=10, null=True, blank=True)
+    codigo_componente_curricular = models.IntegerField(null=True, blank=True)
+    eh_tipo_jornada_jeif = models.BooleanField(default=False)
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_conecta_formacao"
+        managed = False
+
+
+class FuncionarioConectaModalidadeEscola(models.Model):
+    """Modalidade atendida por unidade para consultas do Conecta Formação."""
+
+    id = models.BigAutoField(primary_key=True)
+    codigo_ue = models.CharField(max_length=20)
+    codigo_modalidade = models.IntegerField()
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_conecta_modalidade_escola"
+        managed = False
+
+
 class FuncionarioSistemaPerfil(models.Model):
     """Perfil de sistema associado ao login do funcionario."""
 
@@ -469,6 +578,15 @@ class AtribuicaoAula(models.Model):
     codigo_etapa_ensino = models.IntegerField(null=True, blank=True)
     dt_atribuicao_aula = models.DateField()
     dt_disponibilizacao_aulas = models.DateField(null=True, blank=True)
+    dt_disponibilizacao_aulas_origem = models.DateField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Data de disponibilização como consta no EOL. Diferente de "
+            "dt_disponibilizacao_aulas, preserva o nulo que identifica a "
+            "atribuição ativa."
+        ),
+    )
     dt_inicio_turma = models.DateField(null=True, blank=True)
     dt_fim_turma = models.DateField(null=True, blank=True)
     codigo_motivo_disponibilizacao = models.IntegerField(null=True, blank=True)
@@ -538,6 +656,27 @@ class AtribuicaoExterno(models.Model):
     class Meta:
         app_label = "professores"
         db_table = "atribuicao_externo"
+        managed = False
+
+
+class ProfessorEscolaAno(models.Model):
+    """Professor vinculado à escola por turma e componente."""
+
+    id = models.BigAutoField(primary_key=True)
+    origem = models.CharField(max_length=20)
+    codigo_escola = models.CharField(max_length=20)
+    ano_letivo = models.IntegerField()
+    codigo_turma = models.BigIntegerField()
+    codigo_rf = models.CharField(max_length=20)
+    codigo_componente_curricular = models.IntegerField()
+    nome = models.CharField(max_length=200)
+    cargo = models.CharField(max_length=100, null=True, blank=True)
+    cpf = models.CharField(max_length=14, null=True, blank=True)
+    data_inicio_exercicio = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        app_label = "professores"
+        db_table = "professor_escola_ano"
         managed = False
 
 
