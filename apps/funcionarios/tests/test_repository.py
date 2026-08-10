@@ -6,9 +6,13 @@ import pytest
 
 from apps.funcionarios import repositories
 from apps.professores.models import (
+    AtribuicaoAula,
     CargoSobrepostoServidor,
+    FuncionarioConectaFormacao,
+    FuncionarioConectaModalidadeEscola,
     FuncionarioSistemaPerfil,
     FuncionarioUnidadeEducacional,
+    FuncionarioVinculoFuncional,
     LotacaoServidor,
 )
 
@@ -86,6 +90,120 @@ def test_funcionarios_por_ue_cargo_filtra_cargo(lotacao):
     assert resultado[0]["codigo_rf"] == "7654321"
 
 
+def test_cargos_funcionario_usa_vinculo_funcional_consolidado(db):
+    """Verifica cargo do funcionário pelo consolidado funcional."""
+    FuncionarioVinculoFuncional.objects.create(
+        rf="7654321",
+        cpf="12345678900",
+        cd_cargo_base=3360,
+        cargo_base="DIRETOR DE ESCOLA - v1",
+        cd_dre_cargo_base="108100",
+        cd_ue_cargo_base="000532",
+        ue_cargo_base="ESCOLA TESTE",
+        tipo_vinculo_cargo_base=1,
+        data_inicio_cargo_base=datetime(2024, 1, 1, tzinfo=UTC),
+        cd_cargo_sobreposto=3352,
+        cargo_sobreposto="SUPERVISOR ESCOLAR - v1",
+        cd_dre_cargo_sobreposto="108100",
+        cd_ue_cargo_sobreposto="000533",
+        ue_cargo_sobreposto="ESCOLA SOBREPOSTA",
+        tipo_vinculo_cargo_sobreposto=1,
+        data_inicio_cargo_sobreposto=datetime(2024, 1, 1, tzinfo=UTC),
+    )
+
+    resultado = list(repositories.cargos_funcionario("7654321"))
+
+    assert len(resultado) == 1
+    assert resultado[0].rf == "7654321"
+    assert resultado[0].cargo_base == "DIRETOR DE ESCOLA - v1"
+    assert resultado[0].cd_ue_cargo_base == "000532"
+    assert resultado[0].cargo_sobreposto == "SUPERVISOR ESCOLAR - v1"
+
+
+def test_funcionarios_conecta_formacao_filtra_cargo_dre_e_componente(db):
+    """Verifica filtros da consulta do Conecta Formação."""
+    FuncionarioConectaFormacao.objects.create(
+        rf="7654321",
+        nome="Ana Servidora",
+        cpf="12345678900",
+        cargo_codigo=3360,
+        cargo="DIRETOR",
+        cargo_dre_codigo="108100",
+        cargo_ue_codigo="000532",
+        tipo_vinculo=1,
+        codigo_modalidade=5,
+        ano_turma="6",
+        codigo_componente_curricular=512,
+        eh_tipo_jornada_jeif=True,
+    )
+    FuncionarioConectaFormacao.objects.create(
+        rf="9999999",
+        nome="Fora Filtro",
+        cargo_codigo=3379,
+        cargo="COORDENADOR",
+        cargo_dre_codigo="108200",
+        cargo_ue_codigo="000533",
+        codigo_modalidade=5,
+        ano_turma="7",
+        codigo_componente_curricular=513,
+    )
+
+    resultado = list(
+        repositories.funcionarios_conecta_formacao(
+            {
+                "codigos_cargos": [3360],
+                "codigo_modalidade": [5],
+                "anos_turma": ["6"],
+                "codigos_dres": ["108100"],
+                "codigos_componentes_curriculares": [512],
+                "eh_tipo_jornada_jeif": True,
+            }
+        )
+    )
+
+    assert len(resultado) == 1
+    assert resultado[0]["rf"] == "7654321"
+    assert resultado[0]["cargo_codigo"] == 3360
+
+
+def test_funcionarios_conecta_formacao_filtra_modalidade_por_unidade(db):
+    """Verifica modalidade por unidade quando não há filtro de turma."""
+    FuncionarioConectaModalidadeEscola.objects.create(
+        codigo_ue="000532",
+        codigo_modalidade=5,
+    )
+    FuncionarioConectaFormacao.objects.create(
+        rf="7654321",
+        nome="Ana Servidora",
+        cargo_codigo=3360,
+        cargo="DIRETOR",
+        cargo_dre_codigo="108100",
+        cargo_ue_codigo="000532",
+        tipo_vinculo=1,
+    )
+    FuncionarioConectaFormacao.objects.create(
+        rf="9999999",
+        nome="Fora Filtro",
+        cargo_codigo=3360,
+        cargo="DIRETOR",
+        cargo_dre_codigo="108100",
+        cargo_ue_codigo="000533",
+        tipo_vinculo=1,
+    )
+
+    resultado = list(
+        repositories.funcionarios_conecta_formacao(
+            {
+                "codigos_cargos": [3360],
+                "codigo_modalidade": [5],
+            }
+        )
+    )
+
+    assert len(resultado) == 1
+    assert resultado[0]["rf"] == "7654321"
+
+
 def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(
     lotacao,
     criar_funcionario_ue,
@@ -114,21 +232,28 @@ def test_funcionarios_por_unidade_perfis_filtra_unidade_e_perfil(db):
         email="ana@sme.prefeitura.sp.gov.br",
         uad_codigo="108100",
         perfil=_PERFIL_1,
-        sis_id=1,
+        sis_id=1000,
     )
     FuncionarioSistemaPerfil.objects.create(
         login="0000002",
         nome_servidor="Fora Perfil",
         uad_codigo="108100",
         perfil=_PERFIL_2,
-        sis_id=1,
+        sis_id=1000,
     )
     FuncionarioSistemaPerfil.objects.create(
         login="0000003",
         nome_servidor="Fora Unidade",
         uad_codigo="999999",
         perfil=_PERFIL_1,
-        sis_id=1,
+        sis_id=1000,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000004",
+        nome_servidor="Fora Sistema",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1007,
     )
 
     resultado = repositories.funcionarios_por_unidade_perfis(
@@ -152,21 +277,21 @@ def test_logins_admins_sme_por_perfis_remove_duplicados(db):
         nome_servidor="Ana Perfil",
         uad_codigo="108100",
         perfil=_PERFIL_1,
-        sis_id=1,
+        sis_id=1000,
     )
     FuncionarioSistemaPerfil.objects.create(
         login="0000001",
         nome_servidor="Ana Outro Sistema",
         uad_codigo="108100",
         perfil=_PERFIL_1,
-        sis_id=2,
+        sis_id=1007,
     )
     FuncionarioSistemaPerfil.objects.create(
         login="0000002",
         nome_servidor="Outro Perfil",
         uad_codigo="108100",
         perfil=_PERFIL_2,
-        sis_id=1,
+        sis_id=1000,
     )
 
     resultado = repositories.logins_admins_sme_por_perfis([_PERFIL_1])
@@ -181,7 +306,14 @@ def test_buscar_por_lista_login_consulta_funcionario_sistema_perfil(db):
         nome_servidor="Ana Perfil",
         uad_codigo="108100",
         perfil=_GUID_VAZIO,
-        sis_id=1,
+        sis_id=1000,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Conecta",
+        uad_codigo="108100",
+        perfil=_GUID_VAZIO,
+        sis_id=1007,
     )
 
     resultado = repositories.buscar_por_lista_login(["0000001"])
@@ -191,6 +323,42 @@ def test_buscar_por_lista_login_consulta_funcionario_sistema_perfil(db):
             "login": "0000001",
             "nome_servidor": "Ana Perfil",
             "perfil": _GUID_VAZIO,
+        }
+    ]
+
+
+def test_usuarios_conecta_formacao_filtra_sistema_e_perfil(db):
+    """Verifica usuários do Conecta Formação por perfil."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Conecta",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1007,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000002",
+        nome_servidor="Fora Sistema",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1000,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000003",
+        nome_servidor="Fora Perfil",
+        uad_codigo="108100",
+        perfil=_PERFIL_2,
+        sis_id=1007,
+    )
+
+    resultado = repositories.usuarios_conecta_formacao([_PERFIL_1])
+
+    assert resultado == [
+        {
+            "login": "0000001",
+            "nome": "Ana Conecta",
+            "nome_social": None,
+            "perfil": _PERFIL_1,
         }
     ]
 
@@ -215,7 +383,7 @@ def test_dados_sigpae_por_rf_retorna_dados_consolidados(
         email="email@sme.prefeitura.sp.gov.br",
         uad_codigo="108100",
         perfil=_PERFIL_1,
-        sis_id=1,
+        sis_id=1000,
     )
 
     resultado = repositories.dados_sigpae_por_rf("0000001")
@@ -330,7 +498,7 @@ def test_dados_sigpae_por_rf_retorna_fallback_sem_eol(db):
         cpf="12345678900",
         uad_codigo="108100",
         perfil=_PERFIL_1,
-        sis_id=1,
+        sis_id=1000,
     )
 
     resultado = repositories.dados_sigpae_por_rf("0000001")
@@ -367,7 +535,7 @@ def test_dados_sigpae_por_rf_retorna_ultimo_cargo_sem_cargo_ativo(
         cpf="12345678900",
         uad_codigo="108100",
         perfil=_PERFIL_1,
-        sis_id=1,
+        sis_id=1000,
     )
 
     resultado = repositories.dados_sigpae_por_rf("0000001")
@@ -849,3 +1017,67 @@ def test_funcionario_externo_por_cpf_sem_vinculo_retorna_campos_nulos(
             "tipo_funcionario": None,
         }
     ]
+
+
+def test_dre_ue_cargo_usa_data_de_origem_da_disponibilizacao(
+    cargo_base, ue
+):
+    """Verifica atribuição ativa pela data de origem, não pela substituída."""
+    LotacaoServidor.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_dre=ue.codigo_dre,
+        dt_inicio=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=2025,
+        dt_atribuicao_aula=date(2025, 2, 1),
+        # A carga substitui o nulo da origem pela data de fim da turma.
+        dt_disponibilizacao_aulas=date(2025, 12, 20),
+        dt_disponibilizacao_aulas_origem=None,
+    )
+
+    resultado = repositories.dre_ue_cargo(
+        cargo_base.professor.codigo_rf,
+        cargo_base.codigo_cargo,
+    )
+
+    assert resultado == [
+        {
+            "codigo_rf": "7654321",
+            "codigo_dre": ue.codigo_dre,
+            "codigo_ue": ue.codigo_ue,
+            "cargo": None,
+        }
+    ]
+
+
+def test_dre_ue_cargo_ignora_atribuicao_ja_disponibilizada(cargo_base, ue):
+    """Verifica exclusão de atribuição com disponibilização na origem."""
+    LotacaoServidor.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_dre=ue.codigo_dre,
+        dt_inicio=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo_base,
+        codigo_unidade_educacao=ue.codigo_ue,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=2025,
+        dt_atribuicao_aula=date(2025, 2, 1),
+        dt_disponibilizacao_aulas=date(2025, 6, 30),
+        dt_disponibilizacao_aulas_origem=date(2025, 6, 30),
+    )
+
+    resultado = repositories.dre_ue_cargo(
+        cargo_base.professor.codigo_rf,
+        cargo_base.codigo_cargo,
+    )
+
+    assert resultado == []

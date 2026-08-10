@@ -15,8 +15,11 @@ from apps.funcionarios.api.views import (
 from apps.professores.models import (
     CargoBaseServidor,
     FuncionarioCargo,
+    FuncionarioConectaFormacao,
+    FuncionarioConectaModalidadeEscola,
     FuncionarioSistemaPerfil,
     FuncionarioUnidadeEducacional,
+    FuncionarioVinculoFuncional,
     LotacaoServidor,
     Professor,
 )
@@ -255,9 +258,7 @@ class TestSupervisoresDreConsolidado:
     ):
         criar_supervisores_dre()
 
-        res = client.get(
-            f"{_BASE}/funcionarios/dres/108100/supervisores/"
-        )
+        res = client.get(f"{_BASE}/funcionarios/dres/108100/supervisores/")
 
         assert res.status_code == 200
         assert res.data == [
@@ -268,17 +269,13 @@ class TestSupervisoresDreConsolidado:
         ]
 
     def test_get_sem_supervisores_retorna_lista_vazia(self, client, db):
-        res = client.get(
-            f"{_BASE}/funcionarios/dres/108100/supervisores/"
-        )
+        res = client.get(f"{_BASE}/funcionarios/dres/108100/supervisores/")
 
         assert res.status_code == 200
         assert res.data == []
 
     def test_get_sem_api_key_retorna_403(self, anon):
-        res = anon.get(
-            f"{_BASE}/funcionarios/dres/108100/supervisores/"
-        )
+        res = anon.get(f"{_BASE}/funcionarios/dres/108100/supervisores/")
 
         assert res.status_code == 403
 
@@ -571,11 +568,25 @@ class TestEP28BFuncionariosFuncoesExternasQuery:
 
 
 class TestEP29CargosFuncionario:
-    def test_retorna_cargo_do_servidor(self, client, cargo_base):
+    def test_retorna_cargo_do_servidor(self, client, db):
+        FuncionarioVinculoFuncional.objects.create(
+            rf="7654321",
+            cpf="12345678900",
+            cd_cargo_base=3360,
+            cargo_base="DIRETOR DE ESCOLA - v1",
+            cd_dre_cargo_base="108100",
+            cd_ue_cargo_base="000532",
+            ue_cargo_base="ESCOLA TESTE",
+            tipo_vinculo_cargo_base=1,
+            data_inicio_cargo_base=datetime(2024, 1, 1, tzinfo=UTC),
+        )
+
         res = client.get(f"{_BASE}/funcionarios/cargo/7654321/")
+
         assert res.status_code == 200
-        assert len(res.data) >= 1
         assert res.data[0]["rf"] == 7654321
+        assert res.data[0]["cargo_base"] == "DIRETOR DE ESCOLA - v1"
+        assert res.data[0]["cd_ue_cargo_base"] == "000532"
 
     def test_sem_cargo_retorna_lista_vazia(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/cargo/7654321/")
@@ -584,6 +595,122 @@ class TestEP29CargosFuncionario:
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/cargo/7654321/")
+        assert res.status_code == 403
+
+
+class TestEP29BConectaFormacao:
+    def test_retorna_funcionarios_filtrados(self, client, db):
+        FuncionarioConectaFormacao.objects.create(
+            rf="7654321",
+            nome="Ana Servidora",
+            cpf="12345678900",
+            cargo_codigo=3360,
+            cargo="DIRETOR",
+            cargo_dre_codigo="108100",
+            cargo_ue_codigo="000532",
+            tipo_vinculo=1,
+            codigo_modalidade=5,
+            ano_turma="6",
+            codigo_componente_curricular=512,
+            eh_tipo_jornada_jeif=True,
+        )
+
+        res = client.get(
+            f"{_BASE}/funcionarios/registros-funcionais/" "conecta-formacao/",
+            {
+                "codigos_cargos": [3360],
+                "codigo_modalidade": [5],
+                "anos_turma": ["6"],
+                "codigos_dres": ["108100"],
+                "codigos_componentes_curriculares": [512],
+                "eh_tipo_jornada_jeif": "true",
+            },
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["rf"] == "7654321"
+        assert res.data[0]["cargo_codigo"] == "3360"
+
+    def test_aceita_filtros_snake_case(self, client, db):
+        FuncionarioConectaModalidadeEscola.objects.create(
+            codigo_ue="000532",
+            codigo_modalidade=5,
+        )
+        FuncionarioConectaFormacao.objects.create(
+            rf="7654321",
+            nome="Ana Servidora",
+            cpf="12345678900",
+            cargo_codigo=3360,
+            cargo="DIRETOR",
+            cargo_dre_codigo="108100",
+            cargo_ue_codigo="000532",
+            codigo_modalidade=5,
+            eh_tipo_jornada_jeif=True,
+        )
+
+        res = client.get(
+            f"{_BASE}/funcionarios/registros-funcionais/" "conecta-formacao/",
+            {
+                "codigos_cargos": [3360],
+                "codigo_modalidade": [5],
+                "eh_tipo_jornada_jeif": "true",
+            },
+        )
+
+        assert res.status_code == 200
+        assert res.data[0]["rf"] == "7654321"
+
+
+class TestEP29CUsuariosConectaFormacao:
+    def test_retorna_usuarios_filtrados(self, client, db):
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Ana Conecta",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1007,
+        )
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000002",
+            nome_servidor="Fora Sistema",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1000,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/usuarios/conecta-formacao/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "login": "0000001",
+                "nome": "Ana Conecta",
+                "nome_social": None,
+                "perfil": _PERFIL_1,
+            }
+        ]
+
+    def test_sem_usuario_retorna_204(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/usuarios/conecta-formacao/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 204
+        assert not res.data
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/usuarios/conecta-formacao/",
+            [_PERFIL_1],
+            format="json",
+        )
+
         assert res.status_code == 403
 
 
@@ -683,7 +810,9 @@ class TestEP33ServidorAtivo:
 
 
 class TestEP34DreUeAtribuicaoCargo:
-    def test_cargo_com_lotacao_retorna_dre_ue(self, client, lotacao):
+    def test_cargo_com_lotacao_retorna_dre_ue(
+        self, client, lotacao, atribuicao
+    ):
         res = client.get(
             f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/"
         )
@@ -691,12 +820,14 @@ class TestEP34DreUeAtribuicaoCargo:
         assert res.data[0]["codigo_rf"] == "7654321"
         assert res.data[0]["codigo_ue"] == "000532"
 
-    def test_cargo_sem_lotacao_retorna_ue_nula(self, client, cargo_base):
+    def test_cargo_sem_lotacao_retorna_lista_vazia(
+        self, client, cargo_base, atribuicao
+    ):
         res = client.get(
             f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/"
         )
         assert res.status_code == 200
-        assert res.data[0]["codigo_ue"] is None
+        assert res.data == []
 
     def test_cargo_inexistente_retorna_lista_vazia(self, client, db):
         res = client.get(
@@ -933,7 +1064,7 @@ class TestEP39BuscarPorListaLogin:
             nome_servidor="Maria Perfil",
             uad_codigo="108100",
             perfil=_PERFIL_1,
-            sis_id=1,
+            sis_id=1000,
         )
 
         res = client.post(
@@ -969,7 +1100,7 @@ class TestFuncionariosPorUnidadePerfis:
             nome_servidor="Ana Perfil",
             uad_codigo="108100",
             perfil=_PERFIL_1,
-            sis_id=1,
+            sis_id=1000,
         )
 
         res = client.post(
@@ -987,15 +1118,15 @@ class TestFuncionariosPorUnidadePerfis:
             }
         ]
 
-    def test_perfis_vazio_retorna_404(self, client, db):
+    def test_perfis_vazio_retorna_lista_vazia(self, client, db):
         res = client.post(
             f"{_BASE}/funcionarios/unidade/108100/",
             [],
             format="json",
         )
 
-        assert res.status_code == 404
-        assert res.data == "Não foram encontrados funcionários."
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.post(
@@ -1014,7 +1145,7 @@ class TestFuncionariosAdminsSme:
             nome_servidor="Ana Perfil",
             uad_codigo="108100",
             perfil=_PERFIL_1,
-            sis_id=1,
+            sis_id=1000,
         )
 
         res = client.post(
@@ -1026,15 +1157,15 @@ class TestFuncionariosAdminsSme:
         assert res.status_code == 200
         assert res.data == ["0000001"]
 
-    def test_perfis_vazio_retorna_404(self, client, db):
+    def test_perfis_vazio_retorna_lista_vazia(self, client, db):
         res = client.post(
             f"{_BASE}/funcionarios/admins/sme/",
             [],
             format="json",
         )
 
-        assert res.status_code == 404
-        assert res.data == "Não foram encontrados funcionários."
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.post(
@@ -1062,7 +1193,7 @@ class TestDadosSigpae:
             email="email@sme.prefeitura.sp.gov.br",
             uad_codigo="108100",
             perfil=_PERFIL_1,
-            sis_id=1,
+            sis_id=1000,
         )
 
         res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
@@ -1085,7 +1216,7 @@ class TestDadosSigpae:
             cpf="12345678900",
             uad_codigo="108100",
             perfil=_PERFIL_1,
-            sis_id=1,
+            sis_id=1000,
         )
 
         res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")

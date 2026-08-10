@@ -4,11 +4,6 @@ import pytest
 
 from apps.funcionarios import services
 
-_MENSAGEM_NAO_ENCONTRADO = "Não foram encontrados funcionários."
-_MENSAGEM_SIGPAE_SEM_DADOS = (
-    "Sem informações na base de dados para o Código Rf informado"
-)
-
 
 def test_funcionarios_por_lista_cargos_sem_cargos_usa_ue(monkeypatch):
     """Verifica consulta da unidade quando cargos não são informados."""
@@ -48,6 +43,76 @@ def test_supervisores_dres_delega_repository(monkeypatch):
     assert chamadas["codigo_dre"] == "108100"
 
 
+def test_cargos_funcionario_delega_repository(monkeypatch):
+    """Verifica delegação da busca de vínculos funcionais."""
+    chamadas = {}
+
+    def fake(registro_funcional):
+        chamadas["registro_funcional"] = registro_funcional
+        return ["vinculo"]
+
+    monkeypatch.setattr(
+        services.repositories,
+        "cargos_funcionario",
+        fake,
+    )
+
+    resultado = services.cargos_funcionario("7654321")
+
+    assert resultado == ["vinculo"]
+    assert chamadas["registro_funcional"] == "7654321"
+
+
+def test_funcionarios_conecta_formacao_delega_repository(monkeypatch):
+    """Verifica delegação da busca do Conecta Formação."""
+    chamadas = {}
+
+    def fake(filtros):
+        chamadas["filtros"] = filtros
+        return [{"rf": "7654321"}]
+
+    monkeypatch.setattr(
+        services.repositories,
+        "funcionarios_conecta_formacao",
+        fake,
+    )
+
+    resultado = services.funcionarios_conecta_formacao(
+        {"codigos_cargos": [1]}
+    )
+
+    assert resultado == [{"rf": "7654321"}]
+    assert chamadas["filtros"] == {"codigos_cargos": [1]}
+
+
+def test_usuarios_conecta_formacao_retorna_resultado(monkeypatch):
+    """Verifica retorno de usuários do Conecta Formação."""
+    monkeypatch.setattr(
+        services.repositories,
+        "usuarios_conecta_formacao",
+        lambda _perfis: [{"login": "0000001"}],
+    )
+
+    resultado = services.usuarios_conecta_formacao(["perfil"])
+
+    assert resultado == [{"login": "0000001"}]
+
+
+def test_usuarios_conecta_formacao_sem_resultado_retorna_lista_vazia(
+    monkeypatch,
+):
+    """Verifica lista vazia quando usuários do Conecta não são encontrados."""
+    monkeypatch.setattr(
+        services.repositories,
+        "usuarios_conecta_formacao",
+        lambda _perfis: [],
+    )
+
+    resultado = services.usuarios_conecta_formacao(["perfil"])
+
+    assert resultado == []
+
+
 @pytest.mark.parametrize(
     ("funcao", "metodo"),
     [
@@ -77,21 +142,17 @@ def test_funcoes_query_converte_lista(monkeypatch, funcao, metodo):
     assert chamadas["args"] == ("000532", [1, 2])
 
 
-def test_usuarios_sgp_perfil_placeholder_sem_dre_rf_retorna_400(monkeypatch):
-    """Verifica mensagem legada para perfil placeholder sem DRE ou RF."""
+def test_perfil_placeholder_invalido_retorna_resultado(monkeypatch):
+    """Verifica validação de perfil placeholder."""
     monkeypatch.setattr(
         services.repositories,
         "perfil_placeholder_invalido",
         lambda id_perfil: True,
     )
 
-    resultado = services.usuarios_sgp_por_perfil("perfil")
+    resultado = services.perfil_placeholder_invalido("perfil")
 
-    assert resultado.status_code == 400
-    assert (
-        resultado.payload
-        == services.repositories.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
-    )
+    assert resultado is True
 
 
 def test_usuarios_sgp_sem_resultado_retorna_lista_vazia(monkeypatch):
@@ -109,8 +170,7 @@ def test_usuarios_sgp_sem_resultado_retorna_lista_vazia(monkeypatch):
 
     resultado = services.usuarios_sgp_por_perfil("perfil")
 
-    assert resultado.status_code == 200
-    assert resultado.payload == []
+    assert resultado == []
 
 
 def test_usuarios_sgp_com_dre_sem_resultado_retorna_200(monkeypatch):
@@ -131,8 +191,7 @@ def test_usuarios_sgp_com_dre_sem_resultado_retorna_200(monkeypatch):
         codigo_dre="108100",
     )
 
-    assert resultado.status_code == 200
-    assert resultado.payload == []
+    assert resultado == []
 
 
 def test_funcionarios_sgp_dre_converte_funcao(monkeypatch):
@@ -156,7 +215,7 @@ def test_funcionarios_sgp_dre_converte_funcao(monkeypatch):
         codigo_funcao_atividade="1",
     )
 
-    assert resultado.status_code == 200
+    assert resultado == [{"codigo_rf": "7654321"}]
     assert chamadas["kwargs"]["codigo_funcao_atividade"] == 1
 
 
@@ -198,7 +257,11 @@ def test_buscar_funcionarios_mapeia_filtros_do_payload(monkeypatch):
     monkeypatch.setattr(services.repositories, "buscar_funcionarios", fake)
 
     resultado = services.buscar_funcionarios(
-        {"CodigoRF": "7654321", "codigoUE": "000532", "NomeServidor": "Ana"}
+        {
+            "codigo_rf": "7654321",
+            "codigo_ue": "000532",
+            "nome_servidor": "Ana",
+        }
     )
 
     assert resultado == [{"codigo_rf": "7654321"}]
@@ -225,8 +288,10 @@ def test_buscar_funcionarios_payload_invalido_usa_dict_vazio(monkeypatch):
     assert chamadas["kwargs"] == (None, None, None)
 
 
-def test_funcionarios_por_unidade_perfis_vazio_retorna_404(monkeypatch):
-    """Verifica 404 para lista vazia de perfis por unidade."""
+def test_funcionarios_por_unidade_perfis_vazio_retorna_lista_vazia(
+    monkeypatch,
+):
+    """Verifica lista vazia para perfis não informados por unidade."""
     monkeypatch.setattr(
         services.repositories,
         "funcionarios_por_unidade_perfis",
@@ -235,14 +300,13 @@ def test_funcionarios_por_unidade_perfis_vazio_retorna_404(monkeypatch):
 
     resultado = services.funcionarios_por_unidade_perfis("108100", [])
 
-    assert resultado.status_code == 404
-    assert resultado.payload == _MENSAGEM_NAO_ENCONTRADO
+    assert resultado == []
 
 
-def test_funcionarios_por_unidade_perfis_sem_resultado_retorna_404(
+def test_funcionarios_por_unidade_perfis_sem_resultado_retorna_lista_vazia(
     monkeypatch,
 ):
-    """Verifica 404 quando unidade e perfis nao retornam funcionarios."""
+    """Verifica lista vazia quando unidade e perfis não retornam dados."""
     monkeypatch.setattr(
         services.repositories,
         "funcionarios_por_unidade_perfis",
@@ -251,8 +315,7 @@ def test_funcionarios_por_unidade_perfis_sem_resultado_retorna_404(
 
     resultado = services.funcionarios_por_unidade_perfis("108100", ["perfil"])
 
-    assert resultado.status_code == 404
-    assert resultado.payload == _MENSAGEM_NAO_ENCONTRADO
+    assert resultado == []
 
 
 def test_logins_admins_sme_por_perfis_retorna_resultado(monkeypatch):
@@ -265,12 +328,13 @@ def test_logins_admins_sme_por_perfis_retorna_resultado(monkeypatch):
 
     resultado = services.logins_admins_sme_por_perfis(["perfil"])
 
-    assert resultado.status_code == 200
-    assert resultado.payload == ["0000001"]
+    assert resultado == ["0000001"]
 
 
-def test_logins_admins_sme_por_perfis_vazio_retorna_404(monkeypatch):
-    """Verifica 404 para lista vazia de perfis admins SME."""
+def test_logins_admins_sme_por_perfis_vazio_retorna_lista_vazia(
+    monkeypatch,
+):
+    """Verifica lista vazia para perfis admins SME não informados."""
     monkeypatch.setattr(
         services.repositories,
         "logins_admins_sme_por_perfis",
@@ -279,8 +343,7 @@ def test_logins_admins_sme_por_perfis_vazio_retorna_404(monkeypatch):
 
     resultado = services.logins_admins_sme_por_perfis([])
 
-    assert resultado.status_code == 404
-    assert resultado.payload == _MENSAGEM_NAO_ENCONTRADO
+    assert resultado == []
 
 
 def test_dados_sigpae_sem_dados_retorna_601(monkeypatch):
@@ -293,5 +356,4 @@ def test_dados_sigpae_sem_dados_retorna_601(monkeypatch):
 
     resultado = services.dados_sigpae("0000001")
 
-    assert resultado.status_code == 601
-    assert resultado.payload == _MENSAGEM_SIGPAE_SEM_DADOS
+    assert resultado is None
