@@ -402,15 +402,16 @@ def test_buscar_turmas_professor_ignora_atribuicao_cancelada(db):
     assert repositories.buscar_turmas_professor("7654323") == []
 
 
-def test_titulares_por_turma_filtra_rf(atribuicao):
+def test_titulares_por_turma_filtra_rf(atribuicao_ano_corrente):
     """Verifica titulares por RF com disciplina sem espaços à direita."""
-    atribuicao.descricao_componente_curricular = "Matematica   "
-    atribuicao.save(update_fields=["descricao_componente_curricular"])
+    atribuicao_ano_corrente.descricao_componente_curricular = "Matematica   "
+    atribuicao_ano_corrente.save(
+        update_fields=["descricao_componente_curricular"]
+    )
 
     resultado = repositories.titulares_por_turma(
         2112345,
         codigo_rf="7654321",
-        data_referencia=date(2024, 2, 2),
     )
 
     assert resultado == [
@@ -422,6 +423,22 @@ def test_titulares_por_turma_filtra_rf(atribuicao):
             "disciplinas_id": "138",
             "turma_id": 2112345,
         }
+    ]
+
+
+def test_normalizar_titulares_remove_none_e_ordena_disciplina():
+    """Remove disciplina nula e ordena códigos numericamente."""
+    resultado = repositories._normalizar_titulares(
+        [
+            {"disciplina_id": 1522, "professor_rf": "3"},
+            {"disciplina_id": None, "professor_rf": "2"},
+            {"disciplina_id": 9, "professor_rf": "1"},
+        ]
+    )
+
+    assert resultado == [
+        {"disciplina_id": 9, "professor_rf": "1"},
+        {"disciplina_id": 1522, "professor_rf": "3"},
     ]
 
 
@@ -458,6 +475,141 @@ def test_titulares_por_turmas_retorna_payload(atribuicao_ano_corrente):
     ]
 
 
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [
+        ("ano_atribuicao", date.today().year - 1),
+        ("dt_cancelamento", date.today()),
+        ("codigo_motivo_disponibilizacao", 34),
+    ],
+)
+def test_titulares_por_turma_ignora_atribuicao_inativa(
+    atribuicao_ano_corrente,
+    campo,
+    valor,
+):
+    """Ignora atribuição fora do ano ou encerrada."""
+    setattr(atribuicao_ano_corrente, campo, valor)
+    atribuicao_ano_corrente.save(update_fields=[campo])
+
+    assert repositories.titulares_por_turma(2112345) == []
+
+
+@pytest.mark.parametrize(
+    "campo",
+    ["dt_cancelamento", "dt_fim_nomeacao"],
+)
+def test_titulares_por_turma_ignora_cargo_inativo(
+    atribuicao_ano_corrente,
+    campo,
+):
+    """Ignora titular com cargo cancelado ou nomeação encerrada."""
+    cargo = atribuicao_ano_corrente.cargo_base
+    setattr(cargo, campo, date.today())
+    cargo.save(update_fields=[campo])
+
+    assert repositories.titulares_por_turma(2112345) == []
+
+
+def test_titulares_por_turma_inclui_atribuicao_disponibilizada(
+    atribuicao_ano_corrente,
+):
+    """Inclui atribuição mesmo quando as aulas foram disponibilizadas."""
+    atribuicao_ano_corrente.dt_disponibilizacao_aulas = date.today()
+    atribuicao_ano_corrente.save(update_fields=["dt_disponibilizacao_aulas"])
+
+    resultado = repositories.titulares_por_turma(2112345)
+
+    assert len(resultado) == 1
+    assert resultado[0]["professor_rf"] == "7654321"
+
+
+def test_titulares_por_turma_inclui_atribuicao_externa(
+    atribuicao_externa,
+):
+    """Inclui atribuição externa ativa do ano corrente."""
+    atribuicao_externa.ano_atribuicao = date.today().year
+    atribuicao_externa.dt_disponibilizacao = date.today()
+    atribuicao_externa.save(
+        update_fields=["ano_atribuicao", "dt_disponibilizacao"]
+    )
+
+    resultado = repositories.titulares_por_turma(
+        2112345,
+        codigo_rf="98765432100",
+    )
+
+    assert resultado == [
+        {
+            "professor_rf": "98765432100",
+            "nome_professor": "João Ext",
+            "disciplina": "Matematica",
+            "disciplina_id": 138,
+            "disciplinas_id": "138",
+            "turma_id": 2112345,
+        }
+    ]
+
+
+def test_titulares_por_turma_ignora_contrato_externo_cancelado(
+    atribuicao_externa,
+):
+    """Ignora titular externo com contrato cancelado."""
+    atribuicao_externa.ano_atribuicao = date.today().year
+    atribuicao_externa.save(update_fields=["ano_atribuicao"])
+    contrato = atribuicao_externa.contrato_externo
+    contrato.dt_cancelamento = date.today()
+    contrato.save(update_fields=["dt_cancelamento"])
+
+    assert repositories.titulares_por_turma(2112345) == []
+
+
+def test_titulares_por_turma_ignora_motivo_externo(
+    atribuicao_externa,
+):
+    """Ignora titular externo com motivo de disponibilização."""
+    atribuicao_externa.ano_atribuicao = date.today().year
+    atribuicao_externa.codigo_motivo_disponibilizacao_externo = 3
+    atribuicao_externa.save(
+        update_fields=[
+            "ano_atribuicao",
+            "codigo_motivo_disponibilizacao_externo",
+        ]
+    )
+
+    assert repositories.titulares_por_turma(2112345) == []
+
+
+def test_titulares_por_turma_prioriza_efetivo_sobre_externo(
+    atribuicao_ano_corrente,
+    atribuicao_externa,
+):
+    """Prioriza efetivo quando as duas fontes atribuem a disciplina."""
+    atribuicao_externa.ano_atribuicao = date.today().year
+    atribuicao_externa.save(update_fields=["ano_atribuicao"])
+
+    resultado = repositories.titulares_por_turma(2112345)
+
+    assert len(resultado) == 1
+    assert resultado[0]["professor_rf"] == "7654321"
+
+
+def test_titulares_por_turma_filtra_apos_priorizar_efetivo(
+    atribuicao_ano_corrente,
+    atribuicao_externa,
+):
+    """Aplica RF ou CPF sobre o titular escolhido pela prioridade."""
+    atribuicao_externa.ano_atribuicao = date.today().year
+    atribuicao_externa.save(update_fields=["ano_atribuicao"])
+
+    resultado = repositories.titulares_por_turma(
+        2112345,
+        codigo_rf="98765432100",
+    )
+
+    assert resultado == []
+
+
 def test_titulares_por_ue_retorna_payload(atribuicao):
     """Retorna diretamente os titulares vigentes da unidade."""
     resultado = repositories.titulares_por_ue(
@@ -475,6 +627,119 @@ def test_titulares_por_ue_retorna_payload(atribuicao):
             "turma_id": 2112345,
         }
     ]
+
+
+def test_titulares_por_ue_ignora_atribuicao_cancelada(atribuicao):
+    """Ignora atribuição cancelada."""
+    atribuicao.dt_cancelamento = date.today()
+    atribuicao.save(update_fields=["dt_cancelamento"])
+
+    assert (
+        repositories.titulares_por_ue(
+            "000532",
+            date(2024, 6, 1),
+        )
+        == []
+    )
+
+
+def test_titulares_por_ue_nao_filtra_motivo(atribuicao):
+    """Mantém atribuição com motivo de disponibilização."""
+    atribuicao.codigo_motivo_disponibilizacao = 34
+    atribuicao.save(update_fields=["codigo_motivo_disponibilizacao"])
+
+    resultado = repositories.titulares_por_ue(
+        "000532",
+        date(2024, 6, 1),
+    )
+
+    assert len(resultado) == 1
+
+
+def test_titulares_por_ue_nao_filtra_cargo_encerrado(atribuicao):
+    """Mantém atribuição sem filtrar encerramento do cargo."""
+    cargo = atribuicao.cargo_base
+    cargo.dt_fim_nomeacao = date(2024, 5, 1)
+    cargo.save(update_fields=["dt_fim_nomeacao"])
+
+    resultado = repositories.titulares_por_ue(
+        "000532",
+        date(2024, 6, 1),
+    )
+
+    assert len(resultado) == 1
+
+
+def test_titulares_por_ue_filtra_disponibilizacao_anterior(atribuicao):
+    """Ignora disponibilização anterior a cinco de fevereiro."""
+    atribuicao.dt_disponibilizacao_aulas = date(2024, 2, 4)
+    atribuicao.save(update_fields=["dt_disponibilizacao_aulas"])
+
+    assert (
+        repositories.titulares_por_ue(
+            "000532",
+            date(2024, 6, 1),
+        )
+        == []
+    )
+
+
+def test_titulares_por_ue_inclui_disponibilizacao_no_limite(atribuicao):
+    """Inclui disponibilização realizada em cinco de fevereiro."""
+    atribuicao.dt_disponibilizacao_aulas = date(2024, 2, 5)
+    atribuicao.save(update_fields=["dt_disponibilizacao_aulas"])
+
+    resultado = repositories.titulares_por_ue(
+        "000532",
+        date(2024, 6, 1),
+    )
+
+    assert len(resultado) == 1
+
+
+@pytest.mark.parametrize("codigo_tipo_turma", [None, 4])
+def test_titulares_por_ue_ignora_tipo_turma_invalido(
+    atribuicao,
+    codigo_tipo_turma,
+):
+    """Ignora atribuição sem tipo de turma ou do tipo quatro."""
+    atribuicao.codigo_tipo_turma = codigo_tipo_turma
+    atribuicao.save(update_fields=["codigo_tipo_turma"])
+
+    assert (
+        repositories.titulares_por_ue(
+            "000532",
+            date(2024, 6, 1),
+        )
+        == []
+    )
+
+
+def test_titulares_por_ue_nao_inclui_externo(atribuicao_externa):
+    """Não inclui atribuições externas no resultado por UE."""
+    assert (
+        repositories.titulares_por_ue(
+            "000532",
+            date(2024, 6, 1),
+        )
+        == []
+    )
+
+
+def test_remover_titulares_duplicados():
+    """Mantém somente uma ocorrência de linhas idênticas."""
+    titular = {
+        "professor_rf": "7654321",
+        "nome_professor": "Ana Silva",
+        "disciplina": "Matematica",
+        "disciplina_id": "138",
+        "disciplinas_id": "138",
+        "turma_id": 2112345,
+    }
+
+    assert repositories._remover_titulares_duplicados(
+        [titular, titular.copy()]
+    ) == [titular]
 
 
 def test_buscar_turmas_professor_todos_anos_nao_filtra_ano(atribuicao):

@@ -19,7 +19,6 @@ from apps.professores.serializers import (
     ProfessorEscolaSerializer,
     ProfessorPerfilSerializer,
     ResumoSerializer,
-    TitularAgrupamentoSerializer,
     TitularPorTurmaSerializer,
     TitularSerializer,
     TitularTurmaSerializer,
@@ -1001,9 +1000,6 @@ class TitularesPorTurmaView(APIView):
             OpenApiParameter(
                 "codigo_rf", str, OpenApiParameter.QUERY, required=False
             ),
-            OpenApiParameter(
-                "data_referencia", str, OpenApiParameter.QUERY, required=False
-            ),
         ],
         responses={200: TitularTurmaSerializer(many=True)},
     )
@@ -1025,7 +1021,6 @@ class TitularesPorTurmaView(APIView):
             services.titulares_por_turma(
                 codigo_turma,
                 codigo_rf=request.query_params.get("codigo_rf"),
-                data_referencia=request.query_params.get("data_referencia"),
             )
         )
 
@@ -1039,14 +1034,8 @@ class TitularesPorUeView(APIView):
         parameters=[
             OpenApiParameter("ue_codigo", str, OpenApiParameter.PATH),
             OpenApiParameter("data_referencia", str, OpenApiParameter.PATH),
-            OpenApiParameter(
-                "realiza_agrupamento",
-                bool,
-                OpenApiParameter.QUERY,
-                required=False,
-            ),
         ],
-        responses={200: TitularAgrupamentoSerializer(many=True)},
+        responses={200: TitularPorTurmaSerializer(many=True)},
     )
     def get(
         self,

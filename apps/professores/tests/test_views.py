@@ -976,7 +976,23 @@ class TestEP21TitularesPorTurmas:
 
 
 class TestEP22TitularesPorTurma:
-    def test_retorna_atribuicoes(self, client, atribuicao):
+    def test_openapi_nao_documenta_data_referencia(self, anon):
+        """Verifica remoção da data de referência do OpenAPI."""
+        res = anon.get(
+            f"{_BASE}/schema/",
+            HTTP_ACCEPT="application/json",
+        )
+
+        assert res.status_code == 200
+        endpoint = res.json()["paths"][
+            "/api/v1/professores/{codigo_turma}/titulares/"
+        ]["get"]
+        assert {parameter["name"] for parameter in endpoint["parameters"]} == {
+            "codigo_turma",
+            "codigo_rf",
+        }
+
+    def test_retorna_atribuicoes(self, client, atribuicao_ano_corrente):
         """Verifica retorno das atribuições da turma."""
         res = client.get(f"{_BASE}/professores/2112345/titulares/")
         assert res.status_code == 200
@@ -991,13 +1007,32 @@ class TestEP22TitularesPorTurma:
             }
         ]
 
-    def test_rf_diferente_retorna_vazio(self, client, atribuicao):
+    def test_rf_diferente_retorna_vazio(self, client, atribuicao_ano_corrente):
         """Verifica filtro opcional por RF."""
         res = client.get(
             f"{_BASE}/professores/2112345/titulares/?codigo_rf=0000000"
         )
         assert res.status_code == 200
         assert res.data == []
+
+    def test_retorna_atribuicao_externa(self, client, atribuicao_externa):
+        """Verifica retorno de titular externo ativo no ano corrente."""
+        atribuicao_externa.ano_atribuicao = date.today().year
+        atribuicao_externa.save(update_fields=["ano_atribuicao"])
+
+        res = client.get(f"{_BASE}/professores/2112345/titulares/")
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "professor_rf": "98765432100",
+                "nome_professor": "João Ext",
+                "disciplina": "Matematica",
+                "disciplina_id": 138,
+                "disciplinas_id": "138",
+                "turma_id": 2112345,
+            }
+        ]
 
     def test_rota_antiga_nao_existe(self, client, atribuicao):
         """Verifica remoção da rota com parâmetro de agrupamento."""
@@ -1014,6 +1049,41 @@ class TestEP22TitularesPorTurma:
 
 
 class TestEP23TitularesPorUe:
+    def test_openapi_documenta_contrato_do_endpoint(self, anon):
+        """Verifica campos e parâmetros publicados no OpenAPI."""
+        res = anon.get(
+            f"{_BASE}/schema/",
+            HTTP_ACCEPT="application/json",
+        )
+
+        assert res.status_code == 200
+        schema = res.json()
+        endpoint = schema["paths"][
+            "/api/v1/professores/titulares/ue/"
+            "{ue_codigo}/{data_referencia}/"
+        ]["get"]
+        response_items = endpoint["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["items"]
+
+        assert response_items == {
+            "$ref": "#/components/schemas/TitularPorTurma"
+        }
+        assert {parameter["name"] for parameter in endpoint["parameters"]} == {
+            "ue_codigo",
+            "data_referencia",
+        }
+        assert set(
+            schema["components"]["schemas"]["TitularPorTurma"]["properties"]
+        ) == {
+            "professor_rf",
+            "nome_professor",
+            "disciplina",
+            "disciplina_id",
+            "disciplinas_id",
+            "turma_id",
+        }
+
     def test_atribuicao_antes_da_data_retorna_titular(
         self, client, atribuicao
     ):

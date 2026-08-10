@@ -522,14 +522,12 @@ def titulares_por_turmas(codigos_turmas: list[str]) -> list[dict]:
 def titulares_por_turma(
     codigo_turma: int,
     codigo_rf: str | None = None,
-    data_referencia: str | None = None,
 ) -> list[dict]:
     """Lista professores titulares por turma.
 
     Args:
         codigo_turma: Código EOL da turma consultada.
         codigo_rf: Registro funcional do professor ou servidor consultado.
-        data_referencia: Data de referência usada para validar vigência.
 
     Returns:
         Lista de dados encontrados para os filtros informados.
@@ -537,7 +535,6 @@ def titulares_por_turma(
     return repositories.titulares_por_turma(
         codigo_turma,
         codigo_rf=codigo_rf,
-        data_referencia=_data_iso_ou_none(data_referencia),
     )
 
 

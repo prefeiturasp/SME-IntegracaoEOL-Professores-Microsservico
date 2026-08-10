@@ -184,9 +184,12 @@ class TitularSerializer(serializers.Serializer):
 class TitularPorTurmaSerializer(serializers.Serializer):
     """Serializa professor titular por turma."""
 
-    codigo_turma = serializers.IntegerField()
-    codigo_rf = serializers.CharField()
-    nome = serializers.CharField()
+    professor_rf = serializers.CharField()
+    nome_professor = serializers.CharField()
+    disciplina = serializers.CharField(allow_null=True)
+    disciplina_id = serializers.CharField(allow_null=True)
+    disciplinas_id = serializers.CharField(allow_null=True)
+    turma_id = serializers.IntegerField()
 
 
 class TitularAgrupamentoSerializer(serializers.Serializer):

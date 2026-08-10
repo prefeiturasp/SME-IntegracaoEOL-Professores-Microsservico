@@ -1327,32 +1327,78 @@ def titulares_por_turmas(codigos_turmas: list[int]) -> list[dict]:
     return resultado
 
 
+def _normalizar_titulares(resultado: list[dict]) -> list[dict]:
+    """Remove titulares sem disciplina e ordena pelo código curricular.
+
+    Args:
+        resultado: Titulares encontrados nas fontes efetiva e externa.
+
+    Returns:
+        Titulares válidos ordenados numericamente pela disciplina.
+    """
+    titulares_validos = [
+        item for item in resultado if item.get("disciplina_id") is not None
+    ]
+    return sorted(
+        titulares_validos,
+        key=lambda item: int(item["disciplina_id"]),
+    )
+
+
+def _remover_titulares_duplicados(resultado: list[dict]) -> list[dict]:
+    """Remove linhas duplicadas preservando a primeira ocorrência.
+
+    Args:
+        resultado: Titulares projetados no contrato da API.
+
+    Returns:
+        Titulares distintos por todos os campos publicados.
+    """
+    titulares_unicos: dict[tuple, dict] = {}
+    for item in resultado:
+        chave = (
+            item.get("professor_rf"),
+            item.get("nome_professor"),
+            item.get("disciplina"),
+            item.get("disciplina_id"),
+            item.get("disciplinas_id"),
+            item.get("turma_id"),
+        )
+        titulares_unicos.setdefault(chave, item)
+    return list(titulares_unicos.values())
+
+
 def titulares_por_turma(
     codigo_turma: int,
     codigo_rf: str | None = None,
-    data_referencia: date | None = None,
 ) -> list[dict]:
     """Lista titulares por turma.
 
     Args:
         codigo_turma: CodigoEOL da turma.
         codigo_rf: Registro funcional opcional do professor.
-        data_referencia: Data opcional usada para validar vigência.
 
     Returns:
         Lista de professores titulares conforme os filtros informados.
     """
-    aa_qs = (
-        _vigentes_em(
-            AtribuicaoAula.objects,
-            data_referencia or date.today(),
-        )
-        .filter(_filtro_turma(codigo_turma))
-        .select_related("cargo_base__professor")
-    )
-    if codigo_rf:
-        aa_qs = aa_qs.filter(cargo_base__professor__codigo_rf=codigo_rf)
-    return [
+    ano_atual = date.today().year
+    aa_qs = AtribuicaoAula.objects.filter(
+        _filtro_turma(codigo_turma),
+        ano_atribuicao=ano_atual,
+        dt_cancelamento__isnull=True,
+        codigo_motivo_disponibilizacao__isnull=True,
+        cargo_base__dt_cancelamento__isnull=True,
+        cargo_base__dt_fim_nomeacao__isnull=True,
+    ).select_related("cargo_base__professor")
+    ae_qs = AtribuicaoExterno.objects.filter(
+        _filtro_turma(codigo_turma),
+        ano_atribuicao=ano_atual,
+        dt_cancelamento__isnull=True,
+        codigo_motivo_disponibilizacao_externo__isnull=True,
+        contrato_externo__dt_cancelamento__isnull=True,
+    ).select_related("contrato_externo__pessoa")
+
+    resultado = [
         {
             "professor_rf": aa.cargo_base.professor.codigo_rf,
             "nome_professor": get_nome(aa.cargo_base.professor),
@@ -1367,6 +1413,28 @@ def titulares_por_turma(
         }
         for aa in aa_qs
     ]
+    componentes_efetivos = {aa.codigo_componente_curricular for aa in aa_qs}
+    resultado.extend(
+        {
+            "professor_rf": ae.contrato_externo.pessoa.cpf,
+            "nome_professor": get_nome(ae.contrato_externo.pessoa),
+            "disciplina": (
+                ae.descricao_componente_curricular.rstrip()
+                if ae.descricao_componente_curricular
+                else None
+            ),
+            "disciplina_id": ae.codigo_componente_curricular,
+            "disciplinas_id": str(ae.codigo_componente_curricular),
+            "turma_id": ae.codigo_turma_escola,
+        }
+        for ae in ae_qs
+        if ae.codigo_componente_curricular not in componentes_efetivos
+    )
+    if codigo_rf:
+        resultado = [
+            item for item in resultado if item["professor_rf"] == codigo_rf
+        ]
+    return _normalizar_titulares(resultado)
 
 
 def titulares_por_ue(
@@ -1382,12 +1450,24 @@ def titulares_por_ue(
     Returns:
         Lista de professores titulares da unidade educacional.
     """
-    qs = AtribuicaoAula.objects.filter(
-        codigo_unidade_educacao=ue_codigo,
-        dt_cancelamento__isnull=True,
-        dt_atribuicao_aula__lte=data_referencia,
-    ).select_related("cargo_base__professor")
-    return [
+    data_limite_disponibilizacao = date(data_referencia.year, 2, 5)
+    aa_qs = (
+        AtribuicaoAula.objects.filter(
+            codigo_unidade_educacao=ue_codigo,
+            ano_atribuicao=data_referencia.year,
+            dt_cancelamento__isnull=True,
+            dt_atribuicao_aula__lte=data_referencia,
+            codigo_tipo_turma__isnull=False,
+        )
+        .exclude(codigo_tipo_turma=4)
+        .filter(
+            Q(dt_disponibilizacao_aulas__isnull=True)
+            | Q(dt_disponibilizacao_aulas__gte=data_limite_disponibilizacao)
+        )
+        .select_related("cargo_base__professor")
+    )
+
+    resultado = [
         {
             "professor_rf": aa.cargo_base.professor.codigo_rf,
             "nome_professor": get_nome(aa.cargo_base.professor),
@@ -1400,5 +1480,6 @@ def titulares_por_ue(
             "disciplinas_id": str(aa.codigo_componente_curricular),
             "turma_id": _codigo_turma(aa) or 0,
         }
-        for aa in qs
+        for aa in aa_qs
     ]
+    return _normalizar_titulares(_remover_titulares_duplicados(resultado))
