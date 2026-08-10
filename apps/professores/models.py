@@ -167,6 +167,19 @@ class FuncionarioUnidadeEducacional(models.Model):
     esta_afastado = models.BooleanField(default=False)
     funcao_externo = models.IntegerField(default=0)
     tipo_funcao_externo = models.IntegerField(default=0)
+    nome_ue = models.CharField(max_length=200, null=True, blank=True)
+    tipo_funcionario_externo = models.CharField(
+        max_length=100, null=True, blank=True
+    )
+    dc_funcao_externo = models.CharField(max_length=100, null=True, blank=True)
+    pessoa = models.ForeignKey(
+        "Pessoa",
+        on_delete=models.DO_NOTHING,
+        null=True,
+        blank=True,
+        db_constraint=False,
+    )
+    supervisor_dre = models.BooleanField(default=False)
 
     class Meta:
         app_label = "professores"
@@ -207,6 +220,53 @@ class FuncionarioCargo(models.Model):
         app_label = "professores"
         db_table = "funcionario_cargo"
         managed = False
+
+
+class FuncionarioSistemaPerfil(models.Model):
+    """Perfil de sistema associado ao login do funcionario."""
+
+    id = models.BigAutoField(primary_key=True)
+    login = models.CharField(max_length=500)
+    nome_servidor = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    email = models.CharField(
+        max_length=500,
+        null=True,
+        blank=True,
+    )
+    cpf = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+    uad_codigo = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+    perfil = models.UUIDField()
+    sis_id = models.IntegerField()
+
+    class Meta:
+        app_label = "professores"
+        db_table = "funcionario_sistema_perfil"
+        managed = False
+        verbose_name = "perfil de sistema do funcionario"
+        verbose_name_plural = "perfis de sistema dos funcionarios"
+        indexes = [
+            models.Index(fields=["login"], name="idx_fsp_login"),
+            models.Index(fields=["sis_id"], name="idx_fsp_sis_id"),
+            models.Index(fields=["perfil"], name="idx_fsp_perfil"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["login", "perfil", "sis_id"],
+                name="uq_fsp_login_perfil_sis",
+            ),
+        ]
 
 
 class TurmaAtribuidaUe(models.Model):
@@ -337,6 +397,12 @@ class Pessoa(models.Model):
     cpf = models.CharField(max_length=14, unique=True)
     nome = models.CharField(max_length=200)
     nome_social = models.CharField(max_length=200, null=True, blank=True)
+    nome_pai = models.CharField(max_length=200, null=True, blank=True)
+    nome_mae = models.CharField(max_length=200, null=True, blank=True)
+    data_nascimento = models.DateField(null=True, blank=True)
+    rg = models.CharField(max_length=30, null=True, blank=True)
+    titulo_eleitoral = models.CharField(max_length=30, null=True, blank=True)
+    pis_pasep = models.CharField(max_length=30, null=True, blank=True)
 
     class Meta:
         app_label = "professores"
@@ -476,8 +542,7 @@ class AtribuicaoExterno(models.Model):
 
 
 class AdministradorEscola(models.Model):
-    """Administradores SGP vinculados a unidades educacionais.
-    """
+    """Administradores SGP vinculados a unidades educacionais."""
 
     codigo_ue = models.CharField(max_length=20, db_index=True)
     rf_login = models.CharField(max_length=50)

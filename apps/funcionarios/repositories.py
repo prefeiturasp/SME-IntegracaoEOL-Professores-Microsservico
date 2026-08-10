@@ -2,7 +2,15 @@
 
 from typing import Any
 
-from django.db.models import Case, F, IntegerField, Q, Value, When, Window
+from django.db.models import (
+    Case,
+    F,
+    IntegerField,
+    Q,
+    Value,
+    When,
+    Window,
+)
 from django.db.models.functions import RowNumber
 from django.utils import timezone
 
@@ -13,6 +21,7 @@ from apps.professores.models import (
     ContratoExterno,
     FuncaoAtividadeCargoServidor,
     FuncionarioCargo,
+    FuncionarioSistemaPerfil,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Professor,
@@ -26,8 +35,18 @@ MENSAGEM_ERRO_LEGADO = (
 MENSAGEM_ERRO_PERFIL_SEM_DRE_RF = (
     "O código da Dre ou código rf/login deve ser informados."
 )
+MENSAGEM_SIGPAE_SEM_DADOS = (
+    "Sem informações na base de dados para o Código Rf informado"
+)
 _UE_DRE_CACHE: dict[str, str | None] = {}
 _CODIGO_CARGO_SUPERVISOR = 3352
+_CODIGOS_CARGOS_GESTAO_SIGPAE = {
+    3085,
+    3352,
+    3360,
+    3379,
+}
+_ChaveFuncionarioExterno = tuple[int | None, str]
 
 
 def perfil_placeholder_invalido(id_perfil: str) -> bool:
@@ -242,6 +261,186 @@ def _funcionarios_ativos() -> Any:
     )
 
 
+def _funcionarios_sigpae_por_rf(codigo_rf: str) -> Any:
+    """Retorna vínculos de funcionário ordenados para o SIGPAE."""
+    return FuncionarioUnidadeEducacional.objects.filter(
+        codigo_rf=codigo_rf,
+    ).order_by(
+        "data_inicio",
+        "origem_vinculo",
+        "codigo_ue",
+        "codigo_cargo",
+    )
+
+
+def _perfis_sistema_por_login(codigo_rf: str) -> Any:
+    """Retorna perfis de sistema associados ao login."""
+    return FuncionarioSistemaPerfil.objects.filter(login=codigo_rf).order_by(
+        "login",
+        "nome_servidor",
+        "perfil",
+        "sis_id",
+    )
+
+
+def _email_funcionario_sistema(codigo_rf: str) -> str | None:
+    """Retorna primeiro e-mail preenchido para o login."""
+    email = (
+        _perfis_sistema_por_login(codigo_rf)
+        .exclude(email__isnull=True)
+        .exclude(email="")
+        .values_list("email", flat=True)
+        .first()
+    )
+    return str(email) if email is not None else None
+
+
+def _codigo_cargo_sigpae(codigo_cargo: str | None) -> int | None:
+    """Retorna codigo de cargo como inteiro."""
+    if not codigo_cargo:
+        return None
+    try:
+        return int(codigo_cargo)
+    except ValueError:
+        return None
+
+
+def _contrato_externo_sigpae(
+    funcionario: FuncionarioUnidadeEducacional,
+) -> bool:
+    """Verifica se o vinculo SIGPAE representa contrato externo."""
+    return bool(
+        funcionario.origem_vinculo == "externo"
+        or funcionario.funcao_externo
+        or funcionario.tipo_funcao_externo
+    )
+
+
+def _cargo_sigpae(funcionario: FuncionarioUnidadeEducacional) -> dict:
+    """Mapeia cargo consolidado para o contrato SIGPAE."""
+    return {
+        "codigo_cargo": _codigo_cargo_sigpae(funcionario.codigo_cargo),
+        "descricao_cargo": funcionario.cargo,
+        "codigo_unidade": funcionario.codigo_ue,
+        "descricao_unidade": funcionario.nome_ue,
+        "codigo_dre": funcionario.codigo_dre,
+        "contrato_externo": _contrato_externo_sigpae(funcionario),
+    }
+
+
+def _cargo_sigpae_preenchido(cargo: dict) -> bool:
+    """Verifica se o cargo mapeado possui dados de vínculo."""
+    return (
+        cargo["codigo_cargo"] is not None
+        or bool(cargo["descricao_cargo"])
+    )
+
+
+def _cargo_sigpae_gestao(cargo: dict) -> bool:
+    """Verifica se o cargo SIGPAE representa gestão escolar."""
+    return cargo["codigo_cargo"] in _CODIGOS_CARGOS_GESTAO_SIGPAE
+
+
+def _funcionario_com_funcao_atividade(
+    funcionario: FuncionarioUnidadeEducacional,
+) -> bool:
+    """Verifica se o vínculo consolidado representa função atividade."""
+    return (
+        funcionario.origem_vinculo == "funcao_atividade"
+        or bool(funcionario.codigo_tipo_funcao_atividade)
+    )
+
+
+def _funcionario_com_cargo_sobreposto(
+    funcionario: FuncionarioUnidadeEducacional,
+) -> bool:
+    """Verifica se o vínculo consolidado representa cargo sobreposto."""
+    return funcionario.origem_vinculo == "cargo_sobreposto"
+
+
+def _cargos_sigpae(
+    funcionarios: list[FuncionarioUnidadeEducacional],
+    ultimo_funcionario: FuncionarioUnidadeEducacional | None,
+) -> list[dict]:
+    """Retorna cargos SIGPAE filtrados por prioridade."""
+    funcionarios_sobrepostos = [
+        funcionario
+        for funcionario in funcionarios
+        if _funcionario_com_cargo_sobreposto(funcionario)
+    ]
+    if funcionarios_sobrepostos:
+        return [_cargo_sigpae(funcionarios_sobrepostos[-1])]
+
+    funcionarios_sem_funcao = [
+        funcionario
+        for funcionario in funcionarios
+        if not _funcionario_com_funcao_atividade(funcionario)
+    ]
+    funcionarios_considerados = funcionarios_sem_funcao or funcionarios
+    cargos_mapeados = [
+        _cargo_sigpae(funcionario)
+        for funcionario in funcionarios_considerados
+    ]
+    cargos = _deduplicar_dicts(
+        [cargo for cargo in cargos_mapeados if _cargo_sigpae_preenchido(cargo)]
+    )
+    cargos_gestao = [cargo for cargo in cargos if _cargo_sigpae_gestao(cargo)]
+    if cargos_gestao:
+        return cargos_gestao
+    if cargos:
+        return [cargos[-1]]
+    if ultimo_funcionario is None:
+        return []
+    return [_cargo_sigpae(ultimo_funcionario)]
+
+
+def _deduplicar_dicts(rows: list[dict]) -> list[dict]:
+    """Remove duplicidades preservando a ordem original."""
+    vistos = set()
+    resultado = []
+    for row in rows:
+        chave = tuple(row.items())
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        resultado.append(row)
+    return resultado
+
+
+def _chave_funcionario_externo(
+    pessoa_id: int | None,
+    codigo_ue: str,
+) -> _ChaveFuncionarioExterno:
+    """Monta chave entre contrato externo e unidade educacional."""
+    return (pessoa_id, codigo_ue)
+
+
+def _funcionarios_externos_por_contrato(
+    contratos: list[ContratoExterno],
+) -> dict[_ChaveFuncionarioExterno, FuncionarioUnidadeEducacional]:
+    """Indexa vinculos externos compativeis com os contratos."""
+    pessoas_id = {contrato.pessoa_id for contrato in contratos}
+    codigos_ue = {contrato.codigo_unidade_educacao for contrato in contratos}
+    funcionarios = FuncionarioUnidadeEducacional.objects.filter(
+        pessoa_id__in=pessoas_id,
+        codigo_ue__in=codigos_ue,
+    )
+    return {
+        _chave_funcionario_externo(
+            funcionario.pessoa_id,
+            funcionario.codigo_ue,
+        ): funcionario
+        for funcionario in funcionarios
+    }
+
+
+def _nome_ue_sem_tipo_escola(nome_ue: str | None) -> str | None:
+    """Remove o tipo de escola do nome da unidade."""
+    if not nome_ue or " - " not in nome_ue:
+        return nome_ue
+    return nome_ue.split(" - ", maxsplit=1)[1].strip()
+
+
 def _funcionarios_ue_legado() -> Any:
     """Retorna vínculos conforme a consulta legada por UE."""
     return FuncionarioUnidadeEducacional.objects.filter(
@@ -424,6 +623,34 @@ def supervisores_por_dre(
             {
                 "codigo_rf": funcionario.codigo_rf,
                 "nome_servidor": funcionario.nome,
+            }
+        )
+    return resultado
+
+
+def supervisores_dres(codigo_dre: str) -> list[dict]:
+    """Lista supervisores da DRE.
+
+    Args:
+        codigo_dre: Codigo EOL da DRE consultada.
+
+    Returns:
+        Supervisores para a DRE informada.
+    """
+    qs = FuncionarioUnidadeEducacional.objects.filter(
+        codigo_dre=codigo_dre,
+        supervisor_dre=True,
+    ).order_by("nome")
+    resultado = []
+    vistos = set()
+    for funcionario in qs:
+        if funcionario.codigo_rf in vistos:
+            continue
+        vistos.add(funcionario.codigo_rf)
+        resultado.append(
+            {
+                "codigo_rf": funcionario.codigo_rf,
+                "nome_servidor": _nome_funcionario(funcionario),
             }
         )
     return resultado
@@ -656,29 +883,45 @@ def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
     Returns:
         Contratos externos do funcionário, ou ``None`` quando não houver.
     """
-    qs = ContratoExterno.objects.filter(pessoa__cpf=cpf).select_related(
-        "pessoa"
+    contratos = list(
+        ContratoExterno.objects.filter(pessoa__cpf=cpf)
+        .select_related("pessoa")
+        .order_by("codigo_contrato")
     )
-    if not qs.exists():
+    if not contratos:
         return None
+    funcionarios = _funcionarios_externos_por_contrato(contratos)
     resultado = []
-    for ce in qs:
+    for ce in contratos:
         p = ce.pessoa
+        funcionario = funcionarios.get(
+            _chave_funcionario_externo(
+                ce.pessoa_id,
+                ce.codigo_unidade_educacao,
+            )
+        )
+        nome_ue = _nome_ue_sem_tipo_escola(
+            funcionario.nome_ue if funcionario else None
+        )
+        funcao = funcionario.dc_funcao_externo if funcionario else None
+        tipo_funcionario = (
+            funcionario.tipo_funcionario_externo if funcionario else None
+        )
         resultado.append(
             {
                 "nome_pessoa": get_nome(p),
-                "nome_pai": None,
-                "nome_mae": None,
-                "data_nascimento": None,
-                "rg": None,
+                "nome_pai": p.nome_pai,
+                "nome_mae": p.nome_mae,
+                "data_nascimento": fmt_iso(p.data_nascimento),
+                "rg": p.rg,
                 "cpf": p.cpf,
-                "titulo_eleitoral": None,
-                "pis_pasep": None,
+                "titulo_eleitoral": p.titulo_eleitoral,
+                "pis_pasep": p.pis_pasep,
                 "codigo_contrato_externo": ce.codigo_contrato,
                 "codigo_ue": ce.codigo_unidade_educacao,
-                "nome_ue": None,
-                "funcao": None,
-                "tipo_funcionario": None,
+                "nome_ue": nome_ue,
+                "funcao": funcao,
+                "tipo_funcionario": tipo_funcionario,
             }
         )
     return resultado
@@ -957,6 +1200,89 @@ def funcionarios_sgp_dre(  # NOSONAR
     ]
 
 
+def funcionarios_por_unidade_perfis(
+    codigo_dre_ue: str,
+    perfis: list,
+) -> list[dict]:
+    """Lista funcionarios de unidade por perfis de sistema."""
+    qs = (
+        FuncionarioSistemaPerfil.objects.filter(
+            uad_codigo=codigo_dre_ue,
+            perfil__in=perfis,
+        )
+        .order_by("nome_servidor", "login", "perfil", "sis_id")
+    )
+    rows = [
+        {
+            "login": item.login,
+            "nome_servidor": item.nome_servidor,
+            "perfil": str(item.perfil),
+        }
+        for item in qs
+    ]
+    return _deduplicar_dicts(rows)
+
+
+def logins_admins_sme_por_perfis(perfis: list) -> list[str]:
+    """Lista logins de administradores SME por perfis."""
+    logins = (
+        FuncionarioSistemaPerfil.objects.filter(perfil__in=perfis)
+        .exclude(login="")
+        .order_by("login")
+        .values_list("login", flat=True)
+    )
+    resultado = []
+    vistos = set()
+    for login in logins:
+        if login in vistos:
+            continue
+        vistos.add(login)
+        resultado.append(login)
+    return resultado
+
+
+def dados_sigpae_por_rf(codigo_rf: str) -> dict | None:
+    """Retorna dados de funcionario para o SIGPAE."""
+    ultimo_funcionario = _funcionarios_sigpae_por_rf(codigo_rf).last()
+    funcionarios = list(
+        _funcionarios_ativos()
+        .filter(codigo_rf=codigo_rf)
+        .order_by("codigo_rf", "origem_vinculo", "codigo_ue", "codigo_cargo")
+    )
+    if funcionarios:
+        funcionario = funcionarios[0]
+        return {
+            "rf": funcionario.codigo_rf,
+            "cpf": funcionario.cpf,
+            "email": _email_funcionario_sistema(codigo_rf),
+            "cargos": _cargos_sigpae(funcionarios, ultimo_funcionario),
+            "nome": _nome_funcionario(funcionario),
+            "inexistente_eol": False,
+        }
+
+    if ultimo_funcionario is not None:
+        return {
+            "rf": ultimo_funcionario.codigo_rf,
+            "cpf": ultimo_funcionario.cpf,
+            "email": _email_funcionario_sistema(codigo_rf),
+            "cargos": [_cargo_sigpae(ultimo_funcionario)],
+            "nome": _nome_funcionario(ultimo_funcionario),
+            "inexistente_eol": False,
+        }
+
+    perfil = _perfis_sistema_por_login(codigo_rf).first()
+    if not perfil:
+        return None
+    return {
+        "rf": perfil.login,
+        "cpf": perfil.cpf,
+        "email": perfil.email,
+        "cargos": None,
+        "nome": perfil.nome_servidor,
+        "inexistente_eol": True,
+    }
+
+
 def acesso_sondagem(codigo_rf: str) -> bool:
     """Verifica se o servidor possui acesso à sondagem.
 
@@ -999,14 +1325,19 @@ def buscar_por_lista_login(lista: list[str]) -> list[dict]:
     Returns:
         Funcionários encontrados para os logins informados.
     """
-    return [
+    rows = [
         {
-            "login": p.codigo_rf,
-            "nome_servidor": get_nome(p),
+            "login": item.login,
+            "nome_servidor": item.nome_servidor,
             "perfil": _GUID_VAZIO,
         }
-        for p in Professor.objects.filter(codigo_rf__in=lista)
+        for item in (
+            FuncionarioSistemaPerfil.objects.filter(login__in=lista)
+            .exclude(login="")
+            .order_by("nome_servidor")
+        )
     ]
+    return _deduplicar_dicts(rows)
 
 
 def buscar_funcionarios(

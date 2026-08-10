@@ -15,6 +15,7 @@ from apps.funcionarios.api.views import (
 from apps.professores.models import (
     CargoBaseServidor,
     FuncionarioCargo,
+    FuncionarioSistemaPerfil,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
     Professor,
@@ -24,6 +25,7 @@ pytestmark = pytest.mark.django_db
 
 _BASE = "/api/v1/professores"
 _API_KEY = "test-key"
+_PERFIL_1 = "ea741bf4-47ea-486d-8b88-5327521bcfc5"
 
 
 def _request(settings, path: str):
@@ -48,17 +50,10 @@ class TestEP25FuncionariosPorUE:
         res = anon.get(f"{_BASE}/escolas/000532/funcionarios/")
         assert res.status_code == 403
 
-    def test_rota_antiga_filtra_professor(self, client, lotacao, ue):
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="1111111",
-            nome="Carlos Gestor",
-            cpf="11111111111",
-            codigo_ue=ue.codigo_ue,
-            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-            codigo_cargo="3360",
-            cargo="DIRETOR",
-            eh_professor=False,
-        )
+    def test_rota_antiga_filtra_professor(
+        self, client, lotacao, criar_funcionario_ue
+    ):
+        criar_funcionario_ue()
 
         res = client.get(f"{_BASE}/escolas/000532/funcionarios/")
 
@@ -68,18 +63,9 @@ class TestEP25FuncionariosPorUE:
 
 class TestFuncionariosUE:
     def test_rota_legado_retorna_funcionario_nao_professor(
-        self, client, lotacao, ue
+        self, client, lotacao, criar_funcionario_ue
     ):
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="1111111",
-            nome="Carlos Gestor",
-            cpf="11111111111",
-            codigo_ue=ue.codigo_ue,
-            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-            codigo_cargo="3360",
-            cargo="DIRETOR",
-            eh_professor=False,
-        )
+        criar_funcionario_ue()
 
         res = client.post(
             f"{_BASE}/funcionarios/ue/000532/",
@@ -90,17 +76,10 @@ class TestFuncionariosUE:
         assert res.status_code == 200
         assert any(item["codigo_rf"] == "1111111" for item in res.data)
 
-    def test_rota_legado_filtra_por_rf(self, client, lotacao, ue):
-        FuncionarioUnidadeEducacional.objects.create(
-            codigo_rf="1111111",
-            nome="Carlos Gestor",
-            cpf="11111111111",
-            codigo_ue=ue.codigo_ue,
-            data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-            codigo_cargo="3360",
-            cargo="DIRETOR",
-            eh_professor=False,
-        )
+    def test_rota_legado_filtra_por_rf(
+        self, client, lotacao, criar_funcionario_ue
+    ):
+        criar_funcionario_ue()
 
         res = client.post(
             f"{_BASE}/funcionarios/ue/000532/",
@@ -265,6 +244,40 @@ class TestSupervisoresPorDre:
             f"{_BASE}/funcionarios/supervisores/108100/",
             ["1111111"],
             format="json",
+        )
+
+        assert res.status_code == 403
+
+
+class TestSupervisoresDreConsolidado:
+    def test_get_retorna_supervisores_do_consolidado(
+        self, client, criar_supervisores_dre
+    ):
+        criar_supervisores_dre()
+
+        res = client.get(
+            f"{_BASE}/funcionarios/dres/108100/supervisores/"
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "codigo_rf": "1111111",
+                "nome_servidor": "Supervisora Social",
+            }
+        ]
+
+    def test_get_sem_supervisores_retorna_lista_vazia(self, client, db):
+        res = client.get(
+            f"{_BASE}/funcionarios/dres/108100/supervisores/"
+        )
+
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_get_sem_api_key_retorna_403(self, anon):
+        res = anon.get(
+            f"{_BASE}/funcionarios/dres/108100/supervisores/"
         )
 
         assert res.status_code == 403
@@ -575,18 +588,39 @@ class TestEP29CargosFuncionario:
 
 
 class TestEP30FuncionarioExternoPorCpf:
-    def test_encontrado_retorna_dados(self, client, contrato_externo):
+    def test_encontrado_retorna_dados(
+        self,
+        client,
+        contrato_externo,
+        preparar_pessoa_externa,
+        criar_vinculo_externo_consolidado,
+    ):
+        pessoa = contrato_externo.pessoa
+        preparar_pessoa_externa(pessoa)
+        criar_vinculo_externo_consolidado(pessoa)
+
         res = client.get(
             f"{_BASE}/funcionarios/funcionario-externo/98765432100/"
         )
+
         assert res.status_code == 200
         assert res.data[0]["cpf"] == "98765432100"
+        assert res.data[0]["nome_pessoa"] == "Nome social"
+        assert res.data[0]["nome_pai"] == "Pai Externo"
+        assert res.data[0]["nome_mae"] == "Mae Externa"
+        assert res.data[0]["data_nascimento"] == "1985-03-02T00:00:00"
+        assert res.data[0]["rg"] == "1234567"
+        assert res.data[0]["titulo_eleitoral"] == "987654"
+        assert res.data[0]["pis_pasep"] == "11223344"
+        assert res.data[0]["nome_ue"] == "EMEF Teste"
+        assert res.data[0]["funcao"] == "Auxiliar tecnico"
+        assert res.data[0]["tipo_funcionario"] == "Terceirizado"
 
-    def test_nao_encontrado_retorna_404(self, client, db):
+    def test_nao_encontrado_retorna(self, client, db):
         res = client.get(
             f"{_BASE}/funcionarios/funcionario-externo/00000000000/"
         )
-        assert res.status_code == 404
+        assert res.status_code == 204
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(
@@ -664,14 +698,14 @@ class TestEP34DreUeAtribuicaoCargo:
         assert res.status_code == 200
         assert res.data[0]["codigo_ue"] is None
 
-    def test_cargo_inexistente_retorna_404(self, client, db):
+    def test_cargo_inexistente_retorna_lista_vazia(self, client, db):
         res = client.get(
             f"{_BASE}/funcionarios/atribuicao/0000000/cargo/3379/"
         )
         assert res.status_code == 200
         assert res.data == []
 
-    def test_repository_none_retorna_404(self, client, monkeypatch):
+    def test_repository_none_retorna_lista_vazia(self, client, monkeypatch):
         from apps.funcionarios.api import views
 
         monkeypatch.setattr(
@@ -684,7 +718,8 @@ class TestEP34DreUeAtribuicaoCargo:
             f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/"
         )
 
-        assert res.status_code == 404
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/atribuicao/7654321/cargo/3379/")
@@ -698,9 +733,6 @@ class TestEP35UsuariosSGP:
             "00000000-0000-0000-0000-000000000000/"
         )
         assert res.status_code == 400
-        assert res.data == (
-            "O código da Dre ou código rf/login deve ser informados."
-        )
 
     def test_guid_vazio_com_codigo_rf_retorna_funcionario(
         self, client, lotacao
@@ -725,26 +757,32 @@ class TestEP35UsuariosSGP:
         )
 
     def test_retorna_funcionario_com_lotacao_ativa(self, client, lotacao):
-        res = client.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
+        res = client.get(
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/"
+            "?codigo_dre=108100"
+        )
         assert res.status_code == 200
         assert any(u["codigo_rf"] == "7654321" for u in res.data)
 
     def test_filtro_ue_retorna_apenas_da_ue(self, client, lotacao):
         res = client.get(
-            f"{_BASE}/funcionarios/perfis/perfil-guid-123/?codigo_ue=000532"
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/"
+            "?codigo_dre=108100&codigo_ue=000532"
         )
         assert res.status_code == 200
         assert any(u["codigo_rf"] == "7654321" for u in res.data)
 
-    def test_filtro_ue_errada_retorna_404(self, client, lotacao):
+    def test_filtro_ue_errada_retorna_lista_vazia(self, client, lotacao):
         res = client.get(
-            f"{_BASE}/funcionarios/perfis/perfil-guid-123/?codigo_ue=999999"
+            f"{_BASE}/funcionarios/perfis/perfil-guid-123/"
+            "?codigo_dre=108100&codigo_ue=999999"
         )
-        assert res.status_code == 404
+        assert res.status_code == 200
+        assert res.data == []
 
-    def test_sem_lotacao_ativa_retorna_404(self, client, db):
+    def test_sem_dre_ou_rf_retorna_400_como_legado(self, client, db):
         res = client.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
-        assert res.status_code == 404
+        assert res.status_code == 400
 
     def test_sem_api_key_retorna_403(self, anon):
         res = anon.get(f"{_BASE}/funcionarios/perfis/perfil-guid-123/")
@@ -774,11 +812,12 @@ class TestEP36FuncionariosSGPDre:
         assert res.status_code == 200
         assert any(u["codigo_rf"] == "7654321" for u in res.data)
 
-    def test_dre_sem_funcionarios_retorna_404(self, client, db):
+    def test_dre_sem_funcionarios_retorna_lista_vazia(self, client, db):
         res = client.get(
             f"{_BASE}/funcionarios/perfis/perfil-guid-123/dres/108100/"
         )
-        assert res.status_code == 404
+        assert res.status_code == 200
+        assert res.data == []
 
     def test_filtro_rf_retorna_especifico(self, client, lotacao, ue):
         FuncionarioUnidadeEducacional.objects.filter(
@@ -888,7 +927,15 @@ class TestEP38BuscarPorListaRF:
 
 
 class TestEP39BuscarPorListaLogin:
-    def test_login_existente_retorna_funcionario(self, client, professor):
+    def test_login_existente_retorna_funcionario(self, client, db):
+        FuncionarioSistemaPerfil.objects.create(
+            login="7654321",
+            nome_servidor="Maria Perfil",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
         res = client.post(
             f"{_BASE}/funcionarios/BuscarPorListaLogin/",
             ["7654321"],
@@ -912,4 +959,157 @@ class TestEP39BuscarPorListaLogin:
             [],
             format="json",
         )
+        assert res.status_code == 403
+
+
+class TestFuncionariosPorUnidadePerfis:
+    def test_retorna_funcionarios_filtrados_por_perfil(self, client, db):
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Ana Perfil",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/unidade/108100/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "login": "0000001",
+                "nome_servidor": "Ana Perfil",
+                "perfil": _PERFIL_1,
+            }
+        ]
+
+    def test_perfis_vazio_retorna_404(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/unidade/108100/",
+            [],
+            format="json",
+        )
+
+        assert res.status_code == 404
+        assert res.data == "Não foram encontrados funcionários."
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/unidade/108100/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 403
+
+
+class TestFuncionariosAdminsSme:
+    def test_retorna_logins_por_perfil(self, client, db):
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Ana Perfil",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.post(
+            f"{_BASE}/funcionarios/admins/sme/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 200
+        assert res.data == ["0000001"]
+
+    def test_perfis_vazio_retorna_404(self, client, db):
+        res = client.post(
+            f"{_BASE}/funcionarios/admins/sme/",
+            [],
+            format="json",
+        )
+
+        assert res.status_code == 404
+        assert res.data == "Não foram encontrados funcionários."
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.post(
+            f"{_BASE}/funcionarios/admins/sme/",
+            [_PERFIL_1],
+            format="json",
+        )
+
+        assert res.status_code == 403
+
+
+class TestDadosSigpae:
+    def test_retorna_dados_sigpae(self, client, criar_funcionario_ue):
+        criar_funcionario_ue(
+            codigo_rf="0000001",
+            nome="Vanessa",
+            cpf="000000000000",
+            codigo_cargo="3379",
+            cargo="SUPERVISOR ESCOLAR",
+            nome_ue="SUPERVISAO ESCOLAR - PE",
+        )
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Vanessa",
+            email="email@sme.prefeitura.sp.gov.br",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
+        assert res.status_code == 200
+        assert res.data["rf"] == "0000001"
+        assert res.data["email"] == "email@sme.prefeitura.sp.gov.br"
+        assert res.data["inexistente_eol"] is False
+        assert res.data["cargos"][0]["codigo_cargo"] == 3379
+
+    def test_sem_eol_com_usuario_local_retorna_fallback(
+        self,
+        client,
+        db,
+    ):
+        FuncionarioSistemaPerfil.objects.create(
+            login="0000001",
+            nome_servidor="Usuario Local",
+            email="local@sme.prefeitura.sp.gov.br",
+            cpf="12345678900",
+            uad_codigo="108100",
+            perfil=_PERFIL_1,
+            sis_id=1,
+        )
+
+        res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
+        assert res.status_code == 200
+        assert res.data == {
+            "rf": "0000001",
+            "cpf": "12345678900",
+            "email": "local@sme.prefeitura.sp.gov.br",
+            "cargos": None,
+            "nome": "Usuario Local",
+            "inexistente_eol": True,
+        }
+
+    def test_sem_dados_retorna_601(self, client, db):
+        res = client.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
+        assert res.status_code == 601
+        assert (
+            res.data
+            == "Sem informações na base de dados para o Código Rf informado"
+        )
+
+    def test_sem_api_key_retorna_403(self, anon):
+        res = anon.get(f"{_BASE}/funcionarios/DadosSigpae/0000001/")
+
         assert res.status_code == 403

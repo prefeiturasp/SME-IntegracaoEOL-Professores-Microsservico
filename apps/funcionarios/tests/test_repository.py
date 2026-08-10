@@ -7,12 +7,16 @@ import pytest
 from apps.funcionarios import repositories
 from apps.professores.models import (
     CargoSobrepostoServidor,
+    FuncionarioSistemaPerfil,
     FuncionarioUnidadeEducacional,
     LotacaoServidor,
 )
 
 pytestmark = pytest.mark.django_db
 
+_PERFIL_1 = "ea741bf4-47ea-486d-8b88-5327521bcfc5"
+_PERFIL_2 = "5f7d2f11-a7d6-4055-9a02-4af25e94b640"
+_GUID_VAZIO = "00000000-0000-0000-0000-000000000000"
 
 def test_dre_de_ue_retorna_none_sem_codigo():
     """Verifica consulta de DRE sem UE informada."""
@@ -82,20 +86,15 @@ def test_funcionarios_por_ue_cargo_filtra_cargo(lotacao):
     assert resultado[0]["codigo_rf"] == "7654321"
 
 
-def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(lotacao, ue):
+def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica fim de nomeação no bloco de lotação."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+    criar_funcionario_ue(
         data_fim=datetime(2024, 12, 31, tzinfo=UTC),
         dt_fim_nomeacao=datetime(2024, 12, 31, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
         origem_vinculo="lotacao",
-        eh_professor=False,
     )
 
     resultado = repositories.funcionarios_por_ue(
@@ -107,22 +106,305 @@ def test_funcionarios_por_ue_legado_mantem_fim_nomeacao_lotacao(lotacao, ue):
     assert resultado[0]["codigo_rf"] == "1111111"
 
 
+def test_funcionarios_por_unidade_perfis_filtra_unidade_e_perfil(db):
+    """Verifica funcionarios por unidade e perfis do sistema."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Perfil",
+        email="ana@sme.prefeitura.sp.gov.br",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000002",
+        nome_servidor="Fora Perfil",
+        uad_codigo="108100",
+        perfil=_PERFIL_2,
+        sis_id=1,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000003",
+        nome_servidor="Fora Unidade",
+        uad_codigo="999999",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.funcionarios_por_unidade_perfis(
+        "108100",
+        [_PERFIL_1],
+    )
+
+    assert resultado == [
+        {
+            "login": "0000001",
+            "nome_servidor": "Ana Perfil",
+            "perfil": _PERFIL_1,
+        }
+    ]
+
+
+def test_logins_admins_sme_por_perfis_remove_duplicados(db):
+    """Verifica logins de administradores por perfis."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Perfil",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Outro Sistema",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=2,
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000002",
+        nome_servidor="Outro Perfil",
+        uad_codigo="108100",
+        perfil=_PERFIL_2,
+        sis_id=1,
+    )
+
+    resultado = repositories.logins_admins_sme_por_perfis([_PERFIL_1])
+
+    assert resultado == ["0000001"]
+
+
+def test_buscar_por_lista_login_consulta_funcionario_sistema_perfil(db):
+    """Verifica busca de logins na tabela de perfis do sistema."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Ana Perfil",
+        uad_codigo="108100",
+        perfil=_GUID_VAZIO,
+        sis_id=1,
+    )
+
+    resultado = repositories.buscar_por_lista_login(["0000001"])
+
+    assert resultado == [
+        {
+            "login": "0000001",
+            "nome_servidor": "Ana Perfil",
+            "perfil": _GUID_VAZIO,
+        }
+    ]
+
+
+def test_dados_sigpae_por_rf_retorna_dados_consolidados(
+    criar_funcionario_ue,
+):
+    """Verifica dados SIGPAE de funcionario existente no EOL."""
+    criar_funcionario_ue(
+        codigo_rf="0000001",
+        nome="Vanessa Santicioli Guerreiro",
+        cpf="000000000000",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        codigo_cargo="3379",
+        cargo="SUPERVISOR ESCOLAR",
+        nome_ue="SUPERVISAO ESCOLAR - PE",
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Vanessa Santicioli Guerreiro",
+        email="email@sme.prefeitura.sp.gov.br",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.dados_sigpae_por_rf("0000001")
+
+    assert resultado == {
+        "rf": "0000001",
+        "cpf": "000000000000",
+        "email": "email@sme.prefeitura.sp.gov.br",
+        "cargos": [
+            {
+                "codigo_cargo": 3379,
+                "descricao_cargo": "SUPERVISOR ESCOLAR",
+                "codigo_unidade": "000532",
+                "descricao_unidade": "SUPERVISAO ESCOLAR - PE",
+                "codigo_dre": "108100",
+                "contrato_externo": False,
+            }
+        ],
+        "nome": "Vanessa Santicioli Guerreiro",
+        "inexistente_eol": False,
+    }
+
+
+def test_cargos_sigpae_prioriza_cargo_de_gestao():
+    """Verifica seleção de cargo de gestão conforme compatibilidade legada."""
+    funcionarios = [
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="3085",
+            cargo="ASSISTENTE DE DIRETOR DE ESCOLA",
+            codigo_ue="093130",
+            nome_ue="EMEF TESTE",
+            codigo_dre="108100",
+        ),
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="3182",
+            cargo="SECRETARIO DE ESCOLA                    ",
+            codigo_ue="093131",
+            nome_ue="EMEF - MARIA ANTONIETA D'ALKIMIN BASTO, PROFA.",
+            codigo_dre="108100",
+        ),
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="4906",
+            cargo="AUXILIAR TECNICO DE EDUCACAO",
+            codigo_ue="093203",
+            nome_ue="LAERTE RAMOS DE CARVALHO, PROF.",
+            codigo_dre="109100",
+        ),
+    ]
+
+    resultado = repositories._cargos_sigpae(funcionarios, funcionarios[-1])
+
+    assert resultado == [
+        {
+            "codigo_cargo": 3085,
+            "descricao_cargo": "ASSISTENTE DE DIRETOR DE ESCOLA",
+            "codigo_unidade": "093130",
+            "descricao_unidade": "EMEF TESTE",
+            "codigo_dre": "108100",
+            "contrato_externo": False,
+        }
+    ]
+
+
+def test_cargos_sigpae_prioriza_cargo_sobreposto():
+    """Verifica seleção de cargo sobreposto conforme compatibilidade legada."""
+    funcionarios = [
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="3182",
+            cargo="SECRETARIO DE ESCOLA                    ",
+            codigo_ue="093131",
+            nome_ue="EMEF - MARIA ANTONIETA D'ALKIMIN BASTO, PROFA.",
+            codigo_dre="108100",
+            origem_vinculo="cargo_sobreposto",
+        ),
+        FuncionarioUnidadeEducacional(
+            codigo_rf="7750536",
+            codigo_cargo="4906",
+            cargo="AUXILIAR TECNICO DE EDUCACAO",
+            codigo_ue="093203",
+            nome_ue="LAERTE RAMOS DE CARVALHO, PROF.",
+            codigo_dre="109100",
+            origem_vinculo="lotacao",
+        ),
+    ]
+
+    resultado = repositories._cargos_sigpae(funcionarios, funcionarios[-1])
+
+    assert resultado == [
+        {
+            "codigo_cargo": 3182,
+            "descricao_cargo": "SECRETARIO DE ESCOLA                    ",
+            "codigo_unidade": "093131",
+            "descricao_unidade": (
+                "EMEF - MARIA ANTONIETA D'ALKIMIN BASTO, PROFA."
+            ),
+            "codigo_dre": "108100",
+            "contrato_externo": False,
+        }
+    ]
+
+
+def test_dados_sigpae_por_rf_retorna_fallback_sem_eol(db):
+    """Verifica fallback SIGPAE quando funcionario inexiste no EOL."""
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Usuario CoreSSO",
+        email="core@sme.prefeitura.sp.gov.br",
+        cpf="12345678900",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.dados_sigpae_por_rf("0000001")
+
+    assert resultado == {
+        "rf": "0000001",
+        "cpf": "12345678900",
+        "email": "core@sme.prefeitura.sp.gov.br",
+        "cargos": None,
+        "nome": "Usuario CoreSSO",
+        "inexistente_eol": True,
+    }
+
+
+def test_dados_sigpae_por_rf_retorna_ultimo_cargo_sem_cargo_ativo(
+    criar_funcionario_ue,
+):
+    """Verifica retorno do último cargo quando cargos ativos ficam vazios."""
+    criar_funcionario_ue(
+        codigo_rf="0000001",
+        nome="Usuario EOL",
+        cpf="12345678900",
+        codigo_ue="000532",
+        codigo_dre="108100",
+        codigo_cargo="3085",
+        cargo="PROFESSOR",
+        nome_ue="EMEF TESTE",
+        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
+    )
+    FuncionarioSistemaPerfil.objects.create(
+        login="0000001",
+        nome_servidor="Usuario CoreSSO",
+        email="core@sme.prefeitura.sp.gov.br",
+        cpf="12345678900",
+        uad_codigo="108100",
+        perfil=_PERFIL_1,
+        sis_id=1,
+    )
+
+    resultado = repositories.dados_sigpae_por_rf("0000001")
+
+    assert resultado == {
+        "rf": "0000001",
+        "cpf": "12345678900",
+        "email": "core@sme.prefeitura.sp.gov.br",
+        "cargos": [
+            {
+                "codigo_cargo": 3085,
+                "descricao_cargo": "PROFESSOR",
+                "codigo_unidade": "000532",
+                "descricao_unidade": "EMEF TESTE",
+                "codigo_dre": "108100",
+                "contrato_externo": False,
+            }
+        ],
+        "nome": "Usuario EOL",
+        "inexistente_eol": False,
+    }
+
+
+def test_dados_sigpae_por_rf_sem_dados_retorna_none(db):
+    """Verifica ausencia total de dados SIGPAE."""
+    assert repositories.dados_sigpae_por_rf("0000001") is None
+
+
 def test_funcionarios_por_ue_legado_ignora_fim_nomeacao_sobreposto(
-    lotacao, ue
+    lotacao,
+    criar_funcionario_ue,
 ):
     """Verifica filtro de nomeação no bloco de cargo sobreposto."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
+    criar_funcionario_ue(
         data_fim=datetime(2024, 12, 31, tzinfo=UTC),
         dt_fim_nomeacao=datetime(2024, 12, 31, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
         origem_vinculo="cargo_sobreposto",
-        eh_professor=False,
     )
 
     resultado = repositories.funcionarios_por_ue(
@@ -134,20 +416,15 @@ def test_funcionarios_por_ue_legado_ignora_fim_nomeacao_sobreposto(
     assert resultado == []
 
 
-def test_funcionarios_por_ue_legado_ignora_fim_funcao(lotacao, ue):
+def test_funcionarios_por_ue_legado_ignora_fim_funcao(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica filtro de fim de função atividade no contrato legado."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
+    criar_funcionario_ue(
         codigo_tipo_funcao_atividade=27,
         origem_vinculo="funcao_atividade",
         dt_fim_funcao_atividade=datetime(2024, 12, 31, tzinfo=UTC),
-        eh_professor=False,
     )
 
     resultado = repositories.funcionarios_por_ue(
@@ -159,14 +436,13 @@ def test_funcionarios_por_ue_legado_ignora_fim_funcao(lotacao, ue):
     assert resultado == []
 
 
-def test_funcionarios_por_ue_professor_ignora_vinculo_encerrado(lotacao, ue):
+def test_funcionarios_por_ue_professor_ignora_vinculo_encerrado(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica filtro de professor com vínculo ativo."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
+    criar_funcionario_ue(
         nome="Carlos Professor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
         data_fim=datetime(2024, 12, 31, tzinfo=UTC),
         codigo_cargo="3239",
         cargo="PROFESSOR",
@@ -250,19 +526,12 @@ def test_nome_cpf_servidor_retorna_funcionario_lotado(lotacao):
     assert resultado == {"nome": "Ana Silva", "cpf": "12345678900"}
 
 
-def test_buscar_funcionarios_ignora_vinculo_encerrado(lotacao, ue):
+def test_buscar_funcionarios_ignora_vinculo_encerrado(
+    lotacao,
+    criar_funcionario_ue,
+):
     """Verifica busca apenas em vínculos ativos."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        cpf="11111111111",
-        codigo_ue=ue.codigo_ue,
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        data_fim=datetime(2024, 12, 31, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        eh_professor=False,
-    )
+    criar_funcionario_ue(data_fim=datetime(2024, 12, 31, tzinfo=UTC))
 
     resultado = repositories.buscar_funcionarios(codigo_rf="1111111")
 
@@ -282,16 +551,11 @@ def test_usuarios_sgp_por_perfil_filtra_por_dre_e_nome(lotacao):
     assert resultado[0]["cd_cargo"] == "3379"
 
 
-def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(db):
+def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(
+    criar_funcionario_ue,
+):
     """Verifica consulta por DRE a partir do vínculo consolidado."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
+    criar_funcionario_ue(
         origem_vinculo="funcao_atividade",
         codigo_tipo_funcao_atividade=1,
     )
@@ -316,27 +580,16 @@ def test_usuarios_sgp_por_perfil_com_dre_usa_funcionario_consolidado(db):
     ]
 
 
-def test_usuarios_sgp_por_perfil_com_dre_usa_referencia(db):
+def test_usuarios_sgp_por_perfil_com_dre_usa_referencia(
+    criar_funcionario_ue,
+):
     """Verifica consulta por DRE no fluxo de perfil."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
-    )
-    FuncionarioUnidadeEducacional.objects.create(
+    criar_funcionario_ue()
+    criar_funcionario_ue(
         codigo_rf="2222222",
         nome="Beatriz Gestora",
         codigo_ue="108199",
         codigo_dre="200000",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
 
     resultado = repositories.usuarios_sgp_por_perfil(
@@ -347,17 +600,15 @@ def test_usuarios_sgp_por_perfil_com_dre_usa_referencia(db):
     assert [item["codigo_rf"] for item in resultado] == ["1111111"]
 
 
-def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(db):
+def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(
+    criar_funcionario_ue,
+):
     """Verifica consulta por UE quando DRE também é enviada."""
-    FuncionarioUnidadeEducacional.objects.create(
+    criar_funcionario_ue(
         codigo_rf="2222222",
         nome="Beatriz Gestora",
         codigo_ue="000999",
         codigo_dre="108999",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
 
     resultado = repositories.usuarios_sgp_por_perfil(
@@ -381,18 +632,11 @@ def test_usuarios_sgp_por_perfil_com_ue_prioriza_codigo_ue(db):
     ]
 
 
-def test_usuarios_sgp_por_perfil_com_rf_usa_funcionario_consolidado(db):
+def test_usuarios_sgp_por_perfil_com_rf_usa_funcionario_consolidado(
+    criar_funcionario_ue,
+):
     """Verifica consulta por RF a partir do vínculo consolidado."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
-        codigo_ue="000532",
-        codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="cargo_sobreposto",
-    )
+    criar_funcionario_ue(origem_vinculo="cargo_sobreposto")
     resultado = repositories.usuarios_sgp_por_perfil(
         "perfil-guid-123",
         codigo_rf="1111111",
@@ -426,27 +670,17 @@ def test_funcionarios_sgp_dre_filtra_por_ue_e_nome(lotacao):
     assert resultado[0]["codigo_ue"] == "000532"
 
 
-def test_funcionarios_sgp_dre_usa_prefixo_da_dre(db):
+def test_funcionarios_sgp_dre_usa_prefixo_da_dre(criar_funcionario_ue):
     """Verifica consulta por DRE no fluxo legado direto."""
-    FuncionarioUnidadeEducacional.objects.create(
-        codigo_rf="1111111",
-        nome="Carlos Gestor",
+    criar_funcionario_ue(
         codigo_ue="108199",
         codigo_dre="200000",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
-    FuncionarioUnidadeEducacional.objects.create(
+    criar_funcionario_ue(
         codigo_rf="2222222",
         nome="Beatriz Gestora",
         codigo_ue="000532",
         codigo_dre="108100",
-        data_inicio=datetime(2024, 1, 1, tzinfo=UTC),
-        codigo_cargo="3360",
-        cargo="DIRETOR",
-        origem_vinculo="lotacao",
     )
 
     resultado = repositories.funcionarios_sgp_dre(
@@ -533,4 +767,85 @@ def test_supervisores_por_dre_usa_dre_da_lotacao_do_cargo_base(
 
     assert resultado == [
         {"codigo_rf": "7654321", "nome_servidor": "Ana Silva"}
+    ]
+
+
+def test_supervisores_dres_filtra_por_dre_e_marcacao(
+    criar_supervisores_dre,
+):
+    """Verifica supervisores da DRE no consolidado de funcionarios."""
+    criar_supervisores_dre()
+
+    resultado = repositories.supervisores_dres("108100")
+
+    assert resultado == [
+        {
+            "codigo_rf": "1111111",
+            "nome_servidor": "Supervisora Social",
+        }
+    ]
+
+
+def test_supervisores_dres_sem_registros_retorna_lista_vazia(db):
+    """Verifica lista vazia quando DRE nao possui supervisores."""
+    assert repositories.supervisores_dres("108100") == []
+
+
+def test_funcionario_externo_por_cpf_usa_vinculo_consolidado(
+    contrato_externo,
+    preparar_pessoa_externa,
+    criar_vinculo_externo_consolidado,
+):
+    """Verifica retorno enriquecido pelo vinculo externo consolidado."""
+    pessoa = contrato_externo.pessoa
+    preparar_pessoa_externa(pessoa)
+    funcionario = criar_vinculo_externo_consolidado(pessoa)
+    funcionario.nome_ue = "CEI INDIR - JARDIM NORONHA"
+    funcionario.save()
+
+    resultado = repositories.funcionario_externo_por_cpf("98765432100")
+
+    assert resultado == [
+        {
+            "nome_pessoa": "Nome social",
+            "nome_pai": "Pai Externo",
+            "nome_mae": "Mae Externa",
+            "data_nascimento": "1985-03-02T00:00:00",
+            "rg": "1234567",
+            "cpf": "98765432100",
+            "titulo_eleitoral": "987654",
+            "pis_pasep": "11223344",
+            "codigo_contrato_externo": contrato_externo.codigo_contrato,
+            "codigo_ue": "000532",
+            "nome_ue": "JARDIM NORONHA",
+            "funcao": "Auxiliar tecnico",
+            "tipo_funcionario": "Terceirizado",
+        }
+    ]
+
+
+def test_funcionario_externo_por_cpf_sem_vinculo_retorna_campos_nulos(
+    contrato_externo,
+):
+    """Verifica contrato externo sem vinculo consolidado."""
+    pessoa = contrato_externo.pessoa
+
+    resultado = repositories.funcionario_externo_por_cpf("98765432100")
+
+    assert resultado == [
+        {
+            "nome_pessoa": pessoa.nome,
+            "nome_pai": pessoa.nome_pai,
+            "nome_mae": pessoa.nome_mae,
+            "data_nascimento": None,
+            "rg": pessoa.rg,
+            "cpf": "98765432100",
+            "titulo_eleitoral": pessoa.titulo_eleitoral,
+            "pis_pasep": pessoa.pis_pasep,
+            "codigo_contrato_externo": contrato_externo.codigo_contrato,
+            "codigo_ue": contrato_externo.codigo_unidade_educacao,
+            "nome_ue": None,
+            "funcao": None,
+            "tipo_funcionario": None,
+        }
     ]
