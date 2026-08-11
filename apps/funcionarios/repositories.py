@@ -955,17 +955,60 @@ def cargos_funcionario(registro_funcional: str) -> Any:
     )
 
 
-def funcionarios_conecta_formacao(filtros: dict[str, Any]) -> Any:
-    """Busca funcionários elegíveis para o Conecta Formação.
+def _filtrar_modalidade_conecta(
+    qs: Any,
+    modalidades: list,
+    anos_turma: list,
+    componentes: list,
+) -> Any:
+    """Aplica filtro de modalidade do Conecta Formação.
 
     Args:
+        qs: Consulta base de funcionários.
+        modalidades: Modalidades informadas.
+        anos_turma: Anos de turma informados.
+        componentes: Componentes curriculares informados.
+
+    Returns:
+        Consulta filtrada por modalidade.
+    """
+    if not modalidades:
+        return qs
+    if anos_turma or componentes:
+        return qs.filter(codigo_modalidade__in=modalidades)
+
+    modalidades_escola = FuncionarioConectaModalidadeEscola.objects.filter(
+        codigo_modalidade__in=modalidades
+    )
+    return qs.filter(
+        Q(
+            Exists(
+                modalidades_escola.filter(codigo_ue=OuterRef("cargo_ue_codigo"))
+            )
+        )
+        | Q(
+            Exists(
+                modalidades_escola.filter(
+                    codigo_ue=OuterRef("funcao_ue_codigo")
+                )
+            )
+        )
+    )
+
+
+def _filtrar_dados_conecta(
+    qs: Any,
+    filtros: dict[str, Any],
+) -> tuple[Any, list, list]:
+    """Aplica filtros principais do Conecta Formação.
+
+    Args:
+        qs: Consulta base de funcionários.
         filtros: Filtros recebidos na consulta.
 
     Returns:
-        Funcionários compatíveis com os filtros informados.
+        Consulta filtrada, anos de turma e componentes curriculares.
     """
-    qs = FuncionarioConectaFormacao.objects.all()
-
     codigos_funcoes = filtros.get("codigos_funcoes") or []
     if codigos_funcoes:
         qs = qs.filter(funcao_codigo__in=codigos_funcoes)
@@ -991,32 +1034,26 @@ def funcionarios_conecta_formacao(filtros: dict[str, Any]) -> Any:
     if componentes:
         qs = qs.filter(codigo_componente_curricular__in=componentes)
 
-    modalidades = filtros.get("codigo_modalidade") or []
-    if modalidades:
-        if anos_turma or componentes:
-            qs = qs.filter(codigo_modalidade__in=modalidades)
-        else:
-            modalidades_escola = (
-                FuncionarioConectaModalidadeEscola.objects.filter(
-                    codigo_modalidade__in=modalidades
-                )
-            )
-            qs = qs.filter(
-                Q(
-                    Exists(
-                        modalidades_escola.filter(
-                            codigo_ue=OuterRef("cargo_ue_codigo")
-                        )
-                    )
-                )
-                | Q(
-                    Exists(
-                        modalidades_escola.filter(
-                            codigo_ue=OuterRef("funcao_ue_codigo")
-                        )
-                    )
-                )
-            )
+    return qs, anos_turma, componentes
+
+
+def funcionarios_conecta_formacao(filtros: dict[str, Any]) -> Any:
+    """Busca funcionários elegíveis para o Conecta Formação.
+
+    Args:
+        filtros: Filtros recebidos na consulta.
+
+    Returns:
+        Funcionários compatíveis com os filtros informados.
+    """
+    qs = FuncionarioConectaFormacao.objects.all()
+    qs, anos_turma, componentes = _filtrar_dados_conecta(qs, filtros)
+    qs = _filtrar_modalidade_conecta(
+        qs,
+        filtros.get("codigo_modalidade") or [],
+        anos_turma,
+        componentes,
+    )
 
     if filtros.get("eh_tipo_jornada_jeif"):
         qs = qs.filter(eh_tipo_jornada_jeif=True)
