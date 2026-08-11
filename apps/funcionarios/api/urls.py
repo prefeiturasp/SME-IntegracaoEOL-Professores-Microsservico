@@ -8,6 +8,7 @@ from apps.funcionarios.api.views import (
     BuscarPorListaLoginView,
     BuscarPorListaRFView,
     CargosFuncionarioView,
+    ConectaFormacaoView,
     DadosSigpaeView,
     DreUeAtribuicaoCargoView,
     FuncionarioExternoPorCpfView,
@@ -22,6 +23,7 @@ from apps.funcionarios.api.views import (
     ServidorAtivoView,
     SupervisoresDreConsolidadoView,
     SupervisoresPorDreView,
+    UsuariosConectaFormacaoView,
     UsuariosSGPView,
 )
 
@@ -80,6 +82,16 @@ urlpatterns = [
         f"{_BASE_FUNCIONARIOS}/cargo/<str:registro_funcional>/",
         CargosFuncionarioView.as_view(),
         name="funcionarios-cargos-rf",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/registros-funcionais/conecta-formacao/",
+        ConectaFormacaoView.as_view(),
+        name="funcionarios-conecta-formacao",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/usuarios/conecta-formacao/",
+        UsuariosConectaFormacaoView.as_view(),
+        name="funcionarios-usuarios-conecta-formacao",
     ),
     path(
         f"{_BASE_FUNCIONARIOS}/funcionario-externo/<str:cpf>/",

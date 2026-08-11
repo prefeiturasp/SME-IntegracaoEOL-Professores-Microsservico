@@ -19,6 +19,7 @@ from apps.professores.models import (
     ContratoExterno,
     DisciplinaTurmaAtribuidaUe,
     Professor,
+    ProfessorEscolaAno,
     TurmaAtribuidaUe,
 )
 
@@ -123,6 +124,24 @@ def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
         Q(dt_disponibilizacao_aulas__isnull=True)
         | Q(dt_disponibilizacao_aulas__gte=data_ref)
     )
+
+
+def _professor_escola_ano_row(professor: ProfessorEscolaAno) -> dict:
+    """Monta professor vinculado a uma escola.
+
+    Args:
+        professor: Vínculo usado para montar o retorno.
+
+    Returns:
+        Dados do professor vinculado.
+    """
+    return {
+        "codigo_rf": int(professor.codigo_rf),
+        "nome": professor.nome,
+        "cargo": professor.cargo,
+        "cpf": professor.cpf,
+        "data_inicio_exercicio": fmt_iso(professor.data_inicio_exercicio),
+    }
 
 
 def _turma_row(aa: AtribuicaoAula) -> dict:
@@ -515,26 +534,13 @@ def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
     Returns:
         Lista de professores vinculados à escola no ano informado.
     """
-    qs = _vigentes_em(
-        AtribuicaoAula.objects.filter(
-            codigo_unidade_educacao=codigo_ue,
-            ano_atribuicao=ano_letivo,
-        ),
-        date.today(),
-    ).select_related("cargo_base__professor")
-    resultado = []
-    for aa in qs:
-        prof = aa.cargo_base.professor
-        resultado.append(
-            {
-                "codigo_rf": int(prof.codigo_rf),
-                "nome": get_nome(prof),
-                "cargo": None,
-                "cpf": prof.cpf,
-                "data_inicio_exercicio": fmt_iso(aa.cargo_base.dt_posse),
-            }
-        )
-    return resultado
+    professores = ProfessorEscolaAno.objects.filter(
+        codigo_escola=codigo_ue,
+        ano_letivo=ano_letivo,
+    ).order_by("id")
+    return [
+        _professor_escola_ano_row(professor) for professor in professores
+    ]
 
 
 def buscar_turmas_professor_escola_ano(

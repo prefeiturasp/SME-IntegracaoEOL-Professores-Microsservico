@@ -19,7 +19,9 @@ _TICK_2024_01_31 = date_to_ticks(date(2024, 1, 31))
 
 
 class TestEP01BuscaProfessores:
-    def test_com_ano_retorna_lista_com_professor(self, client, atribuicao):
+    def test_com_ano_retorna_lista_com_professor(
+        self, client, professor_escola_ano
+    ):
         """Verifica com ano retorna lista com professor."""
         res = client.get(
             f"{_BASE}/professores/escolas/000532/professores/2024/"
@@ -27,7 +29,7 @@ class TestEP01BuscaProfessores:
         assert res.status_code == 200
         assert any(p["codigo_rf"] == 7654321 for p in res.data)
 
-    def test_sem_ano_retorna_lista(self, client, atribuicao):
+    def test_sem_ano_retorna_lista(self, client, professor_escola_ano):
         """Verifica sem ano retorna lista."""
         res = client.get(f"{_BASE}/professores/escolas/000532/professores/")
         assert res.status_code == 200

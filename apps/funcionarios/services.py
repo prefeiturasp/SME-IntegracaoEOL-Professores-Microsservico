@@ -1,21 +1,14 @@
 """Regras de negocio do dominio de funcionarios."""
 
-from dataclasses import dataclass
 from typing import Any
 
 from apps.funcionarios import repositories
 
-MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS = (
-    "Não foram encontrados funcionários."
+MENSAGEM_ERRO_LEGADO = repositories.MENSAGEM_ERRO_LEGADO
+MENSAGEM_ERRO_PERFIL_SEM_DRE_RF = (
+    repositories.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
 )
-
-
-@dataclass(frozen=True)
-class ResultadoServico:
-    """Representa o resultado produzido pela camada de serviço."""
-
-    payload: Any
-    status_code: int = 200
+MENSAGEM_SIGPAE_SEM_DADOS = repositories.MENSAGEM_SIGPAE_SEM_DADOS
 
 
 def funcionarios_por_ue(
@@ -197,16 +190,40 @@ def funcionarios_por_lista_funcoes_externas(
     )
 
 
-def cargos_funcionario(registro_funcional: str) -> list[dict]:
+def cargos_funcionario(registro_funcional: str) -> Any:
     """Lista cargos do funcionario por registro funcional.
 
     Args:
         registro_funcional: Registro funcional do servidor consultado.
 
     Returns:
-        Lista de dados encontrados para os filtros informados.
+        Vínculos funcionais encontrados.
     """
     return repositories.cargos_funcionario(registro_funcional)
+
+
+def funcionarios_conecta_formacao(filtros: dict[str, Any]) -> Any:
+    """Lista funcionários elegíveis para o Conecta Formação.
+
+    Args:
+        filtros: Filtros recebidos na consulta.
+
+    Returns:
+        Funcionários compatíveis com os filtros informados.
+    """
+    return repositories.funcionarios_conecta_formacao(filtros)
+
+
+def usuarios_conecta_formacao(perfis: list) -> list[dict]:
+    """Lista usuários do Conecta Formação por perfis.
+
+    Args:
+        perfis: Perfis consultados.
+
+    Returns:
+        Lista de usuários encontrados.
+    """
+    return repositories.usuarios_conecta_formacao(perfis)
 
 
 def funcionario_externo_por_cpf(cpf: str) -> list[dict] | None:
@@ -279,7 +296,7 @@ def usuarios_sgp_por_perfil(
     codigo_ue: str | None = None,
     codigo_rf: str | None = None,
     nome_servidor: str | None = None,
-) -> ResultadoServico:
+) -> list[dict]:
     """Lista usuarios SGP por perfil.
 
     Args:
@@ -290,26 +307,15 @@ def usuarios_sgp_por_perfil(
         nome_servidor: Trecho do nome do servidor usado como filtro.
 
     Returns:
-        Resultado do serviço com payload e status HTTP.
+        Lista de usuários encontrados.
     """
-    if repositories.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
-        mensagem = (
-            repositories.MENSAGEM_ERRO_LEGADO
-            if codigo_dre
-            else repositories.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
-        )
-        return ResultadoServico(mensagem, 400)
-
-    resultado = repositories.usuarios_sgp_por_perfil(
+    return repositories.usuarios_sgp_por_perfil(
         id_perfil,
         codigo_dre=codigo_dre,
         codigo_ue=codigo_ue,
         codigo_rf=codigo_rf,
         nome_servidor_param=nome_servidor,
     )
-    if codigo_dre:
-        return ResultadoServico(resultado)
-    return ResultadoServico(resultado)
 
 
 def funcionarios_sgp_dre(
@@ -319,7 +325,7 @@ def funcionarios_sgp_dre(
     codigo_rf: str | None = None,
     nome_servidor: str | None = None,
     codigo_funcao_atividade: str | None = None,
-) -> ResultadoServico:
+) -> list[dict]:
     """Lista funcionarios SGP por DRE e perfil.
 
     Args:
@@ -331,12 +337,9 @@ def funcionarios_sgp_dre(
         codigo_funcao_atividade: Código da função de atividade usada no filtro.
 
     Returns:
-        Resultado do serviço com payload e status HTTP.
+        Lista de funcionários encontrados.
     """
-    if repositories.perfil_placeholder_invalido(id_perfil):
-        return ResultadoServico(repositories.MENSAGEM_ERRO_LEGADO, 400)
-
-    resultado = repositories.funcionarios_sgp_dre(
+    return repositories.funcionarios_sgp_dre(
         id_perfil,
         codigo_dre,
         codigo_ue=codigo_ue,
@@ -346,7 +349,6 @@ def funcionarios_sgp_dre(
             int(codigo_funcao_atividade) if codigo_funcao_atividade else None
         ),
     )
-    return ResultadoServico(resultado)
 
 
 def acesso_sondagem(codigo_rf: str) -> bool:
@@ -398,43 +400,72 @@ def buscar_funcionarios(payload: Any) -> list[dict]:
     """
     filtros = payload if isinstance(payload, dict) else {}
     return repositories.buscar_funcionarios(
-        codigo_rf=filtros.get("CodigoRF") or filtros.get("codigoRF"),
-        codigo_ue=filtros.get("CodigoUE") or filtros.get("codigoUE"),
-        nome_servidor=(
-            filtros.get("NomeServidor") or filtros.get("nomeServidor")
-        ),
+        codigo_rf=filtros.get("codigo_rf"),
+        codigo_ue=filtros.get("codigo_ue"),
+        nome_servidor=filtros.get("nome_servidor"),
     )
 
 
 def funcionarios_por_unidade_perfis(
     codigo_dre_ue: str,
     perfis: list,
-) -> ResultadoServico:
-    """Lista funcionarios de unidade por perfis de sistema."""
+) -> list[dict]:
+    """Lista funcionarios de unidade por perfis de sistema.
+
+    Args:
+        codigo_dre_ue: Código EOL usado na consulta.
+        perfis: Perfis usados para filtrar os funcionários.
+
+    Returns:
+        Lista de funcionários encontrados.
+    """
     if not perfis:
-        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
+        return []
     resultado = repositories.funcionarios_por_unidade_perfis(
         codigo_dre_ue,
         perfis,
     )
     if not resultado:
-        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
-    return ResultadoServico(resultado)
+        return []
+    return resultado
 
 
-def logins_admins_sme_por_perfis(perfis: list) -> ResultadoServico:
-    """Lista logins de administradores SME por perfis."""
+def logins_admins_sme_por_perfis(perfis: list) -> list[str]:
+    """Lista logins de administradores SME por perfis.
+
+    Args:
+        perfis: Perfis usados para filtrar os administradores.
+
+    Returns:
+        Lista de logins encontrados.
+    """
     if not perfis:
-        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
+        return []
     resultado = repositories.logins_admins_sme_por_perfis(perfis)
     if not resultado:
-        return ResultadoServico(MENSAGEM_FUNCIONARIOS_NAO_ENCONTRADOS, 404)
-    return ResultadoServico(resultado)
+        return []
+    return resultado
 
 
-def dados_sigpae(codigo_rf: str) -> ResultadoServico:
-    """Retorna dados de funcionario para o SIGPAE."""
-    resultado = repositories.dados_sigpae_por_rf(codigo_rf)
-    if resultado is None:
-        return ResultadoServico(repositories.MENSAGEM_SIGPAE_SEM_DADOS, 601)
-    return ResultadoServico(resultado)
+def dados_sigpae(codigo_rf: str) -> dict | None:
+    """Retorna dados de funcionario para o SIGPAE.
+
+    Args:
+        codigo_rf: Registro funcional consultado.
+
+    Returns:
+        Dados encontrados ou ``None`` quando não houver resultado.
+    """
+    return repositories.dados_sigpae_por_rf(codigo_rf)
+
+
+def perfil_placeholder_invalido(id_perfil: str) -> bool:
+    """Verifica se o perfil informado representa um placeholder.
+
+    Args:
+        id_perfil: Identificador do perfil SGP usado na consulta.
+
+    Returns:
+        Indica se o perfil informado é um placeholder.
+    """
+    return repositories.perfil_placeholder_invalido(id_perfil)
