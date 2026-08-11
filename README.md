@@ -115,6 +115,7 @@ O resultado fica em `docs/_build/index.html` (acessível no host via volume).
 | EP-02 | GET | `/api/v1/professores/{codigoRF}/escolas/{codigoEolEscola}/turmas/anos_letivos/{anoLetivo}/` |
 | EP-03 | GET | `/api/v1/professores/{codigoRF}/turmas/` |
 | EP-04 | GET | `/api/v1/professores/{codigoRF}/turmas/anos_letivos/{anoLetivo}/` |
+| EP-04A | GET | `/api/v1/professores/{codigoRF}/turmas/anos_letivos/` |
 | EP-05 | GET | `/api/v1/professores/{rfProfessor}/` |
 | EP-06 | GET | `/api/v1/professores/{codigoRf}/BuscarPorRf/{anoLetivo}/` |
 | EP-07 | GET | `/api/v1/professores/{codigoRf}/BuscarPorRfDreUe/{anoLetivo}/` |
@@ -132,7 +133,7 @@ O resultado fica em `docs/_build/index.html` (acessível no host via volume).
 | EP-19 | GET | `/api/v1/professores/{codigoTurma}/disciplinas/{disciplinaId}/atribuicao/data/` |
 | EP-20 | GET | `/api/v1/professores/titular/turmas/{codigoTurma}/componentes-curriculares/{codigoComponenteCurricular}/` |
 | EP-21 | GET | `/api/v1/professores/titulares/` |
-| EP-22 | GET | `/api/v1/professores/{codigoTurma}/titulares/realizaAgrupamentoComponente/{realizaAgrupamento}/` |
+| EP-22 | GET | `/api/v1/professores/{codigoTurma}/titulares/` |
 | EP-23 | GET | `/api/v1/professores/titulares/ue/{ueCodigo}/{dataReferencia}/` |
 
 ### Turmas (EP-24)

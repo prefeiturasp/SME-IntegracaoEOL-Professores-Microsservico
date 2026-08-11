@@ -171,6 +171,16 @@ class TestEP03EP04TurmasAtribuidas:
                 "data_atribuicao": "02/01/2024 00:00:00",
                 "data_disponibilizacao": None,
                 "data_inicio_turma": None,
+                "ano_letivo": "2024",
+                "data_inicio_atribuicao": "2024-02-01T00:00:00",
+                "data_fim_atribuicao": None,
+                "data_fim_turma": None,
+                "ano_atribuicao": 2024,
+                "codigo_rf": "7654321",
+                "disciplina_id": "138",
+                "disciplina_nome": "Matematica",
+                "disciplinas_agrupadas_ids": None,
+                "nome_professor": "Ana Silva",
             }
         ]
 
@@ -181,6 +191,23 @@ class TestEP03EP04TurmasAtribuidas:
         )
         assert res.status_code == 200
         assert res.data == []
+
+    def test_todos_anos_retorna_atribuicao_sem_filtrar_ano(
+        self, client, atribuicao
+    ):
+        """Verifica consulta detalhada sem recorte de ano letivo."""
+        res = client.get(f"{_BASE}/professores/7654321/turmas/anos_letivos/")
+
+        assert res.status_code == 200
+        assert len(res.data) == 1
+        assert res.data[0]["ano_letivo"] == "2024"
+        assert res.data[0]["ano_atribuicao"] == 2024
+
+    def test_todos_anos_sem_api_key_retorna_403(self, anon):
+        """Verifica autenticação na consulta sem recorte anual."""
+        res = anon.get(f"{_BASE}/professores/7654321/turmas/anos_letivos/")
+
+        assert res.status_code == 403
 
     def test_sem_api_key_retorna_403(self, anon):
         """Verifica bloqueio sem API key."""
@@ -872,13 +899,23 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
 
 class TestEP20TitularPorTurmaDisciplina:
     def test_encontrado_retorna_200_com_rf(self, client, atribuicao):
-        """Verifica retorno do RF quando registro existe."""
+        """Verifica payload do titular por turma e disciplina."""
+        atribuicao.descricao_componente_curricular = "Matematica   "
+        atribuicao.save(update_fields=["descricao_componente_curricular"])
+
         res = client.get(
             f"{_BASE}/professores/titular/turmas/2112345"
             "/componentes-curriculares/138/"
         )
         assert res.status_code == 200
-        assert res.data["professor_rf"] == "7654321"
+        assert res.data == {
+            "professor_rf": "7654321",
+            "nome_professor": "Ana Silva",
+            "disciplina": "Matematica",
+            "disciplina_id": "138",
+            "disciplinas_id": "138",
+            "turma_id": 2112345,
+        }
 
     def test_nao_encontrado_retorna_204(self, client, db):
         """Verifica ausência de professor."""
@@ -899,12 +936,24 @@ class TestEP20TitularPorTurmaDisciplina:
 
 class TestEP21TitularesPorTurmas:
     def test_turma_com_atribuicao_retorna_titular(self, client, atribuicao):
-        """Verifica turma com atribuicao retorna titular."""
+        """Verifica payload dos titulares das turmas."""
+        atribuicao.descricao_componente_curricular = "Matematica   "
+        atribuicao.save(update_fields=["descricao_componente_curricular"])
+
         res = client.get(
             f"{_BASE}/professores/titulares/?codigos_turmas=2112345"
         )
         assert res.status_code == 200
-        assert any(t["professor_rf"] == "7654321" for t in res.data)
+        assert res.data == [
+            {
+                "professor_rf": "7654321",
+                "nome_professor": "Ana Silva",
+                "disciplina": "Matematica",
+                "disciplina_id": "138",
+                "disciplinas_id": "138",
+                "turma_id": 2112345,
+            }
+        ]
 
     def test_turma_sem_atribuicao_retorna_vazio(self, client, db):
         """Verifica turma sem atribuicao retorna vazio."""
@@ -926,44 +975,136 @@ class TestEP21TitularesPorTurmas:
         assert res.status_code == 403
 
 
-class TestEP22TitularesPorTurmaAgrupamento:
-    def test_sem_agrupamento_retorna_atribuicoes(self, client, atribuicao):
-        """Verifica sem agrupamento retorna atribuicoes."""
-        res = client.get(
-            f"{_BASE}/professores/2112345/titulares"
-            "/realizaAgrupamentoComponente/false/"
+class TestEP22TitularesPorTurma:
+    def test_openapi_nao_documenta_data_referencia(self, anon):
+        """Verifica remoção da data de referência do OpenAPI."""
+        res = anon.get(
+            f"{_BASE}/schema/",
+            HTTP_ACCEPT="application/json",
         )
-        assert res.status_code == 200
-        assert any(t["professor_rf"] == "7654321" for t in res.data)
 
-    def test_com_agrupamento_sem_dados_retorna_vazio(self, client, db):
-        """Verifica com agrupamento sem dados retorna vazio."""
+        assert res.status_code == 200
+        endpoint = res.json()["paths"][
+            "/api/v1/professores/{codigo_turma}/titulares/"
+        ]["get"]
+        assert {parameter["name"] for parameter in endpoint["parameters"]} == {
+            "codigo_turma",
+            "codigo_rf",
+        }
+
+    def test_retorna_atribuicoes(self, client, atribuicao_ano_corrente):
+        """Verifica retorno das atribuições da turma."""
+        res = client.get(f"{_BASE}/professores/2112345/titulares/")
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "professor_rf": "7654321",
+                "nome_professor": "Ana Silva",
+                "disciplina": "Matematica",
+                "disciplina_id": 138,
+                "disciplinas_id": "138",
+                "turma_id": 2112345,
+            }
+        ]
+
+    def test_rf_diferente_retorna_vazio(self, client, atribuicao_ano_corrente):
+        """Verifica filtro opcional por RF."""
         res = client.get(
-            f"{_BASE}/professores/2112345/titulares"
-            "/realizaAgrupamentoComponente/true/"
+            f"{_BASE}/professores/2112345/titulares/?codigo_rf=0000000"
         )
         assert res.status_code == 200
         assert res.data == []
 
-    def test_sem_api_key_retorna_403(self, anon):
-        """Verifica bloqueio sem API key."""
-        res = anon.get(
+    def test_retorna_atribuicao_externa(self, client, atribuicao_externa):
+        """Verifica retorno de titular externo ativo no ano corrente."""
+        atribuicao_externa.ano_atribuicao = date.today().year
+        atribuicao_externa.save(update_fields=["ano_atribuicao"])
+
+        res = client.get(f"{_BASE}/professores/2112345/titulares/")
+
+        assert res.status_code == 200
+        assert res.data == [
+            {
+                "professor_rf": "98765432100",
+                "nome_professor": "João Ext",
+                "disciplina": "Matematica",
+                "disciplina_id": 138,
+                "disciplinas_id": "138",
+                "turma_id": 2112345,
+            }
+        ]
+
+    def test_rota_antiga_nao_existe(self, client, atribuicao):
+        """Verifica remoção da rota com parâmetro de agrupamento."""
+        res = client.get(
             f"{_BASE}/professores/2112345/titulares"
             "/realizaAgrupamentoComponente/false/"
         )
+        assert res.status_code == 404
+
+    def test_sem_api_key_retorna_403(self, anon):
+        """Verifica bloqueio sem API key."""
+        res = anon.get(f"{_BASE}/professores/2112345/titulares/")
         assert res.status_code == 403
 
 
 class TestEP23TitularesPorUe:
+    def test_openapi_documenta_contrato_do_endpoint(self, anon):
+        """Verifica campos e parâmetros publicados no OpenAPI."""
+        res = anon.get(
+            f"{_BASE}/schema/",
+            HTTP_ACCEPT="application/json",
+        )
+
+        assert res.status_code == 200
+        schema = res.json()
+        endpoint = schema["paths"][
+            "/api/v1/professores/titulares/ue/"
+            "{ue_codigo}/{data_referencia}/"
+        ]["get"]
+        response_items = endpoint["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["items"]
+
+        assert response_items == {
+            "$ref": "#/components/schemas/TitularPorTurma"
+        }
+        assert {parameter["name"] for parameter in endpoint["parameters"]} == {
+            "ue_codigo",
+            "data_referencia",
+        }
+        assert set(
+            schema["components"]["schemas"]["TitularPorTurma"]["properties"]
+        ) == {
+            "professor_rf",
+            "nome_professor",
+            "disciplina",
+            "disciplina_id",
+            "disciplinas_id",
+            "turma_id",
+        }
+
     def test_atribuicao_antes_da_data_retorna_titular(
         self, client, atribuicao
     ):
-        """Verifica atribuicao antes da data retorna titular."""
+        """Verifica payload do titular da UE na data informada."""
+        atribuicao.descricao_componente_curricular = "Matematica   "
+        atribuicao.save(update_fields=["descricao_componente_curricular"])
+
         res = client.get(
             f"{_BASE}/professores/titulares/ue/000532/2024-06-01/"
         )
         assert res.status_code == 200
-        assert any(t["professor_rf"] == "7654321" for t in res.data)
+        assert res.data == [
+            {
+                "professor_rf": "7654321",
+                "nome_professor": "Ana Silva",
+                "disciplina": "Matematica",
+                "disciplina_id": "138",
+                "disciplinas_id": "138",
+                "turma_id": 2112345,
+            }
+        ]
 
     def test_data_antes_da_atribuicao_retorna_vazio(self, client, atribuicao):
         """Verifica data antes da atribuicao retorna vazio."""

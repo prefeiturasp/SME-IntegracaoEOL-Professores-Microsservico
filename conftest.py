@@ -254,6 +254,7 @@ def atribuicao(cargo_base, ue) -> AtribuicaoAula:
         ano_escolar="1",
         ano_atribuicao=2024,
         codigo_etapa_ensino=1,
+        codigo_tipo_turma=1,
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
@@ -272,6 +273,7 @@ def atribuicao_ano_corrente(cargo_base, ue) -> AtribuicaoAula:
         ano_escolar="1",
         ano_atribuicao=date.today().year,
         codigo_etapa_ensino=1,
+        codigo_tipo_turma=1,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 

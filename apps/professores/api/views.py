@@ -19,9 +19,9 @@ from apps.professores.serializers import (
     ProfessorEscolaSerializer,
     ProfessorPerfilSerializer,
     ResumoSerializer,
-    TitularAgrupamentoSerializer,
     TitularPorTurmaSerializer,
     TitularSerializer,
+    TitularTurmaSerializer,
     TurmaAtribuidaSerializer,
     TurmaAtribuidaUeSerializer,
 )
@@ -192,6 +192,31 @@ class BuscarTurmasAtribuidasView(APIView):
             Resposta HTTP com o resultado da operação.
         """
         resultado = services.buscar_turmas_professor(codigo_rf, ano_letivo)
+        return Response(resultado)
+
+
+class BuscarTurmasAtribuidasTodosAnosView(APIView):
+    """Lista turmas atribuídas ao professor em todos os anos letivos."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Turmas atribuídas ao professor sem filtro de ano letivo",
+        parameters=[
+            OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
+        ],
+        responses={200: TurmaAtribuidaSerializer(many=True)},
+    )
+    def get(self, request: Request, codigo_rf: str) -> Response:
+        """Lista turmas atribuídas sem restringir o ano letivo.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_rf: Registro funcional ou CPF do professor.
+
+        Returns:
+            Resposta HTTP com as atribuições encontradas.
+        """
+        resultado = services.buscar_turmas_professor_todos_anos(codigo_rf)
         return Response(resultado)
 
 
@@ -964,48 +989,38 @@ class TitularesPorTurmasView(APIView):
         )
 
 
-class TitularesPorTurmaAgrupamentoView(APIView):
-    """Lista professores titulares por turma com agrupamento."""
+class TitularesPorTurmaView(APIView):
+    """Lista professores titulares por turma."""
 
     @extend_schema(
         tags=_TAG_TITULAR,
-        summary="Buscar professores titulares por turma com agrupamento",
+        summary="Buscar professores titulares por turma",
         parameters=[
             OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
             OpenApiParameter(
-                "realiza_agrupamento", str, OpenApiParameter.PATH
-            ),
-            OpenApiParameter(
                 "codigo_rf", str, OpenApiParameter.QUERY, required=False
             ),
-            OpenApiParameter(
-                "data_referencia", str, OpenApiParameter.QUERY, required=False
-            ),
         ],
-        responses={200: TitularAgrupamentoSerializer(many=True)},
+        responses={200: TitularTurmaSerializer(many=True)},
     )
     def get(
         self,
         request: Request,
         codigo_turma: int,
-        realiza_agrupamento: str,
     ) -> Response:
-        """Lista professores titulares por turma com agrupamento.
+        """Lista professores titulares por turma.
 
         Args:
             request: Requisição HTTP recebida pela API.
             codigo_turma: Código EOL da turma consultada.
-            realiza_agrupamento: Indica se titulares devem ser agrupados.
 
         Returns:
             Resposta HTTP com o resultado da operação.
         """
         return Response(
-            services.titulares_por_turma_agrupamento(
+            services.titulares_por_turma(
                 codigo_turma,
-                realiza_agrupamento,
                 codigo_rf=request.query_params.get("codigo_rf"),
-                data_referencia=request.query_params.get("data_referencia"),
             )
         )
 
@@ -1019,14 +1034,8 @@ class TitularesPorUeView(APIView):
         parameters=[
             OpenApiParameter("ue_codigo", str, OpenApiParameter.PATH),
             OpenApiParameter("data_referencia", str, OpenApiParameter.PATH),
-            OpenApiParameter(
-                "realiza_agrupamento",
-                bool,
-                OpenApiParameter.QUERY,
-                required=False,
-            ),
         ],
-        responses={200: TitularAgrupamentoSerializer(many=True)},
+        responses={200: TitularPorTurmaSerializer(many=True)},
     )
     def get(
         self,
