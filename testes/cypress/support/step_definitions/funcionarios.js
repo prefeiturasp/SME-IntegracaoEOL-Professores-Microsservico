@@ -11,6 +11,18 @@ function getEnvOrFail(key) {
   return value
 }
 
+function logBody(body) {
+  const serialized = JSON.stringify(body)
+  const maxLength = 2000
+
+  if (serialized && serialized.length > maxLength) {
+    cy.log(`BODY (truncado, ${serialized.length} caracteres) => ${serialized.slice(0, maxLength)}...`)
+    return
+  }
+
+  cy.log(`BODY => ${serialized}`)
+}
+
 Given('que possuo acesso à API de funcionários', () => {
 
   getEnvOrFail('API_URL_NOVA')
@@ -46,7 +58,7 @@ When('envio uma requisição POST para buscar turmas atribuídas da UE definida 
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -86,7 +98,7 @@ When('envio uma requisição POST para buscar funcionário definido em {string}'
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -119,7 +131,7 @@ When('envio uma requisição GET para buscar disciplinas da turma definida em {s
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -159,7 +171,7 @@ When('envio uma requisição GET para buscar turmas com abrangência UE definida
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -200,7 +212,7 @@ When('envio uma requisição GET para buscar turmas com abrangência UE Turmas D
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -238,7 +250,7 @@ When('envio uma requisição GET para buscar turmas com abrangência DRE definid
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -276,7 +288,7 @@ When('envio uma requisição GET para buscar turmas com abrangência DRE Escolas
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
