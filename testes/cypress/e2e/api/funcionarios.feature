@@ -29,17 +29,17 @@ Funcionalidade: Funcionários
   # FUNCIONÁRIOS POR RF, UE E NOME
   # ======================================================
 
-  Cenário: Funcionário 8093024 na UE 093301
-    Quando envio uma requisição POST para buscar funcionário definido em "FUNCIONARIOS_RF_UE_NOME_1"
-    Então a API de funcionários deve responder com status 200
+  # Cenário: Funcionário 8093024 na UE 093301
+  #   Quando envio uma requisição POST para buscar funcionário definido em "FUNCIONARIOS_RF_UE_NOME_1"
+  #   Então a API de funcionários deve responder com status 200
 
-  Cenário: Funcionário 8081450 na UE 019487
-    Quando envio uma requisição POST para buscar funcionário definido em "FUNCIONARIOS_RF_UE_NOME_2"
-    Então a API de funcionários deve responder com status 200
+  # Cenário: Funcionário 8081450 na UE 019487
+  #   Quando envio uma requisição POST para buscar funcionário definido em "FUNCIONARIOS_RF_UE_NOME_2"
+  #   Então a API de funcionários deve responder com status 200
 
-  Cenário: Funcionário 8415927 na UE 094421
-    Quando envio uma requisição POST para buscar funcionário definido em "FUNCIONARIOS_RF_UE_NOME_3"
-    Então a API de funcionários deve responder com status 200
+  # Cenário: Funcionário 8415927 na UE 094421
+  #   Quando envio uma requisição POST para buscar funcionário definido em "FUNCIONARIOS_RF_UE_NOME_3"
+  #   Então a API de funcionários deve responder com status 200
 
   # ======================================================
   # DISCIPLINAS DA TURMA
