@@ -8,6 +8,10 @@ em páginas técnicas específicas.
 Core
 ----
 
+.. automodule:: apps.core.apps
+   :members:
+   :undoc-members:
+
 .. automodule:: apps.core.authentication
    :members:
    :undoc-members:

@@ -73,13 +73,14 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "apps.core",
+    "apps.core.apps.CoreConfig",
     "apps.professores",
     "apps.turmas",
     "apps.funcionarios",
 ]
 
 MIDDLEWARE = [
+    "sme_sidecar_sdk.integrations.django.ObservabilityMiddleware",
     "apps.core.middleware.PrefixMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -138,12 +139,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "config.test_runner.ProfessoresTestRunner"
 
-NOME_APLICACAO = os.getenv(
-    "NOME_APLICACAO", "SME-IntegracaoEOL-Professores-Microsservico"
-)
-AMBIENTE_APLICACAO = os.getenv("AMBIENTE_APLICACAO", "local")
-NIVEL_LOG = os.getenv("NIVEL_LOG", "INFO")
-
 API_KEY = os.getenv("API_KEY", "")
 API_KEY_HEADER = os.getenv("API_KEY_HEADER", "X-API-Key")
 
@@ -177,24 +172,4 @@ SPECTACULAR_SETTINGS = {
         }
     },
     "SECURITY": [{"ApiKeyAuth": []}],
-}
-
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "padrao": {
-            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
-        }
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "padrao",
-        }
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": NIVEL_LOG,
-    },
 }
