@@ -25,3 +25,27 @@ fluxo, os dados de cargo, função e vínculo são preservados.
 Quando a consulta recebe apenas `codigo_rf`, o legado busca o usuário por login
 na Identidade corporativa. Nesse fluxo, o retorno traz os dados básicos do
 usuário e os campos de vínculo permanecem com os valores padrão.
+
+## Cargos por registro funcional
+
+A consulta de cargos por registro funcional retorna os vínculos funcionais
+ativos associados ao servidor. O retorno é consolidado para preservar os
+dados de cargo base, cargo sobreposto e função atividade sem recompor essas
+relações em tempo de resposta.
+
+## Conecta Formação
+
+Os contratos do Conecta Formação usam os perfis do sistema correspondente no
+CoreSSO. Os contratos já existentes do SGP continuam filtrando os perfis do
+sistema SGP para evitar misturar usuários de sistemas diferentes na mesma
+resposta.
+
+## Professores por escola e ano
+
+A consulta de professores por escola e ano retorna a visão materializada das
+atribuições da unidade educacional. Quando a origem possui mais de uma
+atribuição ativa para a mesma turma e componente, a escolha do professor é
+resolvida pela carga de referência para manter estabilidade no retorno.
+
+Essa estabilização evita que o microsserviço replique variações ocasionais da
+origem quando não há desempate explícito entre atribuições concorrentes.

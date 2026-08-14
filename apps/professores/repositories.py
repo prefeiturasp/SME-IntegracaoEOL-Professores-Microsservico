@@ -13,13 +13,13 @@ from apps.core.utils import (
     ticks_to_datetime_str,
 )
 from apps.professores.models import (
-    AgrupamentoAtribuicaoTerritorioSaber,
     AtribuicaoAula,
     AtribuicaoExterno,
     CargoBaseServidor,
     ContratoExterno,
     DisciplinaTurmaAtribuidaUe,
     Professor,
+    ProfessorEscolaAno,
     TurmaAtribuidaUe,
 )
 
@@ -126,6 +126,24 @@ def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
     )
 
 
+def _professor_escola_ano_row(professor: ProfessorEscolaAno) -> dict:
+    """Monta professor vinculado a uma escola.
+
+    Args:
+        professor: Vínculo usado para montar o retorno.
+
+    Returns:
+        Dados do professor vinculado.
+    """
+    return {
+        "codigo_rf": int(professor.codigo_rf),
+        "nome": professor.nome,
+        "cargo": professor.cargo,
+        "cpf": professor.cpf,
+        "data_inicio_exercicio": fmt_iso(professor.data_inicio_exercicio),
+    }
+
+
 def _turma_row(aa: AtribuicaoAula) -> dict:
     """Monta turma atribuída efetiva.
 
@@ -217,6 +235,56 @@ def _ancora_row_externo(ae: AtribuicaoExterno) -> dict:
         "data_atribuicao": fmt_br(ae.dt_atribuicao),
         "data_disponibilizacao": fmt_br(ae.dt_disponibilizacao),
         "data_inicio_turma": fmt_br(ae.dt_inicio_turma),
+    }
+
+
+def _turma_atribuida_ano_row(aa: AtribuicaoAula) -> dict:
+    """Monta turma atribuída efetiva com os dados do recorte anual.
+
+    Args:
+        aa: Atribuição de aula efetiva.
+
+    Returns:
+        Dados legados e complementares da atribuição no ano letivo.
+    """
+    professor = aa.cargo_base.professor
+    return {
+        **_ancora_row(aa),
+        "ano_letivo": str(aa.ano_atribuicao),
+        "data_inicio_atribuicao": fmt_iso(aa.dt_atribuicao_aula),
+        "data_fim_atribuicao": fmt_iso(aa.dt_disponibilizacao_aulas),
+        "data_fim_turma": fmt_iso(aa.dt_fim_turma),
+        "ano_atribuicao": aa.ano_atribuicao,
+        "codigo_rf": professor.codigo_rf,
+        "disciplina_id": str(aa.codigo_componente_curricular),
+        "disciplina_nome": aa.descricao_componente_curricular,
+        "disciplinas_agrupadas_ids": None,
+        "nome_professor": get_nome(professor),
+    }
+
+
+def _turma_atribuida_ano_row_externo(ae: AtribuicaoExterno) -> dict:
+    """Monta turma atribuída externa com os dados do recorte anual.
+
+    Args:
+        ae: Atribuição de profissional externo.
+
+    Returns:
+        Dados legados e complementares da atribuição no ano letivo.
+    """
+    pessoa = ae.contrato_externo.pessoa
+    return {
+        **_ancora_row_externo(ae),
+        "ano_letivo": str(ae.ano_atribuicao),
+        "data_inicio_atribuicao": fmt_iso(ae.dt_atribuicao),
+        "data_fim_atribuicao": fmt_iso(ae.dt_disponibilizacao),
+        "data_fim_turma": fmt_iso(ae.dt_fim_turma),
+        "ano_atribuicao": ae.ano_atribuicao,
+        "codigo_rf": pessoa.cpf,
+        "disciplina_id": str(ae.codigo_componente_curricular),
+        "disciplina_nome": ae.descricao_componente_curricular,
+        "disciplinas_agrupadas_ids": None,
+        "nome_professor": get_nome(pessoa),
     }
 
 
@@ -466,26 +534,13 @@ def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
     Returns:
         Lista de professores vinculados à escola no ano informado.
     """
-    qs = _vigentes_em(
-        AtribuicaoAula.objects.filter(
-            codigo_unidade_educacao=codigo_ue,
-            ano_atribuicao=ano_letivo,
-        ),
-        date.today(),
-    ).select_related("cargo_base__professor")
-    resultado = []
-    for aa in qs:
-        prof = aa.cargo_base.professor
-        resultado.append(
-            {
-                "codigo_rf": int(prof.codigo_rf),
-                "nome": get_nome(prof),
-                "cargo": None,
-                "cpf": prof.cpf,
-                "data_inicio_exercicio": fmt_iso(aa.cargo_base.dt_posse),
-            }
-        )
-    return resultado
+    professores = ProfessorEscolaAno.objects.filter(
+        codigo_escola=codigo_ue,
+        ano_letivo=ano_letivo,
+    ).order_by("id")
+    return [
+        _professor_escola_ano_row(professor) for professor in professores
+    ]
 
 
 def buscar_turmas_professor_escola_ano(
@@ -575,13 +630,34 @@ def buscar_turmas_professor_ano(codigo_rf: str, ano_letivo: int) -> list[dict]:
             ano_atribuicao=ano_letivo,
         ),
         date.today(),
-    )
+    ).select_related("cargo_base__professor")
     externas = AtribuicaoExterno.objects.filter(
         contrato_externo__pessoa__cpf=codigo_rf,
         ano_atribuicao=ano_letivo,
-    )
-    return [_ancora_row(aa) for aa in efetivas] + [
-        _ancora_row_externo(ae) for ae in externas
+    ).select_related("contrato_externo__pessoa")
+    return [_turma_atribuida_ano_row(aa) for aa in efetivas] + [
+        _turma_atribuida_ano_row_externo(ae) for ae in externas
+    ]
+
+
+def buscar_turmas_professor_todos_anos(codigo_rf: str) -> list[dict]:
+    """Lista turmas atribuídas ao professor sem recorte de ano letivo.
+
+    Args:
+        codigo_rf: Registro funcional ou CPF do professor.
+
+    Returns:
+        Atribuições de turma de todos os anos letivos.
+    """
+    efetivas = AtribuicaoAula.objects.filter(
+        cargo_base__professor__codigo_rf=codigo_rf,
+        dt_cancelamento__isnull=True,
+    ).select_related("cargo_base__professor")
+    externas = AtribuicaoExterno.objects.filter(
+        contrato_externo__pessoa__cpf=codigo_rf,
+    ).select_related("contrato_externo__pessoa")
+    return [_turma_atribuida_ano_row(aa) for aa in efetivas] + [
+        _turma_atribuida_ano_row_externo(ae) for ae in externas
     ]
 
 
@@ -1203,9 +1279,13 @@ def titular_por_turma_disciplina(
     return {
         "professor_rf": prof.codigo_rf,
         "nome_professor": get_nome(prof),
-        "disciplina": None,
+        "disciplina": (
+            aa.descricao_componente_curricular.rstrip()
+            if aa.descricao_componente_curricular
+            else None
+        ),
         "disciplina_id": str(codigo_componente),
-        "disciplinas_id": None,
+        "disciplinas_id": str(codigo_componente),
         "turma_id": codigo_turma,
     }
 
@@ -1240,83 +1320,127 @@ def titulares_por_turmas(codigos_turmas: list[int]) -> list[dict]:
             {
                 "professor_rf": prof.codigo_rf,
                 "nome_professor": get_nome(prof),
-                "disciplina": None,
+                "disciplina": (
+                    aa.descricao_componente_curricular.rstrip()
+                    if aa.descricao_componente_curricular
+                    else None
+                ),
                 "disciplina_id": comp,
                 "disciplinas_id": comp,
-                "turma_id": 0,
+                "turma_id": aa.codigo_turma_escola,
             }
         )
     return resultado
 
 
-def titulares_por_turma_agrupamento(
+def _normalizar_titulares(resultado: list[dict]) -> list[dict]:
+    """Remove titulares sem disciplina e ordena pelo código curricular.
+
+    Args:
+        resultado: Titulares encontrados nas fontes efetiva e externa.
+
+    Returns:
+        Titulares válidos ordenados numericamente pela disciplina.
+    """
+    titulares_validos = [
+        item for item in resultado if item.get("disciplina_id") is not None
+    ]
+    return sorted(
+        titulares_validos,
+        key=lambda item: int(item["disciplina_id"]),
+    )
+
+
+def _remover_titulares_duplicados(resultado: list[dict]) -> list[dict]:
+    """Remove linhas duplicadas preservando a primeira ocorrência.
+
+    Args:
+        resultado: Titulares projetados no contrato da API.
+
+    Returns:
+        Titulares distintos por todos os campos publicados.
+    """
+    titulares_unicos: dict[tuple, dict] = {}
+    for item in resultado:
+        chave = (
+            item.get("professor_rf"),
+            item.get("nome_professor"),
+            item.get("disciplina"),
+            item.get("disciplina_id"),
+            item.get("disciplinas_id"),
+            item.get("turma_id"),
+        )
+        titulares_unicos.setdefault(chave, item)
+    return list(titulares_unicos.values())
+
+
+def titulares_por_turma(
     codigo_turma: int,
-    realiza_agrupamento: bool,
     codigo_rf: str | None = None,
-    data_referencia: date | None = None,
 ) -> list[dict]:
-    """Lista titulares por turma com opção de agrupamento.
+    """Lista titulares por turma.
 
     Args:
         codigo_turma: CodigoEOL da turma.
-        realiza_agrupamento: Indica se deve consultar agrupamentos.
         codigo_rf: Registro funcional opcional do professor.
-        data_referencia: Data opcional usada para validar vigência.
 
     Returns:
         Lista de professores titulares conforme os filtros informados.
     """
-    if realiza_agrupamento:
-        qs = AgrupamentoAtribuicaoTerritorioSaber.objects.filter(
-            codigo_turma=codigo_turma
-        )
-        if codigo_rf:
-            qs = qs.filter(rf_professor=codigo_rf)
-        if data_referencia:
-            qs = qs.filter(dt_inicio_atribuicao__lte=data_referencia)
-        resultado = []
-        for ag in qs:
-            componentes = (
-                [
-                    c.strip()
-                    for c in ag.codigos_componentes_curriculares.split(",")
-                    if c.strip()
-                ]
-                if ag.codigos_componentes_curriculares
-                else [None]
-            )
-            for comp in componentes:
-                resultado.append(
-                    {
-                        "professor_rf": ag.rf_professor,
-                        "nome_professor": None,
-                        "disciplina": None,
-                        "disciplina_id": None,
-                        "disciplinas_id": comp,
-                        "turma_id": 0,
-                    }
-                )
-        return resultado
+    ano_atual = date.today().year
+    aa_qs = AtribuicaoAula.objects.filter(
+        _filtro_turma(codigo_turma),
+        ano_atribuicao=ano_atual,
+        dt_cancelamento__isnull=True,
+        codigo_motivo_disponibilizacao__isnull=True,
+        cargo_base__dt_cancelamento__isnull=True,
+        cargo_base__dt_fim_nomeacao__isnull=True,
+    ).select_related("cargo_base__professor")
+    ae_qs = AtribuicaoExterno.objects.filter(
+        _filtro_turma(codigo_turma),
+        ano_atribuicao=ano_atual,
+        dt_cancelamento__isnull=True,
+        codigo_motivo_disponibilizacao_externo__isnull=True,
+        contrato_externo__dt_cancelamento__isnull=True,
+    ).select_related("contrato_externo__pessoa")
 
-    aa_qs = (
-        _vigentes_em(
-            AtribuicaoAula.objects,
-            data_referencia or date.today(),
-        )
-        .filter(_filtro_turma(codigo_turma))
-        .select_related("cargo_base__professor")
-    )
-    return [
+    resultado = [
         {
             "professor_rf": aa.cargo_base.professor.codigo_rf,
             "nome_professor": get_nome(aa.cargo_base.professor),
-            "disciplina": None,
-            "disciplina_id": None,
+            "disciplina": (
+                aa.descricao_componente_curricular.rstrip()
+                if aa.descricao_componente_curricular
+                else None
+            ),
+            "disciplina_id": aa.codigo_componente_curricular,
             "disciplinas_id": str(aa.codigo_componente_curricular),
-            "turma_id": 0,
+            "turma_id": aa.codigo_turma_escola,
         }
         for aa in aa_qs
     ]
+    componentes_efetivos = {aa.codigo_componente_curricular for aa in aa_qs}
+    resultado.extend(
+        {
+            "professor_rf": ae.contrato_externo.pessoa.cpf,
+            "nome_professor": get_nome(ae.contrato_externo.pessoa),
+            "disciplina": (
+                ae.descricao_componente_curricular.rstrip()
+                if ae.descricao_componente_curricular
+                else None
+            ),
+            "disciplina_id": ae.codigo_componente_curricular,
+            "disciplinas_id": str(ae.codigo_componente_curricular),
+            "turma_id": ae.codigo_turma_escola,
+        }
+        for ae in ae_qs
+        if ae.codigo_componente_curricular not in componentes_efetivos
+    )
+    if codigo_rf:
+        resultado = [
+            item for item in resultado if item["professor_rf"] == codigo_rf
+        ]
+    return _normalizar_titulares(resultado)
 
 
 def titulares_por_ue(
@@ -1332,19 +1456,36 @@ def titulares_por_ue(
     Returns:
         Lista de professores titulares da unidade educacional.
     """
-    qs = AtribuicaoAula.objects.filter(
-        codigo_unidade_educacao=ue_codigo,
-        dt_cancelamento__isnull=True,
-        dt_atribuicao_aula__lte=data_referencia,
-    ).select_related("cargo_base__professor")
-    return [
+    data_limite_disponibilizacao = date(data_referencia.year, 2, 5)
+    aa_qs = (
+        AtribuicaoAula.objects.filter(
+            codigo_unidade_educacao=ue_codigo,
+            ano_atribuicao=data_referencia.year,
+            dt_cancelamento__isnull=True,
+            dt_atribuicao_aula__lte=data_referencia,
+            codigo_tipo_turma__isnull=False,
+        )
+        .exclude(codigo_tipo_turma=4)
+        .filter(
+            Q(dt_disponibilizacao_aulas__isnull=True)
+            | Q(dt_disponibilizacao_aulas__gte=data_limite_disponibilizacao)
+        )
+        .select_related("cargo_base__professor")
+    )
+
+    resultado = [
         {
             "professor_rf": aa.cargo_base.professor.codigo_rf,
             "nome_professor": get_nome(aa.cargo_base.professor),
-            "disciplina": None,
+            "disciplina": (
+                aa.descricao_componente_curricular.rstrip()
+                if aa.descricao_componente_curricular
+                else None
+            ),
             "disciplina_id": str(aa.codigo_componente_curricular),
             "disciplinas_id": str(aa.codigo_componente_curricular),
             "turma_id": _codigo_turma(aa) or 0,
         }
-        for aa in qs
+        for aa in aa_qs
     ]
+    return _normalizar_titulares(_remover_titulares_duplicados(resultado))

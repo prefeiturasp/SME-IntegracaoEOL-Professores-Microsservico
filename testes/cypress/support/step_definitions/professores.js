@@ -11,6 +11,18 @@ function getEnvOrFail(key) {
   return value
 }
 
+function logBody(body) {
+  const serialized = JSON.stringify(body)
+  const maxLength = 2000
+
+  if (serialized && serialized.length > maxLength) {
+    cy.log(`BODY (truncado, ${serialized.length} caracteres) => ${serialized.slice(0, maxLength)}...`)
+    return
+  }
+
+  cy.log(`BODY => ${serialized}`)
+}
+
 // ======================================================
 // PROFESSOR POR RF E ANO LETIVO
 // ======================================================
@@ -53,7 +65,7 @@ When('envio uma requisição GET para buscar professor por RF e ano letivo', () 
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -95,7 +107,7 @@ When('envio uma requisição GET para validar professor por RF', () => {
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 
@@ -137,7 +149,7 @@ When('envio uma requisição GET para consultar nome do professor por RF', () =>
     response = res
 
     cy.log(`STATUS => ${res.status}`)
-    cy.log(`BODY => ${JSON.stringify(res.body)}`)
+    logBody(res.body)
 
   })
 

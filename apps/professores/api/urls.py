@@ -18,14 +18,15 @@ from apps.professores.api.views import (
     BuscarPorListaRFView,
     BuscarPorRfAnoLetivoView,
     BuscarPorRfDreUeView,
+    BuscarTurmasAtribuidasTodosAnosView,
     BuscarTurmasAtribuidasView,
     BuscaTurmasAtribuidasEscolaView,
     BuscaTurmasAtribuidasProfessorEscolaView,
     DisciplinasTurmasAtribuidasUeView,
     ObterNomePeloRFView,
     ObterProfessoresAtribuidosTurmaDiscView,
-    TitularesPorTurmaAgrupamentoView,
     TitularesPorTurmasView,
+    TitularesPorTurmaView,
     TitularesPorUeView,
     TitularPorTurmaDisciplinaView,
     TurmasAtribuidasUeView,
@@ -69,6 +70,11 @@ urlpatterns = [
         f"{_BASE_PROF}/<str:codigo_rf>/turmas/anos_letivos/<int:ano_letivo>/",
         BuscarTurmasAtribuidasView.as_view(),
         name="turmas-atribuidas-ano",
+    ),
+    path(
+        f"{_BASE_PROF}/<str:codigo_rf>/turmas/anos_letivos/",
+        BuscarTurmasAtribuidasTodosAnosView.as_view(),
+        name="turmas-atribuidas-todos-anos",
     ),
     path(
         "funcionarios/<str:login>/perfis/<str:id_perfil>/turmas/",
@@ -178,9 +184,8 @@ urlpatterns = [
         name="professores-titulares",
     ),
     path(
-        f"{_BASE_PROF}/<int:codigo_turma>"
-        "/titulares/realizaAgrupamentoComponente/<str:realiza_agrupamento>/",
-        TitularesPorTurmaAgrupamentoView.as_view(),
+        f"{_BASE_PROF}/<int:codigo_turma>/titulares/",
+        TitularesPorTurmaView.as_view(),
         name="professores-titulares-turma",
     ),
     path(

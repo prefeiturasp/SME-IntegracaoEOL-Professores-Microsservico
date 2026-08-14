@@ -17,6 +17,7 @@ from apps.professores.models import (
     LotacaoServidor,
     Pessoa,
     Professor,
+    ProfessorEscolaAno,
     UnidadeEducacional,
 )
 
@@ -98,6 +99,23 @@ def cargo_base(professor) -> CargoBaseServidor:
         codigo_cargo=3379,
         situacao_funcional=6,
         dt_posse=date(2020, 1, 1),
+    )
+
+
+@pytest.fixture
+def professor_escola_ano(professor, ue) -> ProfessorEscolaAno:
+    """Cria vínculo de professor com escola e ano letivo."""
+    return ProfessorEscolaAno.objects.create(
+        origem="serie",
+        codigo_escola=ue.codigo_ue,
+        ano_letivo=2024,
+        codigo_turma=2112345,
+        codigo_rf=professor.codigo_rf,
+        codigo_componente_curricular=138,
+        nome=professor.nome,
+        cargo="COORDENADOR PEDAGOGICO",
+        cpf=professor.cpf,
+        data_inicio_exercicio=datetime(2020, 1, 1, tzinfo=UTC),
     )
 
 
@@ -254,6 +272,7 @@ def atribuicao(cargo_base, ue) -> AtribuicaoAula:
         ano_escolar="1",
         ano_atribuicao=2024,
         codigo_etapa_ensino=1,
+        codigo_tipo_turma=1,
         dt_atribuicao_aula=date(2024, 2, 1),
     )
 
@@ -272,6 +291,7 @@ def atribuicao_ano_corrente(cargo_base, ue) -> AtribuicaoAula:
         ano_escolar="1",
         ano_atribuicao=date.today().year,
         codigo_etapa_ensino=1,
+        codigo_tipo_turma=1,
         dt_atribuicao_aula=date(date.today().year, 1, 1),
     )
 

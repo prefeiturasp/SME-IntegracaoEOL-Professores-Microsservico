@@ -8,25 +8,42 @@ from rest_framework.views import APIView
 
 from apps.funcionarios import services
 from apps.funcionarios.serializers import (
+    BuscarFuncionariosFiltroSerializer,
+    CargoFuncionarioSerializer,
+    ConectaFormacaoFiltroSerializer,
+    ConectaFormacaoSerializer,
     DadosSigpaeSerializer,
     DreUeCargoSerializer,
     FuncionarioExternoCpfSerializer,
     FuncionarioFuncaoExternaSerializer,
     FuncionarioPerfilSerializer,
+    FuncionariosSGPDreFiltroSerializer,
     FuncionariosUEFiltroSerializer,
     FuncionariosUEQuerySerializer,
     FuncionarioUESerializer,
+    ListaTextoSerializer,
+    ListaUUIDSerializer,
     NomeCPFServidorSerializer,
     ResumoFuncionarioSerializer,
     SupervisoresFiltroSerializer,
     SupervisorSerializer,
+    UsuarioConectaFormacaoSerializer,
     UsuarioSGPSerializer,
+    UsuariosSGPFiltroSerializer,
 )
 
 _TAG_FUNC = ["Funcionarios"]
 _TAG_ESCOLA_FUNC = ["FuncionariosUnidadeEducacional"]
 _TAG_PERFIL = ["Perfis SGP"]
 _TAG_ACESSO = ["Acessos"]
+_FILTROS_CONECTA_FORMACAO = (
+    ("codigos_cargos", int),
+    ("codigos_funcoes", int),
+    ("codigo_modalidade", int),
+    ("anos_turma", str),
+    ("codigos_dres", str),
+    ("codigos_componentes_curriculares", int),
+)
 
 
 class FuncionariosPorUEView(APIView):
@@ -319,11 +336,7 @@ class CargosFuncionarioView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={
-            200: FuncionarioUESerializer(many=True),
-            400: dict,
-            404: dict,
-        },
+        responses={200: CargoFuncionarioSerializer(many=True)},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
         """Lista cargos do funcionário por registro funcional.
@@ -335,7 +348,99 @@ class CargosFuncionarioView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
-        return Response(services.cargos_funcionario(registro_funcional))
+        vinculos = services.cargos_funcionario(registro_funcional)
+        serializer = CargoFuncionarioSerializer(vinculos, many=True)
+        return Response(serializer.data)
+
+
+class ConectaFormacaoView(APIView):
+    """Lista funcionários elegíveis para o Conecta Formação."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Obter registros funcionais para o Conecta Formação",
+        parameters=[
+            *[
+                OpenApiParameter(
+                    destino,
+                    tipo,
+                    OpenApiParameter.QUERY,
+                    required=False,
+                    many=True,
+                )
+                for destino, tipo in _FILTROS_CONECTA_FORMACAO
+            ],
+            OpenApiParameter(
+                "eh_tipo_jornada_jeif",
+                bool,
+                OpenApiParameter.QUERY,
+                required=False,
+            ),
+        ],
+        responses={200: ConectaFormacaoSerializer(many=True), 400: dict},
+    )
+    def get(self, request: Request) -> Response:
+        """Lista funcionários elegíveis para o Conecta Formação.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        serializer = ConectaFormacaoFiltroSerializer(
+            data=request.query_params
+        )
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        funcionarios = services.funcionarios_conecta_formacao(
+            serializer.validated_data
+        )
+        response = ConectaFormacaoSerializer(funcionarios, many=True)
+        return Response(response.data)
+
+
+class UsuariosConectaFormacaoView(APIView):
+    """Lista usuários do Conecta Formação por perfis."""
+
+    @extend_schema(
+        tags=_TAG_FUNC,
+        summary="Obter usuários do Conecta Formação por perfis",
+        request=list[str],
+        responses={
+            200: UsuarioConectaFormacaoSerializer(many=True),
+            204: None,
+            400: dict,
+        },
+    )
+    def post(self, request: Request) -> Response:
+        """Lista usuários do Conecta Formação por perfis.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        serializer = ListaUUIDSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        resultado = services.usuarios_conecta_formacao(
+            serializer.validated_data["itens"]
+        )
+        if not resultado:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        response = UsuarioConectaFormacaoSerializer(
+            resultado,
+            many=True,
+        )
+        return Response(response.data)
 
 
 class FuncionariosPorCargoView(APIView):
@@ -435,8 +540,7 @@ class FuncionarioExternoPorCpfView(APIView):
         ],
         responses={
             200: FuncionarioExternoCpfSerializer(many=True),
-            400: dict,
-            204: dict,
+            204: None,
         },
     )
     def get(self, request: Request, cpf: str) -> Response:
@@ -464,7 +568,7 @@ class NomeCPFServidorView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: NomeCPFServidorSerializer, 400: dict, 204: None},
+        responses={200: NomeCPFServidorSerializer, 204: None},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
         """Retorna nome e CPF do servidor por registro funcional.
@@ -491,7 +595,7 @@ class NomeUsuarioEOLView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: str, 400: dict, 204: None},
+        responses={200: str, 204: None},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
         """Retorna nome usuario EOL do servidor.
@@ -520,7 +624,7 @@ class ServidorAtivoView(APIView):
         parameters=[
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
         ],
-        responses={200: bool, 400: dict, 404: dict},
+        responses={200: bool},
     )
     def get(self, request: Request, registro_funcional: str) -> Response:
         """Verifica se o servidor está ativo.
@@ -545,7 +649,7 @@ class DreUeAtribuicaoCargoView(APIView):
             OpenApiParameter("registro_funcional", str, OpenApiParameter.PATH),
             OpenApiParameter("codigo_cargo", int, OpenApiParameter.PATH),
         ],
-        responses={200: DreUeCargoSerializer(many=True), 400: dict},
+        responses={200: DreUeCargoSerializer(many=True)},
     )
     def get(
         self,
@@ -602,19 +706,28 @@ class UsuariosSGPView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
-        codigo_dre = request.query_params.get("codigo_dre")
-        codigo_rf = request.query_params.get("codigo_rf")
-        if not codigo_dre and not codigo_rf:
+        serializer = UsuariosSGPFiltroSerializer(data=request.query_params)
+        if not serializer.is_valid():
             return Response(status=status.HTTP_400_BAD_REQUEST)
+        filtros = serializer.validated_data
+        codigo_dre = filtros["codigo_dre"]
+        codigo_rf = filtros["codigo_rf"]
+        if services.perfil_placeholder_invalido(id_perfil) and not codigo_rf:
+            mensagem = (
+                services.MENSAGEM_ERRO_LEGADO
+                if codigo_dre
+                else services.MENSAGEM_ERRO_PERFIL_SEM_DRE_RF
+            )
+            return Response(mensagem, status=status.HTTP_400_BAD_REQUEST)
 
         resultado = services.usuarios_sgp_por_perfil(
             id_perfil,
             codigo_dre=codigo_dre,
-            codigo_ue=request.query_params.get("codigo_ue"),
+            codigo_ue=filtros["codigo_ue"],
             codigo_rf=codigo_rf,
-            nome_servidor=request.query_params.get("nome_servidor"),
+            nome_servidor=filtros["nome_servidor"],
         )
-        return Response(resultado.payload, status=resultado.status_code)
+        return Response(resultado)
 
 
 class FuncionariosSGPDreView(APIView):
@@ -657,17 +770,30 @@ class FuncionariosSGPDreView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
+        if services.perfil_placeholder_invalido(id_perfil):
+            return Response(
+                services.MENSAGEM_ERRO_LEGADO,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = FuncionariosSGPDreFiltroSerializer(
+            data=request.query_params
+        )
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        filtros = serializer.validated_data
         resultado = services.funcionarios_sgp_dre(
             id_perfil,
             codigo_dre,
-            codigo_ue=request.query_params.get("codigo_ue"),
-            codigo_rf=request.query_params.get("codigo_rf"),
-            nome_servidor=request.query_params.get("nome_servidor"),
-            codigo_funcao_atividade=request.query_params.get(
-                "codigo_funcao_atividade"
-            ),
+            codigo_ue=filtros["codigo_ue"],
+            codigo_rf=filtros["codigo_rf"],
+            nome_servidor=filtros["nome_servidor"],
+            codigo_funcao_atividade=filtros["codigo_funcao_atividade"],
         )
-        return Response(resultado.payload, status=resultado.status_code)
+        return Response(resultado)
 
 
 class FuncionariosPorUnidadePerfisView(APIView):
@@ -682,16 +808,17 @@ class FuncionariosPorUnidadePerfisView(APIView):
         request=list[str],
         responses={
             200: FuncionarioPerfilSerializer(many=True),
-            404: str,
         },
     )
     def post(self, request: Request, codigo_dre_ue: str) -> Response:
         """Lista funcionarios de unidade por perfis de sistema."""
+        serializer = ListaTextoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         resultado = services.funcionarios_por_unidade_perfis(
             codigo_dre_ue,
-            request.data if isinstance(request.data, list) else [],
+            serializer.validated_data["itens"],
         )
-        return Response(resultado.payload, status=resultado.status_code)
+        return Response(resultado)
 
 
 class FuncionariosAdminsSmeView(APIView):
@@ -701,14 +828,16 @@ class FuncionariosAdminsSmeView(APIView):
         tags=_TAG_FUNC,
         summary="Buscar administradores SME por perfis",
         request=list[str],
-        responses={200: list[str], 404: str},
+        responses={200: list[str]},
     )
     def post(self, request: Request) -> Response:
         """Lista logins de administradores SME por perfis."""
+        serializer = ListaTextoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         resultado = services.logins_admins_sme_por_perfis(
-            request.data if isinstance(request.data, list) else [],
+            serializer.validated_data["itens"],
         )
-        return Response(resultado.payload, status=resultado.status_code)
+        return Response(resultado)
 
 
 class DadosSigpaeView(APIView):
@@ -725,14 +854,14 @@ class DadosSigpaeView(APIView):
     def get(self, request: Request, codigo_rf: str) -> Response:
         """Retorna dados de funcionario para o SIGPAE."""
         resultado = services.dados_sigpae(codigo_rf)
-        if resultado.status_code == 601:
+        if resultado is None:
             response = Response(
-                resultado.payload,
+                services.MENSAGEM_SIGPAE_SEM_DADOS,
                 status=status.HTTP_400_BAD_REQUEST,
             )
-            response.status_code = resultado.status_code
+            response.status_code = 601
             return response
-        return Response(resultado.payload, status=resultado.status_code)
+        return Response(resultado)
 
 
 class AcessoSondagemView(APIView):
@@ -777,7 +906,11 @@ class BuscarPorListaRFView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
-        return Response(services.buscar_por_lista_rf(request.data))
+        serializer = ListaTextoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(
+            services.buscar_por_lista_rf(serializer.validated_data["itens"])
+        )
 
 
 class BuscarPorListaLoginView(APIView):
@@ -798,7 +931,13 @@ class BuscarPorListaLoginView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
-        return Response(services.buscar_por_lista_login(request.data))
+        serializer = ListaTextoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(
+            services.buscar_por_lista_login(
+                serializer.validated_data["itens"]
+            )
+        )
 
 
 class BuscarFuncionariosView(APIView):
@@ -819,4 +958,8 @@ class BuscarFuncionariosView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
-        return Response(services.buscar_funcionarios(request.data))
+        serializer = BuscarFuncionariosFiltroSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(
+            services.buscar_funcionarios(serializer.validated_data)
+        )
