@@ -1,8 +1,21 @@
 # SME-IntegracaoEOL-Professores-Microsservico
 
-Microsserviço **mock** do domínio Professores para o SGP (Sistema de Gestão Pedagógica) da SME-SP.
+Microsserviço do domínio Professores para o SGP (Sistema de Gestão Pedagógica) da SME-SP.
 
-Todos os endpoints retornam dados estáticos — sem banco de dados, sem regras de negócio — para uso em testes de integração, desenvolvimento de front-end e validação de contratos de API.
+Os endpoints consultam o banco `PROFESSORES_DB`, populado pelo ETL, e expõem
+os contratos internos consumidos pelo Transition Gateway. O SME Sidecar SDK é
+executado no processo Django para padronizar correlação, logs estruturados e
+tracing distribuído.
+
+```text
+Transition Gateway
+        │ X-Request-ID / traceparent
+        ▼
+Microsserviço Professores
+        │
+        ├── SME Sidecar SDK (in-process)
+        └── PROFESSORES_DB
+```
 
 ---
 
@@ -13,7 +26,7 @@ Todos os endpoints retornam dados estáticos — sem banco de dados, sem regras 
 | `apps.professores` | Professor, atribuições, validações, titulares | EP-01 a EP-23 |
 | `apps.turmas` | Turmas históricas do professor | EP-24 |
 | `apps.funcionarios` | Funcionários por UE/cargo/função, perfis SGP, acessos | EP-25 a EP-39 |
-| `apps.core` | Autenticação por API key, dados mock compartilhados | — |
+| `apps.core` | Autenticação, prefixo de publicação e runtime do SDK | — |
 
 Os modelos ETL que cada app cobre:
 
@@ -80,6 +93,38 @@ Valor padrão em desenvolvimento: `dev-key-default`
 ```bash
 curl -H "X-API-Key: dev-key-default" http://localhost:[PORT_WEB]/api/v1/professores/7654321/
 ```
+
+---
+
+## SME Sidecar SDK
+
+O runtime é inicializado no boot do Django e o middleware do SDK processa cada
+requisição. O header `X-Request-ID` recebido é preservado; quando ausente, um
+novo identificador é criado e devolvido na resposta. Logs incluem serviço,
+ambiente, request ID e, quando OpenTelemetry está ativo, trace ID e span ID.
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `SME_SDK_ENABLED` | `true` | Ativa o runtime do SDK |
+| `SME_SERVICE_NAME` | `professores-ms` | Nome usado em logs e traces |
+| `SME_SERVICE_VERSION` | `0.1.0` | Versão publicada na telemetria |
+| `SME_ENVIRONMENT` | `local` | Ambiente de execução |
+| `SME_TIMEOUT_ENABLED` | `false` | Desativa timeout HTTP enquanto não há clientes externos |
+| `SME_RETRY_ENABLED` | `false` | Desativa retry enquanto não há clientes externos |
+| `SME_CIRCUIT_BREAKER_ENABLED` | `false` | Desativa circuit breaker enquanto não há clientes externos |
+| `SME_LOGGING_ENABLED` | `true` | Ativa logs estruturados |
+| `SME_LOG_LEVEL` | `INFO` | Nível mínimo dos logs |
+| `SME_LOG_FORMAT` | `json` | Formato `json` ou `console` |
+| `SME_CORRELATION_ID_HEADER` | `X-Request-ID` | Header de correlação |
+| `SME_OTEL_ENABLED` | `false` | Ativa exportação OpenTelemetry |
+| `SME_OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | Endpoint OTLP gRPC |
+| `SME_BROKER_URL` | — | URL AMQP para transporte opcional de logs |
+| `SME_LOG_QUEUE` | — | Fila RabbitMQ; vazia mantém logs somente no stdout |
+
+Este microsserviço não realiza chamadas HTTP para outros domínios. Por isso,
+timeout, retry e circuit breaker do SDK ficam desabilitados. Essas políticas
+não se aplicam às consultas ao PostgreSQL, que continuam protegidas pelas
+configurações de pool do Django.
 
 ---
 
