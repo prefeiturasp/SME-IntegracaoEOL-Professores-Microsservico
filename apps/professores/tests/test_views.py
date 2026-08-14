@@ -18,6 +18,22 @@ _TICK_2024_02_02 = date_to_ticks(date(2024, 2, 2))
 _TICK_2024_01_31 = date_to_ticks(date(2024, 1, 31))
 
 
+class TestObservabilidadeEndpoints:
+    def test_preserva_request_id_no_endpoint(self, client, atribuicao):
+        """Verifica propagação de X-Request-ID em resposta de endpoint."""
+        client.credentials(
+            HTTP_X_API_KEY="test-key",
+            HTTP_X_REQUEST_ID="req-endpoint-123",
+        )
+
+        res = client.get(
+            f"{_BASE}/professores/escolas/000532/professores/2024/"
+        )
+
+        assert res.status_code == 200
+        assert res["X-Request-ID"] == "req-endpoint-123"
+
+
 class TestEP01BuscaProfessores:
     def test_com_ano_retorna_lista_com_professor(
         self, client, professor_escola_ano
