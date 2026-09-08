@@ -1174,7 +1174,7 @@ def professores_atribuidos_turma_disc(
     disciplina_id: int,
     data_tick: int | None = None,
 ) -> list[dict]:
-    """Lista professores atribuídos à turma e disciplina.
+    """Lista professores atribuídos à turma e disciplina usando tick.
 
     Args:
         codigo_turma: CodigoEOL da turma.
@@ -1188,6 +1188,26 @@ def professores_atribuidos_turma_disc(
         OverflowError: Quando os ticks informados excedem uma data válida.
     """
     data = ticks_to_date(data_tick) if data_tick else None
+    return professores_atribuidos_turma_disc_data(
+        codigo_turma, disciplina_id, data
+    )
+
+
+def professores_atribuidos_turma_disc_data(
+    codigo_turma: int,
+    disciplina_id: int,
+    data: date | None = None,
+) -> list[dict]:
+    """Lista professores atribuídos à turma e disciplina.
+
+    Args:
+        codigo_turma: CodigoEOL da turma.
+        disciplina_id: Código do componente curricular.
+        data: Data opcional usada para validar vigência.
+
+    Returns:
+        Lista de professores efetivos e externos atribuídos.
+    """
     efetivas = (
         AtribuicaoAula.objects.filter(
             codigo_componente_curricular=disciplina_id,
