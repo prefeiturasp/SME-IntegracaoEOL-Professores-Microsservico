@@ -25,6 +25,7 @@ from apps.professores.api.views import (
     DisciplinasTurmasAtribuidasUeView,
     ObterNomePeloRFView,
     ObterProfessoresAtribuidosTurmaDiscView,
+    ProfessoresAtribuidosTurmaDiscDataView,
     TitularesPorTurmasView,
     TitularesPorTurmaView,
     TitularesPorUeView,
@@ -171,6 +172,12 @@ urlpatterns = [
         "/disciplinas/<int:disciplina_id>/atribuicao/data/",
         ObterProfessoresAtribuidosTurmaDiscView.as_view(),
         name="professores-atribuidos-turma-disc",
+    ),
+    path(
+        f"{_BASE_PROF}/<int:codigo_turma>"
+        "/disciplinas/<int:disciplina_id>/atribuicao/data-iso/",
+        ProfessoresAtribuidosTurmaDiscDataView.as_view(),
+        name="professores-atribuidos-turma-disc-data-iso",
     ),
     path(
         f"{_BASE_PROF}/titular/turmas/<int:codigo_turma>"

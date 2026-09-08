@@ -15,7 +15,7 @@ from apps.professores.serializers import (
     AutoCompleteSerializer,
     DisciplinaTurmaAtribuidaUeSerializer,
     NomePorRFSerializer,
-    ProfessorAtribuidoTurmaDiscSerializer,
+    ProfessorAtribuicaoTurmaDiscSerializer,
     ProfessorEscolaSerializer,
     ProfessorPerfilSerializer,
     ResumoSerializer,
@@ -696,6 +696,7 @@ class AtribuicaoDisciplinaDataTickView(APIView):
 
     @extend_schema(
         tags=_TAG_PROF,
+        deprecated=True,
         summary="Verificar atribuição na disciplina/turma via dataTick",
         parameters=[
             OpenApiParameter("codigo_rf", str, OpenApiParameter.PATH),
@@ -742,6 +743,7 @@ class AtribuicaoRecorrenciaDatasView(APIView):
 
     @extend_schema(
         tags=_TAG_PROF,
+        deprecated=True,
         summary=(
             "Verificar atribuição na disciplina/turma em recorrência de datas"
         ),
@@ -882,6 +884,7 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
 
     @extend_schema(
         tags=_TAG_PROF,
+        deprecated=True,
         summary="Obter professores atribuídos a turma/disciplina em data",
         parameters=[
             OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
@@ -891,7 +894,7 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
             ),
         ],
         responses={
-            200: ProfessorAtribuidoTurmaDiscSerializer(many=True),
+            200: ProfessorAtribuicaoTurmaDiscSerializer(many=True),
             400: dict,
             422: dict,
             500: dict,
@@ -916,6 +919,48 @@ class ObterProfessoresAtribuidosTurmaDiscView(APIView):
             request.query_params.get("data_ticks"),
         )
         return Response(resultado.payload, status=resultado.status_code)
+
+
+class ProfessoresAtribuidosTurmaDiscDataView(APIView):
+    """Lista professores atribuídos a turma e disciplina em data ISO."""
+
+    @extend_schema(
+        tags=_TAG_PROF,
+        summary="Obter professores atribuídos a turma/disciplina em data ISO",
+        parameters=[
+            OpenApiParameter("codigo_turma", int, OpenApiParameter.PATH),
+            OpenApiParameter("disciplina_id", int, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "data", str, OpenApiParameter.QUERY, required=False
+            ),
+        ],
+        responses={
+            200: ProfessorAtribuicaoTurmaDiscSerializer(many=True),
+            400: dict,
+            422: dict,
+            500: dict,
+        },
+    )
+    def get(
+        self, request: Request, codigo_turma: int, disciplina_id: int
+    ) -> Response:
+        """Lista professores atribuídos a turma e disciplina em data ISO.
+
+        Args:
+            request: Requisição HTTP recebida pela API.
+            codigo_turma: Código EOL da turma consultada.
+            disciplina_id: Identificador do componente curricular/disciplina.
+
+        Returns:
+            Resposta HTTP com o resultado da operação.
+        """
+        return Response(
+            services.professores_atribuidos_turma_disc_data(
+                codigo_turma,
+                disciplina_id,
+                request.query_params.get("data"),
+            )
+        )
 
 
 class TitularPorTurmaDisciplinaView(APIView):
