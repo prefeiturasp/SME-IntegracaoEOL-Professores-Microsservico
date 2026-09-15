@@ -915,6 +915,52 @@ class TestEP19ProfessoresAtribuidosTurmaDisc:
         assert res.status_code == 403
 
 
+class TestEP19bProfessoresAtribuidosTurmaDiscDataIso:
+    def test_retorna_professor_atribuido(self, client, atribuicao):
+        """Verifica retorna professor atribuido usando data ISO."""
+        res = client.get(
+            f"{_BASE}/professores/2112345/disciplinas/138/"
+            "atribuicao/data-iso/?data=2024-02-02"
+        )
+        assert res.status_code == 200
+        assert any(p["codigo_rf"] == "7654321" for p in res.data)
+
+    def test_retorna_externo_atribuido(self, client, atribuicao_externa):
+        """Verifica retorna externo atribuido usando data ISO."""
+        res = client.get(
+            f"{_BASE}/professores/2112345/disciplinas/138/"
+            "atribuicao/data-iso/?data=2024-02-02"
+        )
+
+        assert res.status_code == 200
+        assert any(p["codigo_rf"] == "98765432100" for p in res.data)
+        assert any(p["atribuicao_externa"] is True for p in res.data)
+
+    def test_sem_atribuicao_retorna_vazio(self, client, db):
+        """Verifica sem atribuicao retorna vazio."""
+        res = client.get(
+            f"{_BASE}/professores/2112345/disciplinas/138/"
+            "atribuicao/data-iso/?data=2024-02-02"
+        )
+        assert res.status_code == 200
+        assert res.data == []
+
+    def test_sem_data_nao_filtra_vigencia(self, client, atribuicao):
+        """Verifica que a ausência de data não bloqueia a consulta."""
+        res = client.get(
+            f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data-iso/"
+        )
+        assert res.status_code == 200
+        assert any(p["codigo_rf"] == "7654321" for p in res.data)
+
+    def test_sem_api_key_retorna_403(self, anon):
+        """Verifica bloqueio sem API key."""
+        res = anon.get(
+            f"{_BASE}/professores/2112345/disciplinas/138/atribuicao/data-iso/"
+        )
+        assert res.status_code == 403
+
+
 class TestEP20TitularPorTurmaDisciplina:
     def test_encontrado_retorna_200_com_rf(self, client, atribuicao):
         """Verifica payload do titular por turma e disciplina."""

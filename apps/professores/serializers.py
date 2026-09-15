@@ -161,16 +161,26 @@ class AtribuicaoTurmasListaRequestSerializer(serializers.ListSerializer):
     allow_empty = False
 
 
-class ProfessorAtribuidoTurmaDiscSerializer(serializers.Serializer):
-    """Serializa professor atribuído a turma e disciplina."""
+class ProfessorAtribuicaoTurmaDiscSerializer(serializers.Serializer):
+    """Serializa a atribuição de professor a uma turma e disciplina."""
 
-    codigo_rf = serializers.CharField()
-    nome = serializers.CharField()
-    cpf = serializers.CharField(allow_null=True)
-    codigo_componente_curricular = serializers.IntegerField(allow_null=True)
-    data_atribuicao = serializers.DateField(allow_null=True)
-    data_disponibilizacao = serializers.DateField(allow_null=True)
-    atribuicao_externa = serializers.BooleanField()
+    codigo_turma = serializers.CharField(allow_null=True)
+    ano_letivo = serializers.CharField(allow_null=True)
+    nome_turma = serializers.CharField(allow_null=True)
+    data_inicio_atribuicao = serializers.CharField(allow_null=True)
+    data_fim_atribuicao = serializers.CharField(allow_null=True)
+    data_fim_turma = serializers.CharField(allow_null=True)
+    ano_atribuicao = serializers.IntegerField(allow_null=True)
+    codigo_rf = serializers.CharField(allow_null=True)
+    disciplina_id = serializers.CharField(allow_null=True)
+    disciplina_nome = serializers.CharField(allow_null=True)
+    disciplinas_agrupadas_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_null=True,
+        required=False,
+    )
+    nome_professor = serializers.CharField(allow_null=True)
+    atribuicao_externa = serializers.BooleanField(required=False)
 
 
 class TitularSerializer(serializers.Serializer):

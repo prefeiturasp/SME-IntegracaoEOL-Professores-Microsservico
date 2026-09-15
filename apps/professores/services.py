@@ -487,6 +487,28 @@ def professores_atribuidos_turma_disc(
     )
 
 
+def professores_atribuidos_turma_disc_data(
+    codigo_turma: int,
+    disciplina_id: int,
+    data: str | None,
+) -> list[dict]:
+    """Lista professores atribuidos a turma e disciplina em data ISO.
+
+    Args:
+        codigo_turma: Código EOL da turma consultada.
+        disciplina_id: Identificador do componente curricular ou disciplina.
+        data: Data opcional em formato ISO usada para validar vigência.
+
+    Returns:
+        Lista de professores efetivos e externos atribuídos.
+    """
+    return repositories.professores_atribuidos_turma_disc_data(
+        codigo_turma,
+        disciplina_id,
+        _data_iso_ou_none(data),
+    )
+
+
 def titular_por_turma_disciplina(
     codigo_turma: int,
     codigo_componente_curricular: int,

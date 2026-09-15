@@ -402,6 +402,67 @@ def test_buscar_turmas_professor_ignora_atribuicao_cancelada(db):
     assert repositories.buscar_turmas_professor("7654323") == []
 
 
+def test_atribuicao_disciplina_data_ignora_cancelamento_apos_disponibilizacao(
+    db,
+):
+    """Cancelamento não invalida atribuição já disponibilizada na data."""
+    professor = Professor.objects.create(
+        codigo_rf="7654324", nome="Professor Substituido", cpf="22222222222"
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo,
+        codigo_unidade_educacao="000532",
+        codigo_turma_escola=2112345,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=2026,
+        dt_atribuicao_aula=date(2026, 9, 3),
+        dt_disponibilizacao_aulas=date(2026, 12, 22),
+        dt_cancelamento=date(2026, 9, 4),
+    )
+
+    assert repositories.atribuicao_disciplina_data(
+        "7654324", 2112345, 138, date(2026, 9, 3)
+    )
+
+
+def test_atribuicao_disciplina_data_considera_cancelada_sem_disponibilizacao(
+    db,
+):
+    """Sem disponibilização registrada, o cancelamento invalida o registro."""
+    professor = Professor.objects.create(
+        codigo_rf="7654325",
+        nome="Professor Aberto Cancelado",
+        cpf="33333333333",
+    )
+    cargo = CargoBaseServidor.objects.create(
+        professor=professor,
+        codigo_cargo=3379,
+        descricao_cargo="Professor",
+        dt_posse=date(2020, 1, 1),
+    )
+    AtribuicaoAula.objects.create(
+        cargo_base=cargo,
+        codigo_unidade_educacao="000532",
+        codigo_turma_escola=2112345,
+        codigo_grade=100,
+        codigo_componente_curricular=138,
+        ano_atribuicao=2026,
+        dt_atribuicao_aula=date(2026, 9, 3),
+        dt_cancelamento=date(2026, 9, 4),
+    )
+
+    assert not repositories.atribuicao_disciplina_data(
+        "7654325", 2112345, 138, date(2026, 9, 3)
+    )
+
+
 def test_titulares_por_turma_filtra_rf(atribuicao_ano_corrente):
     """Verifica titulares por RF com disciplina sem espaços à direita."""
     atribuicao_ano_corrente.descricao_componente_curricular = "Matematica   "
