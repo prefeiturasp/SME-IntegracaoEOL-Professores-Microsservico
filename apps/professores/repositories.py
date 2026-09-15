@@ -102,6 +102,35 @@ def _vigentes_em(qs: Any, data_ref: date) -> Any:
     )
 
 
+def _vigentes_em_ponto_no_tempo(qs: Any, data_ref: date) -> Any:
+    """Filtra atribuições cuja janela de vigência cobre uma data específica.
+
+    Diferente de :func:`_vigentes_em`, uma atribuição com disponibilização
+    já registrada permanece válida para essa checagem mesmo que tenha sido
+    cancelada depois — o cancelamento marca apenas quando o registro foi
+    substituído/corrigido no sistema, não que o período que ele descreve
+    deixou de ter ocorrido. Só quando não há disponibilização (atribuição
+    em aberto) o cancelamento invalida o registro. Use esta função para
+    perguntas do tipo "esteve atribuído nesta data", em vez de "está
+    atribuído atualmente".
+
+    Args:
+        qs: Atribuições consultadas.
+        data_ref: Data usada para validar a janela de vigência.
+
+    Returns:
+        Atribuições cuja janela de vigência cobre a data informada.
+    """
+    return qs.filter(
+        Q(dt_disponibilizacao_aulas__isnull=False)
+        | Q(dt_cancelamento__isnull=True),
+        dt_atribuicao_aula__lte=data_ref,
+    ).filter(
+        Q(dt_disponibilizacao_aulas__isnull=True)
+        | Q(dt_disponibilizacao_aulas__gte=data_ref)
+    )
+
+
 def _vigentes_abrangencia_professor(qs: Any, data_ref: date) -> Any:
     """Filtra atribuições vigentes para a abrangência de turmas.
 
@@ -995,7 +1024,7 @@ def atribuicao_disciplina_data(
         codigo_componente_curricular=disciplina_id,
     ).filter(_filtro_turma(codigo_turma))
     if data_consulta:
-        qs = _vigentes_em(qs, data_consulta)
+        qs = _vigentes_em_ponto_no_tempo(qs, data_consulta)
     return bool(qs.exists())
 
 
