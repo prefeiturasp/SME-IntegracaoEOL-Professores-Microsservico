@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>apps.funcionarios.api.views &#8212; SME-IntegracaoEOL Professores</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+    <script src="../../../../_static/documentation_options.js?v=2346ddef"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/translations.js?v=71a39b36"></script>
+    <link rel="index" title="Índice" href="../../../../genindex.html" />
+    <link rel="search" title="Buscar" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Código-fonte para apps.funcionarios.api.views</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Views do domínio de funcionários."""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">drf_spectacular.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenApiParameter</span><span class="p">,</span> <span class="n">extend_schema</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework</span><span class="w"> </span><span class="kn">import</span> <span class="n">status</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework.request</span><span class="w"> </span><span class="kn">import</span> <span class="n">Request</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework.response</span><span class="w"> </span><span class="kn">import</span> <span class="n">Response</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">APIView</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.funcionarios</span><span class="w"> </span><span class="kn">import</span> <span class="n">services</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.funcionarios.serializers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BuscarFuncionariosFiltroSerializer</span><span class="p">,</span>
+    <span class="n">CargoFuncionarioSerializer</span><span class="p">,</span>
+    <span class="n">ConectaFormacaoFiltroSerializer</span><span class="p">,</span>
+    <span class="n">ConectaFormacaoSerializer</span><span class="p">,</span>
+    <span class="n">DadosSigpaeSerializer</span><span class="p">,</span>
+    <span class="n">DreUeCargoSerializer</span><span class="p">,</span>
+    <span class="n">FuncionarioExternoCpfSerializer</span><span class="p">,</span>
+    <span class="n">FuncionarioFuncaoExternaSerializer</span><span class="p">,</span>
+    <span class="n">FuncionarioPerfilSerializer</span><span class="p">,</span>
+    <span class="n">FuncionariosSGPDreFiltroSerializer</span><span class="p">,</span>
+    <span class="n">FuncionariosUEFiltroSerializer</span><span class="p">,</span>
+    <span class="n">FuncionariosUEQuerySerializer</span><span class="p">,</span>
+    <span class="n">FuncionarioUESerializer</span><span class="p">,</span>
+    <span class="n">ListaTextoSerializer</span><span class="p">,</span>
+    <span class="n">ListaUUIDSerializer</span><span class="p">,</span>
+    <span class="n">NomeCPFServidorSerializer</span><span class="p">,</span>
+    <span class="n">ResumoFuncionarioSerializer</span><span class="p">,</span>
+    <span class="n">SupervisoresFiltroSerializer</span><span class="p">,</span>
+    <span class="n">SupervisorSerializer</span><span class="p">,</span>
+    <span class="n">UsuarioConectaFormacaoSerializer</span><span class="p">,</span>
+    <span class="n">UsuarioSGPSerializer</span><span class="p">,</span>
+    <span class="n">UsuariosSGPFiltroSerializer</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_TAG_FUNC</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Funcionarios"</span><span class="p">]</span>
+<span class="n">_TAG_ESCOLA_FUNC</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"FuncionariosUnidadeEducacional"</span><span class="p">]</span>
+<span class="n">_TAG_PERFIL</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Perfis SGP"</span><span class="p">]</span>
+<span class="n">_TAG_ACESSO</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Acessos"</span><span class="p">]</span>
+<span class="n">_FILTROS_CONECTA_FORMACAO</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">(</span><span class="s2">"codigos_cargos"</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"codigos_funcoes"</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"codigo_modalidade"</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"anos_turma"</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"codigos_dres"</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"codigos_componentes_curriculares"</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="FuncionariosPorUEView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosPorUEView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosPorUEView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários de uma unidade educacional."""</span>
+
+<div class="viewcode-block" id="FuncionariosPorUEView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosPorUEView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ESCOLA_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionarios de uma UE"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"cargos"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"funcoes_atividades"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"funcoes_externas"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioUESerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários de uma unidade educacional.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_ue: Código EOL da unidade educacional consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">FuncionariosUEQuerySerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">errors</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_ue</span><span class="p">(</span>
+            <span class="n">codigo_ue</span><span class="p">,</span>
+            <span class="n">filtros</span><span class="o">=</span><span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosUEView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosUEView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosUEView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários ativos de uma unidade educacional."""</span>
+
+<div class="viewcode-block" id="FuncionariosUEView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosUEView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionários ativos de uma UE"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">request</span><span class="o">=</span><span class="n">FuncionariosUEFiltroSerializer</span><span class="p">,</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioUESerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários ativos de uma unidade educacional.</span>
+
+<span class="sd">        O campo de login depende da Identidade para indicar se o</span>
+<span class="sd">        funcionário possui usuário vinculado.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_ue: Código EOL da unidade educacional consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">FuncionariosUEFiltroSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">data</span> <span class="ow">or</span> <span class="p">{})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">errors</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_ue</span><span class="p">(</span>
+            <span class="n">codigo_ue</span><span class="p">,</span>
+            <span class="n">filtros</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">codigos_rfs</span><span class="o">=</span><span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"codigosRfs"</span><span class="p">],</span>
+            <span class="n">filtro</span><span class="o">=</span><span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"filtro"</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosCargosQueryView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosCargosQueryView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosCargosQueryView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários de uma unidade por cargos."""</span>
+
+<div class="viewcode-block" id="FuncionariosCargosQueryView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosCargosQueryView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ESCOLA_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionários de uma UE por lista de cargos (query)"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ue_codigo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"cargos"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"dre_codigo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioUESerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">ue_codigo</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários de uma unidade por cargos.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            ue_codigo: Código EOL da unidade educacional consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_lista_cargos</span><span class="p">(</span>
+            <span class="n">ue_codigo</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="s2">"cargos"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosFuncaoAtividadeView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncaoAtividadeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosFuncaoAtividadeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários de uma unidade por função de atividade."""</span>
+
+<div class="viewcode-block" id="FuncionariosFuncaoAtividadeView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncaoAtividadeView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ESCOLA_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionários de uma UE por função de atividade"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_funcao_atividade"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioUESerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_funcao_atividade</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários de uma unidade por função de atividade.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_ue: Código EOL da unidade educacional consultada.</span>
+<span class="sd">            codigo_funcao_atividade: Código da função de atividade filtrada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_funcao_atividade</span><span class="p">(</span>
+            <span class="n">codigo_ue</span><span class="p">,</span> <span class="n">codigo_funcao_atividade</span> <span class="ow">or</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosFuncoesAtividadesQueryView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncoesAtividadesQueryView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosFuncoesAtividadesQueryView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários por funções de atividade."""</span>
+
+<div class="viewcode-block" id="FuncionariosFuncoesAtividadesQueryView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncoesAtividadesQueryView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ESCOLA_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionários de UE por lista de funções de atividade"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ue_codigo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"funcoes_atividades"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"dre_codigo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioUESerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">ue_codigo</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários por funções de atividade.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            ue_codigo: Código EOL da unidade educacional consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_lista_funcoes_atividade</span><span class="p">(</span>
+            <span class="n">ue_codigo</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="s2">"funcoes_atividades"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosFuncaoExternaView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncaoExternaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosFuncaoExternaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários externos de uma unidade por função."""</span>
+
+<div class="viewcode-block" id="FuncionariosFuncaoExternaView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncaoExternaView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ESCOLA_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionários de uma UE por função externa"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_funcao_externa"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioFuncaoExternaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_funcao_externa</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários externos de uma unidade por função.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_ue: Código EOL da unidade educacional consultada.</span>
+<span class="sd">            codigo_funcao_externa: Código da função externa usada no filtro.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_funcao_externa</span><span class="p">(</span>
+            <span class="n">codigo_ue</span><span class="p">,</span> <span class="n">codigo_funcao_externa</span> <span class="ow">or</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosFuncoesExternasQueryView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncoesExternasQueryView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosFuncoesExternasQueryView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários externos de uma unidade por funções."""</span>
+
+<div class="viewcode-block" id="FuncionariosFuncoesExternasQueryView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosFuncoesExternasQueryView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ESCOLA_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionários de UE por lista de funções externas"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ue_codigo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"funcoes"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"dre_codigo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioFuncaoExternaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">ue_codigo</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários externos de uma unidade por funções.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            ue_codigo: Código EOL da unidade educacional consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_lista_funcoes_externas</span><span class="p">(</span>
+            <span class="n">ue_codigo</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="s2">"funcoes"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CargosFuncionarioView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.CargosFuncionarioView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CargosFuncionarioView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista cargos do funcionário por registro funcional."""</span>
+
+<div class="viewcode-block" id="CargosFuncionarioView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.CargosFuncionarioView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter cargos do funcionário por RF"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"registro_funcional"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">CargoFuncionarioSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista cargos do funcionário por registro funcional.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            registro_funcional: Registro funcional do servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">vinculos</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">cargos_funcionario</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">)</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">CargoFuncionarioSerializer</span><span class="p">(</span><span class="n">vinculos</span><span class="p">,</span> <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">serializer</span><span class="o">.</span><span class="n">data</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ConectaFormacaoView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.ConectaFormacaoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ConectaFormacaoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários elegíveis para o Conecta Formação."""</span>
+
+<div class="viewcode-block" id="ConectaFormacaoView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.ConectaFormacaoView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter registros funcionais para o Conecta Formação"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="o">*</span><span class="p">[</span>
+                <span class="n">OpenApiParameter</span><span class="p">(</span>
+                    <span class="n">destino</span><span class="p">,</span>
+                    <span class="n">tipo</span><span class="p">,</span>
+                    <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                    <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">destino</span><span class="p">,</span> <span class="n">tipo</span> <span class="ow">in</span> <span class="n">_FILTROS_CONECTA_FORMACAO</span>
+            <span class="p">],</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"eh_tipo_jornada_jeif"</span><span class="p">,</span>
+                <span class="nb">bool</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ConectaFormacaoSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários elegíveis para o Conecta Formação.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">ConectaFormacaoFiltroSerializer</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">errors</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">funcionarios</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_conecta_formacao</span><span class="p">(</span>
+            <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span>
+        <span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">ConectaFormacaoSerializer</span><span class="p">(</span><span class="n">funcionarios</span><span class="p">,</span> <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">data</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="UsuariosConectaFormacaoView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.UsuariosConectaFormacaoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UsuariosConectaFormacaoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista usuários do Conecta Formação por perfis."""</span>
+
+<div class="viewcode-block" id="UsuariosConectaFormacaoView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.UsuariosConectaFormacaoView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter usuários do Conecta Formação por perfis"</span><span class="p">,</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span>
+            <span class="mi">200</span><span class="p">:</span> <span class="n">UsuarioConectaFormacaoSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista usuários do Conecta Formação por perfis.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">ListaUUIDSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">errors</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">usuarios_conecta_formacao</span><span class="p">(</span>
+            <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"itens"</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">resultado</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">UsuarioConectaFormacaoSerializer</span><span class="p">(</span>
+            <span class="n">resultado</span><span class="p">,</span>
+            <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">data</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosPorCargoView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosPorCargoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosPorCargoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários ativos por cargo."""</span>
+
+<div class="viewcode-block" id="FuncionariosPorCargoView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosPorCargoView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Funcionários ativos por cargo"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_cargo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioUESerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_cargo</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários ativos por cargo.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_cargo: Código do cargo consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_cargo</span><span class="p">(</span><span class="n">codigo_cargo</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SupervisoresPorDreView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.SupervisoresPorDreView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SupervisoresPorDreView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista supervisores vinculados à DRE."""</span>
+
+<div class="viewcode-block" id="SupervisoresPorDreView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.SupervisoresPorDreView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Supervisores por DRE"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_dre"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">request</span><span class="o">=</span><span class="n">SupervisoresFiltroSerializer</span><span class="p">,</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">SupervisorSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista supervisores vinculados à DRE.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_dre: Código EOL da DRE consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com os supervisores encontrados.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">SupervisoresFiltroSerializer</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">"codigos_rfs"</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">data</span> <span class="ow">or</span> <span class="p">[]}</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">errors</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">supervisores_por_dre</span><span class="p">(</span>
+                <span class="n">codigo_dre</span><span class="p">,</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"codigos_rfs"</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SupervisoresDreConsolidadoView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.SupervisoresDreConsolidadoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SupervisoresDreConsolidadoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista supervisores da DRE."""</span>
+
+<div class="viewcode-block" id="SupervisoresDreConsolidadoView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.SupervisoresDreConsolidadoView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Supervisores por DRE no consolidado"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_dre"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">SupervisorSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista supervisores da DRE.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisicao HTTP recebida pela API.</span>
+<span class="sd">            codigo_dre: Codigo EOL da DRE consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com os supervisores encontrados.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">services</span><span class="o">.</span><span class="n">supervisores_dres</span><span class="p">(</span><span class="n">codigo_dre</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionarioExternoPorCpfView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionarioExternoPorCpfView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionarioExternoPorCpfView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna funcionário externo por CPF."""</span>
+
+<div class="viewcode-block" id="FuncionarioExternoPorCpfView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionarioExternoPorCpfView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar funcionário externo por CPF"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"cpf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span>
+            <span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioExternoCpfSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">cpf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna funcionário externo por CPF.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            cpf: CPF do funcionário externo consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionario_externo_por_cpf</span><span class="p">(</span><span class="n">cpf</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultado</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NomeCPFServidorView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.NomeCPFServidorView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NomeCPFServidorView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna nome e CPF do servidor por registro funcional."""</span>
+
+<div class="viewcode-block" id="NomeCPFServidorView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.NomeCPFServidorView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter nome e CPF do servidor por RF"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"registro_funcional"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">NomeCPFServidorSerializer</span><span class="p">,</span> <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna nome e CPF do servidor por registro funcional.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            registro_funcional: Registro funcional do servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">nome_cpf_servidor</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultado</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NomeUsuarioEOLView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.NomeUsuarioEOLView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NomeUsuarioEOLView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna nome usuario EOL do servidor."""</span>
+
+<div class="viewcode-block" id="NomeUsuarioEOLView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.NomeUsuarioEOLView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter nome usuario EOL do servidor por RF"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"registro_funcional"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna nome usuario EOL do servidor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            registro_funcional: Registro funcional do servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">nome</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">nome_servidor</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nome</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">django.http</span><span class="w"> </span><span class="kn">import</span> <span class="n">HttpResponse</span>
+
+        <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">nome</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s2">"text/plain"</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ServidorAtivoView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.ServidorAtivoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ServidorAtivoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica se o servidor está ativo."""</span>
+
+<div class="viewcode-block" id="ServidorAtivoView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.ServidorAtivoView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ACESSO</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar se servidor está ativo"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"registro_funcional"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">bool</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica se o servidor está ativo.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            registro_funcional: Registro funcional do servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">services</span><span class="o">.</span><span class="n">servidor_ativo</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DreUeAtribuicaoCargoView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.DreUeAtribuicaoCargoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DreUeAtribuicaoCargoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna unidade do funcionário por cargo."""</span>
+
+<div class="viewcode-block" id="DreUeAtribuicaoCargoView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.DreUeAtribuicaoCargoView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter DRE/UE do funcionário por cargo específico"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"registro_funcional"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_cargo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">DreUeCargoSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_cargo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna unidade do funcionário por cargo.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            registro_funcional: Registro funcional do servidor consultado.</span>
+<span class="sd">            codigo_cargo: Código do cargo usado para localizar a atribuição.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">dre_ue_cargo</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">,</span> <span class="n">codigo_cargo</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultado</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">([])</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="UsuariosSGPView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.UsuariosSGPView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UsuariosSGPView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista usuários SGP por perfil."""</span>
+
+<div class="viewcode-block" id="UsuariosSGPView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.UsuariosSGPView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PERFIL</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar usuários SGP por perfil"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"id_perfil"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_dre"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"nome_servidor"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">UsuarioSGPSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">id_perfil</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista usuários SGP por perfil.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            id_perfil: Identificador do perfil SGP usado na consulta.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">UsuariosSGPFiltroSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">)</span>
+        <span class="n">filtros</span> <span class="o">=</span> <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span>
+        <span class="n">codigo_dre</span> <span class="o">=</span> <span class="n">filtros</span><span class="p">[</span><span class="s2">"codigo_dre"</span><span class="p">]</span>
+        <span class="n">codigo_rf</span> <span class="o">=</span> <span class="n">filtros</span><span class="p">[</span><span class="s2">"codigo_rf"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">services</span><span class="o">.</span><span class="n">perfil_placeholder_invalido</span><span class="p">(</span><span class="n">id_perfil</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">codigo_rf</span><span class="p">:</span>
+            <span class="n">mensagem</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">services</span><span class="o">.</span><span class="n">MENSAGEM_ERRO_LEGADO</span>
+                <span class="k">if</span> <span class="n">codigo_dre</span>
+                <span class="k">else</span> <span class="n">services</span><span class="o">.</span><span class="n">MENSAGEM_ERRO_PERFIL_SEM_DRE_RF</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">mensagem</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">)</span>
+
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">usuarios_sgp_por_perfil</span><span class="p">(</span>
+            <span class="n">id_perfil</span><span class="p">,</span>
+            <span class="n">codigo_dre</span><span class="o">=</span><span class="n">codigo_dre</span><span class="p">,</span>
+            <span class="n">codigo_ue</span><span class="o">=</span><span class="n">filtros</span><span class="p">[</span><span class="s2">"codigo_ue"</span><span class="p">],</span>
+            <span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">nome_servidor</span><span class="o">=</span><span class="n">filtros</span><span class="p">[</span><span class="s2">"nome_servidor"</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosSGPDreView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosSGPDreView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosSGPDreView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários SGP por DRE e perfil."""</span>
+
+<div class="viewcode-block" id="FuncionariosSGPDreView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosSGPDreView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PERFIL</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar funcionários SGP por DRE e perfil"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"id_perfil"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_dre"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"nome_servidor"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_funcao_atividade"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">UsuarioSGPSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">id_perfil</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários SGP por DRE e perfil.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            id_perfil: Identificador do perfil SGP usado na consulta.</span>
+<span class="sd">            codigo_dre: Código EOL da DRE usada para filtrar funcionários.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">services</span><span class="o">.</span><span class="n">perfil_placeholder_invalido</span><span class="p">(</span><span class="n">id_perfil</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">services</span><span class="o">.</span><span class="n">MENSAGEM_ERRO_LEGADO</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">FuncionariosSGPDreFiltroSerializer</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">errors</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">filtros</span> <span class="o">=</span> <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_sgp_dre</span><span class="p">(</span>
+            <span class="n">id_perfil</span><span class="p">,</span>
+            <span class="n">codigo_dre</span><span class="p">,</span>
+            <span class="n">codigo_ue</span><span class="o">=</span><span class="n">filtros</span><span class="p">[</span><span class="s2">"codigo_ue"</span><span class="p">],</span>
+            <span class="n">codigo_rf</span><span class="o">=</span><span class="n">filtros</span><span class="p">[</span><span class="s2">"codigo_rf"</span><span class="p">],</span>
+            <span class="n">nome_servidor</span><span class="o">=</span><span class="n">filtros</span><span class="p">[</span><span class="s2">"nome_servidor"</span><span class="p">],</span>
+            <span class="n">codigo_funcao_atividade</span><span class="o">=</span><span class="n">filtros</span><span class="p">[</span><span class="s2">"codigo_funcao_atividade"</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosPorUnidadePerfisView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosPorUnidadePerfisView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosPorUnidadePerfisView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionarios de unidade por perfis de sistema."""</span>
+
+<div class="viewcode-block" id="FuncionariosPorUnidadePerfisView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosPorUnidadePerfisView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar funcionarios de unidade por perfis"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_dre_ue"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span>
+            <span class="mi">200</span><span class="p">:</span> <span class="n">FuncionarioPerfilSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_dre_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionarios de unidade por perfis de sistema."""</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">ListaTextoSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(</span><span class="n">raise_exception</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">funcionarios_por_unidade_perfis</span><span class="p">(</span>
+            <span class="n">codigo_dre_ue</span><span class="p">,</span>
+            <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"itens"</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FuncionariosAdminsSmeView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosAdminsSmeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FuncionariosAdminsSmeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista logins de administradores SME por perfis."""</span>
+
+<div class="viewcode-block" id="FuncionariosAdminsSmeView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.FuncionariosAdminsSmeView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar administradores SME por perfis"</span><span class="p">,</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista logins de administradores SME por perfis."""</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">ListaTextoSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(</span><span class="n">raise_exception</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">logins_admins_sme_por_perfis</span><span class="p">(</span>
+            <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"itens"</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DadosSigpaeView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.DadosSigpaeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DadosSigpaeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna dados de funcionario para o SIGPAE."""</span>
+
+<div class="viewcode-block" id="DadosSigpaeView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.DadosSigpaeView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar dados SIGPAE por RF"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">DadosSigpaeSerializer</span><span class="p">,</span> <span class="s2">"default"</span><span class="p">:</span> <span class="nb">str</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna dados de funcionario para o SIGPAE."""</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">dados_sigpae</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultado</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="n">services</span><span class="o">.</span><span class="n">MENSAGEM_SIGPAE_SEM_DADOS</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="mi">601</span>
+            <span class="k">return</span> <span class="n">response</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AcessoSondagemView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.AcessoSondagemView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AcessoSondagemView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica se o professor tem acesso à sondagem."""</span>
+
+<div class="viewcode-block" id="AcessoSondagemView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.AcessoSondagemView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_ACESSO</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar se professor tem acesso à sondagem"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">bool</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica se o professor tem acesso à sondagem.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">services</span><span class="o">.</span><span class="n">acesso_sondagem</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarPorListaRFView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.BuscarPorListaRFView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarPorListaRFView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista resumos de funcionários por registros funcionais."""</span>
+
+<div class="viewcode-block" id="BuscarPorListaRFView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.BuscarPorListaRFView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar resumo de funcionários por lista de RF"</span><span class="p">,</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ResumoFuncionarioSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista resumos de funcionários por registros funcionais.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">ListaTextoSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(</span><span class="n">raise_exception</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">buscar_por_lista_rf</span><span class="p">(</span><span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"itens"</span><span class="p">])</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarPorListaLoginView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.BuscarPorListaLoginView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarPorListaLoginView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista resumos de funcionários por logins."""</span>
+
+<div class="viewcode-block" id="BuscarPorListaLoginView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.BuscarPorListaLoginView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar resumo de funcionários por lista de login"</span><span class="p">,</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ResumoFuncionarioSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista resumos de funcionários por logins.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">ListaTextoSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(</span><span class="n">raise_exception</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">buscar_por_lista_login</span><span class="p">(</span>
+                <span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">[</span><span class="s2">"itens"</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarFuncionariosView">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.BuscarFuncionariosView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarFuncionariosView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários por filtros básicos."""</span>
+
+<div class="viewcode-block" id="BuscarFuncionariosView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.funcionarios.api.views.BuscarFuncionariosView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_FUNC</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar funcionários por filtros básicos"</span><span class="p">,</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">dict</span><span class="p">,</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ResumoFuncionarioSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista funcionários por filtros básicos.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">serializer</span> <span class="o">=</span> <span class="n">BuscarFuncionariosFiltroSerializer</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">serializer</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(</span><span class="n">raise_exception</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">buscar_funcionarios</span><span class="p">(</span><span class="n">serializer</span><span class="o">.</span><span class="n">validated_data</span><span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">SME-IntegracaoEOL-Professores-Microsservico</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Ir" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navegação</h3>
+<p class="caption" role="heading"><span class="caption-text">Referência de código</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../funcionarios.html">Funcionários</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">Referência de código</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Código do módulo</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

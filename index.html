@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>SME-IntegracaoEOL Professores &#8212; SME-IntegracaoEOL Professores</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
+    <script src="_static/documentation_options.js?v=2346ddef"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/translations.js?v=71a39b36"></script>
+    <link rel="index" title="Índice" href="genindex.html" />
+    <link rel="search" title="Buscar" href="search.html" />
+    <link rel="next" title="Funcionários" href="funcionarios.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="sme-integracaoeol-professores">
+<h1>SME-IntegracaoEOL Professores<a class="headerlink" href="#sme-integracaoeol-professores" title="Link para este cabeçalho">¶</a></h1>
+<p>O microsserviço <code class="docutils literal notranslate"><span class="pre">SME-IntegracaoEOL-Professores-Microsservico</span></code> é uma aplicação Django/DRF que expõe os contratos legados do EOL (SGP) relativos a Professores, Turmas históricas e Funcionários.</p>
+<p>O serviço garante a compatibilidade com os consumidores da API (como o SGP e o Transition Gateway), preservando caminhos, parâmetros, códigos de status e cabeçalhos (autenticação por <code class="docutils literal notranslate"><span class="pre">X-API-Key</span></code>).</p>
+<section id="escopo-e-arquitetura">
+<h2>Escopo e Arquitetura<a class="headerlink" href="#escopo-e-arquitetura" title="Link para este cabeçalho">¶</a></h2>
+<p>Este microsserviço não realiza processos de ETL. Ele lê diretamente do banco de dados relacional (populado e de-normalizado por um ETL externo de referência) e responde aos contratos definidos pela SME.</p>
+<p>A documentação é gerada automaticamente pelo Sphinx a partir das docstrings do código e está estruturada da seguinte forma:</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Referência de código</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="funcionarios.html">Funcionários</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="funcionarios.html#identificacao-do-usuario">Identificação do usuário</a></li>
+<li class="toctree-l2"><a class="reference internal" href="funcionarios.html#usuarios-por-perfil">Usuários por perfil</a></li>
+<li class="toctree-l2"><a class="reference internal" href="funcionarios.html#cargos-por-registro-funcional">Cargos por registro funcional</a></li>
+<li class="toctree-l2"><a class="reference internal" href="funcionarios.html#conecta-formacao">Conecta Formação</a></li>
+<li class="toctree-l2"><a class="reference internal" href="funcionarios.html#professores-por-escola-e-ano">Professores por escola e ano</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Referência de código</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#module-apps.core.apps">Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#module-apps.professores.serializers">Professores</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#module-apps.turmas.repository">Turmas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#module-apps.funcionarios.serializers">Funcionários</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">SME-IntegracaoEOL-Professores-Microsservico</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Ir" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navegação</h3>
+<p class="caption" role="heading"><span class="caption-text">Referência de código</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="funcionarios.html">Funcionários</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Referência de código</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="funcionarios.html" title="próximo capítulo">Funcionários</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/index.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

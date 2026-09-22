@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>apps.professores.repositories &#8212; SME-IntegracaoEOL Professores</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+    <script src="../../../_static/documentation_options.js?v=2346ddef"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/translations.js?v=71a39b36"></script>
+    <link rel="index" title="Índice" href="../../../genindex.html" />
+    <link rel="search" title="Buscar" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Código-fonte para apps.professores.repositories</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Queries do domínio de professores."""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">django.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Q</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.core.utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">fmt_br</span><span class="p">,</span>
+    <span class="n">fmt_iso</span><span class="p">,</span>
+    <span class="n">get_nome</span><span class="p">,</span>
+    <span class="n">ticks_to_date</span><span class="p">,</span>
+    <span class="n">ticks_to_datetime_str</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.professores.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AtribuicaoAula</span><span class="p">,</span>
+    <span class="n">AtribuicaoExterno</span><span class="p">,</span>
+    <span class="n">CargoBaseServidor</span><span class="p">,</span>
+    <span class="n">ContratoExterno</span><span class="p">,</span>
+    <span class="n">DisciplinaTurmaAtribuidaUe</span><span class="p">,</span>
+    <span class="n">Professor</span><span class="p">,</span>
+    <span class="n">ProfessorEscolaAno</span><span class="p">,</span>
+    <span class="n">TurmaAtribuidaUe</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_CD_MOTIVO_DISPONIBILIZACAO</span> <span class="o">=</span> <span class="mi">34</span>
+<span class="n">_CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO</span> <span class="o">=</span> <span class="mi">3</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_filtrar_localizacao</span><span class="p">(</span><span class="n">qs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">ue_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Aplica filtro opcional de unidade educacional.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qs: Atribuições ou contratos externos consultados.</span>
+<span class="sd">        ue_id: Código EOL da unidade educacional usada como escopo.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados filtrados por UE quando o escopo for informado.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">ue_id</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">ue_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">qs</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Q</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta filtro para código EOL de turma.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_turma: Código EOL da turma consultada.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Expressão ``Q`` para filtrar a turma.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">Q</span><span class="p">(</span><span class="n">codigo_turma_escola</span><span class="o">=</span><span class="n">codigo_turma</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_filtro_turmas_anos_iniciais</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Q</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta filtro para turmas de anos iniciais.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Expressão ``Q`` para turmas do 1º ao 6º ano.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">Q</span><span class="p">(</span><span class="n">descricao_turma_escola__startswith</span><span class="o">=</span><span class="s2">"1"</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">descricao_turma_escola__startswith</span><span class="o">=</span><span class="s2">"2"</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">descricao_turma_escola__startswith</span><span class="o">=</span><span class="s2">"3"</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">descricao_turma_escola__startswith</span><span class="o">=</span><span class="s2">"4"</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">descricao_turma_escola__startswith</span><span class="o">=</span><span class="s2">"5"</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">descricao_turma_escola__startswith</span><span class="o">=</span><span class="s2">"6"</span><span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_codigo_turma</span><span class="p">(</span><span class="n">atribuicao</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna o código de turma da atribuição.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        atribuicao: Atribuição efetiva ou externa com código de turma.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Código EOL da turma como inteiro, ou ``None`` quando ausente.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">atribuicao</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">atribuicao</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_vigentes_em</span><span class="p">(</span><span class="n">qs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">data_ref</span><span class="p">:</span> <span class="n">date</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Filtra atribuições vigentes em uma data de referência.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qs: Atribuições consultadas.</span>
+<span class="sd">        data_ref: Data usada para validar início e disponibilização.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Atribuições vigentes na data.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dt_atribuicao_aula__lte</span><span class="o">=</span><span class="n">data_ref</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__gte</span><span class="o">=</span><span class="n">data_ref</span><span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_vigentes_em_ponto_no_tempo</span><span class="p">(</span><span class="n">qs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">data_ref</span><span class="p">:</span> <span class="n">date</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Filtra atribuições cuja janela de vigência cobre uma data específica.</span>
+
+<span class="sd">    Diferente de :func:`_vigentes_em`, uma atribuição com disponibilização</span>
+<span class="sd">    já registrada permanece válida para essa checagem mesmo que tenha sido</span>
+<span class="sd">    cancelada depois — o cancelamento marca apenas quando o registro foi</span>
+<span class="sd">    substituído/corrigido no sistema, não que o período que ele descreve</span>
+<span class="sd">    deixou de ter ocorrido. Só quando não há disponibilização (atribuição</span>
+<span class="sd">    em aberto) o cancelamento invalida o registro. Use esta função para</span>
+<span class="sd">    perguntas do tipo "esteve atribuído nesta data", em vez de "está</span>
+<span class="sd">    atribuído atualmente".</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qs: Atribuições consultadas.</span>
+<span class="sd">        data_ref: Data usada para validar a janela de vigência.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Atribuições cuja janela de vigência cobre a data informada.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">dt_atribuicao_aula__lte</span><span class="o">=</span><span class="n">data_ref</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__gte</span><span class="o">=</span><span class="n">data_ref</span><span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_vigentes_abrangencia_professor</span><span class="p">(</span><span class="n">qs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">data_ref</span><span class="p">:</span> <span class="n">date</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Filtra atribuições vigentes para a abrangência de turmas.</span>
+
+<span class="sd">    Não considera vigente a atribuição já disponibilizada — inclusive de</span>
+<span class="sd">    turma de programa no mês corrente —, acompanhando a abrangência do legado.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qs: Atribuições do professor.</span>
+<span class="sd">        data_ref: Data usada para validar vigência e ano de atribuição.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Atribuições vigentes para cálculo da abrangência.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">dt_atribuicao_aula__lte</span><span class="o">=</span><span class="n">data_ref</span><span class="p">,</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">data_ref</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__gte</span><span class="o">=</span><span class="n">data_ref</span><span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_professor_escola_ano_row</span><span class="p">(</span><span class="n">professor</span><span class="p">:</span> <span class="n">ProfessorEscolaAno</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta professor vinculado a uma escola.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        professor: Vínculo usado para montar o retorno.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados do professor vinculado.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">),</span>
+        <span class="s2">"nome"</span><span class="p">:</span> <span class="n">professor</span><span class="o">.</span><span class="n">nome</span><span class="p">,</span>
+        <span class="s2">"cargo"</span><span class="p">:</span> <span class="n">professor</span><span class="o">.</span><span class="n">cargo</span><span class="p">,</span>
+        <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">professor</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+        <span class="s2">"data_inicio_exercicio"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">professor</span><span class="o">.</span><span class="n">data_inicio_exercicio</span><span class="p">),</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_turma_row</span><span class="p">(</span><span class="n">aa</span><span class="p">:</span> <span class="n">AtribuicaoAula</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta turma atribuída efetiva.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        aa: Atribuição de aula efetiva.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário com dados da turma atribuída.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">,</span>
+        <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_turma_escola</span><span class="p">,</span>
+        <span class="s2">"componente_curricular"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"data_inicio_atribuicao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_atribuicao_aula</span><span class="p">),</span>
+        <span class="s2">"data_fim_atribuicao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_disponibilizacao_aulas</span><span class="p">),</span>
+        <span class="s2">"data_inicio_turma"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_inicio_turma</span><span class="p">),</span>
+        <span class="s2">"ano"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">ano_escolar</span><span class="p">,</span>
+        <span class="s2">"etapa_ensino"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_etapa_ensino</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_turma_row_externo</span><span class="p">(</span><span class="n">ae</span><span class="p">:</span> <span class="n">AtribuicaoExterno</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta turma atribuída externa.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ae: Atribuição de profissional externo.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário com dados da turma atribuída externa.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">,</span>
+        <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">descricao_turma_escola</span><span class="p">,</span>
+        <span class="s2">"componente_curricular"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"data_inicio_atribuicao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_atribuicao</span><span class="p">),</span>
+        <span class="s2">"data_fim_atribuicao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_disponibilizacao</span><span class="p">),</span>
+        <span class="s2">"data_inicio_turma"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_inicio_turma</span><span class="p">),</span>
+        <span class="s2">"ano"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">ano_escolar</span><span class="p">,</span>
+        <span class="s2">"etapa_ensino"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_etapa_ensino</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ancora_row</span><span class="p">(</span><span class="n">aa</span><span class="p">:</span> <span class="n">AtribuicaoAula</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta o vínculo-âncora de uma atribuição efetiva.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        aa: Atribuição de aula efetiva.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário com dados da turma, componente e vigência da atribuição.</span>
+<span class="sd">    """</span>
+    <span class="n">codigo_turma_escola</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_turma_escola</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">codigo_turma_escola</span><span class="p">)</span> <span class="k">if</span> <span class="n">codigo_turma_escola</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">),</span>
+        <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_turma_escola</span><span class="p">,</span>
+        <span class="s2">"codigo_serie_grade"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_serie_grade</span><span class="p">,</span>
+        <span class="s2">"componente_curricular"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"codigo_unidade_educacao"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+        <span class="s2">"ano"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">ano_escolar</span><span class="p">,</span>
+        <span class="s2">"etapa_ensino"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_etapa_ensino</span><span class="p">,</span>
+        <span class="s2">"data_atribuicao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_atribuicao_aula</span><span class="p">),</span>
+        <span class="s2">"data_disponibilizacao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_disponibilizacao_aulas</span><span class="p">),</span>
+        <span class="s2">"data_inicio_turma"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_inicio_turma</span><span class="p">),</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ancora_row_externo</span><span class="p">(</span><span class="n">ae</span><span class="p">:</span> <span class="n">AtribuicaoExterno</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta o vínculo-âncora de uma atribuição externa.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ae: Atribuição de profissional externo.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário com dados da turma, componente e vigência da atribuição.</span>
+<span class="sd">    """</span>
+    <span class="n">codigo_turma_escola</span> <span class="o">=</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_turma_escola</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">codigo_turma_escola</span><span class="p">)</span> <span class="k">if</span> <span class="n">codigo_turma_escola</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">),</span>
+        <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">descricao_turma_escola</span><span class="p">,</span>
+        <span class="s2">"componente_curricular"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"codigo_serie_grade"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_serie_grade</span><span class="p">,</span>
+        <span class="s2">"codigo_unidade_educacao"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+        <span class="s2">"ano"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">ano_escolar</span><span class="p">,</span>
+        <span class="s2">"etapa_ensino"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_etapa_ensino</span><span class="p">,</span>
+        <span class="s2">"data_atribuicao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_atribuicao</span><span class="p">),</span>
+        <span class="s2">"data_disponibilizacao"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_disponibilizacao</span><span class="p">),</span>
+        <span class="s2">"data_inicio_turma"</span><span class="p">:</span> <span class="n">fmt_br</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_inicio_turma</span><span class="p">),</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_turma_atribuida_ano_row</span><span class="p">(</span><span class="n">aa</span><span class="p">:</span> <span class="n">AtribuicaoAula</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta turma atribuída efetiva com os dados do recorte anual.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        aa: Atribuição de aula efetiva.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados legados e complementares da atribuição no ano letivo.</span>
+<span class="sd">    """</span>
+    <span class="n">professor</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="o">**</span><span class="n">_ancora_row</span><span class="p">(</span><span class="n">aa</span><span class="p">),</span>
+        <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">),</span>
+        <span class="s2">"data_inicio_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_atribuicao_aula</span><span class="p">),</span>
+        <span class="s2">"data_fim_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_disponibilizacao_aulas</span><span class="p">),</span>
+        <span class="s2">"data_fim_turma"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_fim_turma</span><span class="p">),</span>
+        <span class="s2">"ano_atribuicao"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">,</span>
+        <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
+        <span class="s2">"disciplina_nome"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"disciplinas_agrupadas_ids"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">professor</span><span class="p">),</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_turma_atribuida_ano_row_externo</span><span class="p">(</span><span class="n">ae</span><span class="p">:</span> <span class="n">AtribuicaoExterno</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta turma atribuída externa com os dados do recorte anual.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ae: Atribuição de profissional externo.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados legados e complementares da atribuição no ano letivo.</span>
+<span class="sd">    """</span>
+    <span class="n">pessoa</span> <span class="o">=</span> <span class="n">ae</span><span class="o">.</span><span class="n">contrato_externo</span><span class="o">.</span><span class="n">pessoa</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="o">**</span><span class="n">_ancora_row_externo</span><span class="p">(</span><span class="n">ae</span><span class="p">),</span>
+        <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">),</span>
+        <span class="s2">"data_inicio_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_atribuicao</span><span class="p">),</span>
+        <span class="s2">"data_fim_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_disponibilizacao</span><span class="p">),</span>
+        <span class="s2">"data_fim_turma"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_fim_turma</span><span class="p">),</span>
+        <span class="s2">"ano_atribuicao"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">,</span>
+        <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">pessoa</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+        <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
+        <span class="s2">"disciplina_nome"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"disciplinas_agrupadas_ids"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">pessoa</span><span class="p">),</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_abrangencia_turma_row</span><span class="p">(</span>
+    <span class="n">row</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta turma para abrangência.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        row: Linha de atribuição com dados de DRE, UE e turma.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário da turma no formato de abrangência do legado.</span>
+<span class="sd">    """</span>
+    <span class="n">tipo_turma</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_tipo_turma"</span><span class="p">)</span>
+    <span class="n">turma_programa</span> <span class="o">=</span> <span class="n">tipo_turma</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"ano"</span><span class="p">:</span> <span class="s2">"0"</span> <span class="k">if</span> <span class="n">turma_programa</span> <span class="k">else</span> <span class="n">row</span><span class="p">[</span><span class="s2">"ano"</span><span class="p">],</span>
+        <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"ano_letivo"</span><span class="p">],</span>
+        <span class="s2">"codigo"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"codigo_turma"</span><span class="p">],</span>
+        <span class="s2">"codigo_modalidade"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="mi">5</span> <span class="k">if</span> <span class="n">turma_programa</span> <span class="k">else</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_modalidade"</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span>
+        <span class="p">),</span>
+        <span class="s2">"modalidade"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s2">"Fundamental"</span> <span class="k">if</span> <span class="n">turma_programa</span> <span class="k">else</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"modalidade"</span><span class="p">)</span>
+        <span class="p">),</span>
+        <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"nome_turma"</span><span class="p">],</span>
+        <span class="s2">"semestre"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"semestre"</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"duracao_turno"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"duracao_turno"</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"tipo_turno"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"tipo_turno"</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"etapa_eja"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"data_fim"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"ehistorico"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">"ensino_especial"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">"serie_ensino"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"data_inicio_turma"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_inicio_turma"</span><span class="p">)),</span>
+        <span class="s2">"extinta"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">"tipo_turma"</span><span class="p">:</span> <span class="n">tipo_turma</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_abrangencia_retorno</span><span class="p">(</span><span class="n">rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Agrupa linhas de abrangência por DRE e UE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rows: Linhas de atribuições vigentes para abrangência.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Estrutura de abrangência organizada por DRE, UE e turma.</span>
+<span class="sd">    """</span>
+    <span class="n">dres</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">codigo_ue</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">"codigo_unidade_educacao"</span><span class="p">]</span>
+        <span class="n">codigo_dre</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_dre"</span><span class="p">)</span>
+        <span class="n">dre</span> <span class="o">=</span> <span class="n">dres</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span>
+            <span class="n">codigo_dre</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">"abreviacao"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"abreviacao_dre"</span><span class="p">),</span>
+                <span class="s2">"codigo"</span><span class="p">:</span> <span class="n">codigo_dre</span><span class="p">,</span>
+                <span class="s2">"nome"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"nome_dre"</span><span class="p">),</span>
+                <span class="s2">"ues"</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+        <span class="n">ues_dre</span> <span class="o">=</span> <span class="n">dre</span><span class="p">[</span><span class="s2">"ues"</span><span class="p">]</span>
+        <span class="n">ue_item</span> <span class="o">=</span> <span class="n">ues_dre</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span>
+            <span class="n">codigo_ue</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo"</span><span class="p">:</span> <span class="n">codigo_ue</span><span class="p">,</span>
+                <span class="s2">"cod_tipo_escola"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_tipo_escola"</span><span class="p">),</span>
+                <span class="s2">"nome"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"nome_unidade_educacional"</span><span class="p">),</span>
+                <span class="s2">"turmas"</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+        <span class="n">ue_item</span><span class="p">[</span><span class="s2">"turmas"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_abrangencia_turma_row</span><span class="p">(</span><span class="n">row</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"abrangencia"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"dres"</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span><span class="o">**</span><span class="n">dre</span><span class="p">,</span> <span class="s2">"ues"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">dre</span><span class="p">[</span><span class="s2">"ues"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())}</span> <span class="k">for</span> <span class="n">dre</span> <span class="ow">in</span> <span class="n">dres</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="p">],</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_turma_atribuida_ue_row</span><span class="p">(</span><span class="n">turma</span><span class="p">:</span> <span class="n">TurmaAtribuidaUe</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta turma atribuída por vínculo com UE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        turma: Registro de turma atribuída por UE.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário no contrato de turmas por vínculo com UE.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_escola"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">codigo_escola</span><span class="p">,</span>
+        <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">codigo_turma</span><span class="p">,</span>
+        <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">ano_letivo</span><span class="p">,</span>
+        <span class="s2">"modalidade"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">modalidade</span><span class="p">,</span>
+        <span class="s2">"semestre"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">semestre</span><span class="p">,</span>
+        <span class="s2">"codigo_modalidade"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">codigo_modalidade</span><span class="p">,</span>
+        <span class="s2">"codigo_dre"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="s2">"dre"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">dre</span><span class="p">,</span>
+        <span class="s2">"dre_abreviacao"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">dre_abreviacao</span><span class="p">,</span>
+        <span class="s2">"ue"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">ue</span><span class="p">,</span>
+        <span class="s2">"ue_abreviacao"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">ue_abreviacao</span><span class="p">,</span>
+        <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">nome_turma</span><span class="p">,</span>
+        <span class="s2">"ano"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">ano</span><span class="p">,</span>
+        <span class="s2">"tipo_ue"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">tipo_ue</span><span class="p">,</span>
+        <span class="s2">"codigo_tipo_ue"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">codigo_tipo_ue</span><span class="p">,</span>
+        <span class="s2">"codigo_tipo_escola"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">codigo_tipo_escola</span><span class="p">,</span>
+        <span class="s2">"tipo_escola"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">tipo_escola</span><span class="p">,</span>
+        <span class="s2">"duracao_turno"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">duracao_turno</span><span class="p">,</span>
+        <span class="s2">"tipo_turno"</span><span class="p">:</span> <span class="n">turma</span><span class="o">.</span><span class="n">tipo_turno</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<div class="viewcode-block" id="turmas_atribuidas_ue">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.turmas_atribuidas_ue">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">turmas_atribuidas_ue</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">cargos</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas por vínculo com unidade educacional.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">        cargos: Códigos de cargos usados como filtro opcional.</span>
+<span class="sd">        codigo_dre: Código EOL da DRE usada como filtro opcional.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Turmas atribuídas ao usuário pelos vínculos com unidades escolares.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">TurmaAtribuidaUe</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">usuario_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">cargos</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Q</span><span class="p">(</span><span class="n">cargo__in</span><span class="o">=</span><span class="n">cargos</span><span class="p">)</span> <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">cargo_sobreposto__in</span><span class="o">=</span><span class="n">cargos</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">codigo_dre</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_dre</span><span class="o">=</span><span class="n">codigo_dre</span><span class="p">)</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"codigo_escola"</span><span class="p">,</span> <span class="s2">"nome_turma"</span><span class="p">,</span> <span class="s2">"codigo_turma"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">_turma_atribuida_ue_row</span><span class="p">(</span><span class="n">turma</span><span class="p">)</span> <span class="k">for</span> <span class="n">turma</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">]</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_disciplina_turma_atribuida_ue_row</span><span class="p">(</span>
+    <span class="n">disciplina</span><span class="p">:</span> <span class="n">DisciplinaTurmaAtribuidaUe</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta disciplina atribuída por vínculo com UE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        disciplina: Registro de disciplina atribuída por UE.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário no contrato de disciplinas por UE.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"descricao"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+        <span class="s2">"codigo_componente_curricular_pai"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">disciplina</span><span class="o">.</span><span class="n">codigo_componente_curricular_pai</span>
+        <span class="p">),</span>
+        <span class="s2">"regencia"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">regencia</span><span class="p">,</span>
+        <span class="s2">"codigo_componente_territorio_saber"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">disciplina</span><span class="o">.</span><span class="n">codigo_componente_territorio_saber</span>
+        <span class="p">),</span>
+        <span class="s2">"territorio_saber"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">territorio_saber</span><span class="p">,</span>
+        <span class="s2">"tipo_escola"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">tipo_escola</span><span class="p">,</span>
+        <span class="s2">"turma_codigo"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">codigo_turma</span><span class="p">,</span>
+        <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">ano_letivo</span><span class="p">,</span>
+        <span class="s2">"professor"</span><span class="p">:</span> <span class="n">disciplina</span><span class="o">.</span><span class="n">usuario_rf</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<div class="viewcode-block" id="disciplinas_turmas_atribuidas_ue">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.disciplinas_turmas_atribuidas_ue">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">disciplinas_turmas_atribuidas_ue</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">cargos</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista disciplinas atribuídas por vínculo com unidade educacional.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">        codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">        cargos: Códigos de cargos usados como filtro opcional.</span>
+<span class="sd">        codigo_dre: Código EOL da DRE usada como filtro opcional.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Disciplinas da turma atribuídas ao usuário pelos vínculos com UE.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">DisciplinaTurmaAtribuidaUe</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">usuario_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="o">=</span><span class="n">codigo_turma</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">cargos</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Q</span><span class="p">(</span><span class="n">cargo__in</span><span class="o">=</span><span class="n">cargos</span><span class="p">)</span> <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">cargo_sobreposto__in</span><span class="o">=</span><span class="n">cargos</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">codigo_dre</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_dre</span><span class="o">=</span><span class="n">codigo_dre</span><span class="p">)</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"descricao_componente_curricular"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">_disciplina_turma_atribuida_ue_row</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">]</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_linhas_abrangencia_atribuicoes</span><span class="p">(</span><span class="n">qs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Extrai linhas únicas de abrangência a partir de atribuições.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qs: Atribuições vigentes do funcionário.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Linhas únicas por unidade educacional e turma.</span>
+<span class="sd">    """</span>
+    <span class="n">vistas</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+        <span class="n">codigo_turma</span> <span class="o">=</span> <span class="n">_codigo_turma</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span>
+        <span class="n">chave</span> <span class="o">=</span> <span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">chave</span> <span class="ow">in</span> <span class="n">vistas</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistas</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chave</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo_unidade_educacao"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+                <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="n">codigo_turma</span><span class="p">,</span>
+                <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_turma_escola</span><span class="p">,</span>
+                <span class="s2">"ano"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">ano_escolar</span><span class="p">,</span>
+                <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">,</span>
+                <span class="s2">"codigo_dre"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_dre</span><span class="p">,</span>
+                <span class="s2">"nome_dre"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">nome_dre</span><span class="p">,</span>
+                <span class="s2">"abreviacao_dre"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">abreviacao_dre</span><span class="p">,</span>
+                <span class="s2">"nome_unidade_educacional"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">nome_unidade_educacional</span><span class="p">,</span>
+                <span class="s2">"codigo_tipo_escola"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_tipo_escola</span><span class="p">,</span>
+                <span class="s2">"codigo_tipo_turma"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_tipo_turma</span><span class="p">,</span>
+                <span class="s2">"modalidade"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">modalidade</span><span class="p">,</span>
+                <span class="s2">"codigo_modalidade"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_modalidade</span><span class="p">,</span>
+                <span class="s2">"semestre"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">semestre</span><span class="p">,</span>
+                <span class="s2">"duracao_turno"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">duracao_turno</span><span class="p">,</span>
+                <span class="s2">"tipo_turno"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">tipo_turno</span><span class="p">,</span>
+                <span class="s2">"data_inicio_turma"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">dt_inicio_turma</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">rows</span>
+
+
+<div class="viewcode-block" id="buscar_professores_escola">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_professores_escola">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_professores_escola</span><span class="p">(</span><span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista professores de uma escola por ano letivo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        ano_letivo: Ano letivo usado no filtro de atribuições.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de professores vinculados à escola no ano informado.</span>
+<span class="sd">    """</span>
+    <span class="n">professores</span> <span class="o">=</span> <span class="n">ProfessorEscolaAno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_escola</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="n">ano_letivo</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"id"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="n">_professor_escola_ano_row</span><span class="p">(</span><span class="n">professor</span><span class="p">)</span> <span class="k">for</span> <span class="n">professor</span> <span class="ow">in</span> <span class="n">professores</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_turmas_professor_escola_ano">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_turmas_professor_escola_ano">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_turmas_professor_escola_ano</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista turmas do professor em uma escola por ano.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        ano_letivo: Ano letivo usado no filtro de atribuições.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de turmas efetivas e externas do professor.</span>
+<span class="sd">    """</span>
+    <span class="n">efetivas_qs</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_rf</span><span class="p">:</span>
+        <span class="n">efetivas_qs</span> <span class="o">=</span> <span class="n">efetivas_qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">efetivas_qs</span> <span class="o">=</span> <span class="n">efetivas_qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turmas_anos_iniciais</span><span class="p">())</span>
+
+    <span class="n">efetivas</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+        <span class="n">_vigentes_em</span><span class="p">(</span>
+            <span class="n">efetivas_qs</span><span class="p">,</span>
+            <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">(),</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">externas_qs</span> <span class="o">=</span> <span class="n">AtribuicaoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_rf</span><span class="p">:</span>
+        <span class="n">externas_qs</span> <span class="o">=</span> <span class="n">externas_qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">contrato_externo__pessoa__cpf</span><span class="o">=</span><span class="n">codigo_rf</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">externas_qs</span> <span class="o">=</span> <span class="n">externas_qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turmas_anos_iniciais</span><span class="p">())</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">_turma_row</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span> <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">efetivas</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span>
+        <span class="n">_turma_row_externo</span><span class="p">(</span><span class="n">ae</span><span class="p">)</span> <span class="k">for</span> <span class="n">ae</span> <span class="ow">in</span> <span class="n">externas_qs</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_turmas_professor">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_turmas_professor">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_turmas_professor</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista os vínculos-âncora de turma atribuídos ao professor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de vínculos-âncora efetivos do professor.</span>
+<span class="sd">    """</span>
+    <span class="n">efetivas</span> <span class="o">=</span> <span class="n">_vigentes_em</span><span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">(),</span>
+    <span class="p">)</span>
+    <span class="n">vistas</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">efetivas</span><span class="p">:</span>
+        <span class="n">chave</span> <span class="o">=</span> <span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">,</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">chave</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">vistas</span><span class="p">:</span>
+            <span class="n">vistas</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chave</span><span class="p">)</span>
+            <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_ancora_row</span><span class="p">(</span><span class="n">aa</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_turmas_professor_ano">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_turmas_professor_ano">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_turmas_professor_ano</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas ao professor por ano.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        ano_letivo: Ano letivo usado no filtro de atribuições.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de turmas atribuídas ao professor no ano informado.</span>
+<span class="sd">    """</span>
+    <span class="n">efetivas</span> <span class="o">=</span> <span class="n">_vigentes_em</span><span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">(),</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="n">externas</span> <span class="o">=</span> <span class="n">AtribuicaoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">contrato_externo__pessoa__cpf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"contrato_externo__pessoa"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">_turma_atribuida_ano_row</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span> <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">efetivas</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span>
+        <span class="n">_turma_atribuida_ano_row_externo</span><span class="p">(</span><span class="n">ae</span><span class="p">)</span> <span class="k">for</span> <span class="n">ae</span> <span class="ow">in</span> <span class="n">externas</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_turmas_professor_todos_anos">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_turmas_professor_todos_anos">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_turmas_professor_todos_anos</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas ao professor sem recorte de ano letivo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional ou CPF do professor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Atribuições de turma de todos os anos letivos.</span>
+<span class="sd">    """</span>
+    <span class="n">efetivas</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="n">externas</span> <span class="o">=</span> <span class="n">AtribuicaoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">contrato_externo__pessoa__cpf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"contrato_externo__pessoa"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">_turma_atribuida_ano_row</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span> <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">efetivas</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span>
+        <span class="n">_turma_atribuida_ano_row_externo</span><span class="p">(</span><span class="n">ae</span><span class="p">)</span> <span class="k">for</span> <span class="n">ae</span> <span class="ow">in</span> <span class="n">externas</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_abrangencia_funcionario_perfil">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_abrangencia_funcionario_perfil">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_abrangencia_funcionario_perfil</span><span class="p">(</span>
+    <span class="n">login</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">_id_perfil</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Lista abrangência de turmas do funcionário.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        login: Login do funcionário.</span>
+<span class="sd">        _id_perfil: Perfil recebido na consulta.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Abrangência organizada por DRE, UE e turma.</span>
+<span class="sd">    """</span>
+    <span class="n">efetivas</span> <span class="o">=</span> <span class="n">_vigentes_abrangencia_professor</span><span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">login</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">(),</span>
+    <span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">_linhas_abrangencia_atribuicoes</span><span class="p">(</span><span class="n">efetivas</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_abrangencia_retorno</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="obter_nome_rf">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.obter_nome_rf">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">obter_nome_rf</span><span class="p">(</span><span class="n">rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna nome do professor por RF.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rf: Registro funcional do professor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Nome do professor encontrado ou ``None``.</span>
+<span class="sd">    """</span>
+    <span class="n">prof</span> <span class="o">=</span> <span class="n">Professor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf</span><span class="o">=</span><span class="n">rf</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">prof</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_professor_com_atribuicao_aula_ano_letivo">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_professor_com_atribuicao_aula_ano_letivo">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_professor_com_atribuicao_aula_ano_letivo</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna professor com atribuição de aula.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        ano_letivo: Ano letivo da data de atribuição de aula.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados básicos do professor encontrado ou ``None``.</span>
+<span class="sd">    """</span>
+    <span class="n">atribuicao</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dt_atribuicao_aula__lte</span><span class="o">=</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__year</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">atribuicao</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">prof</span> <span class="o">=</span> <span class="n">atribuicao</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">),</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_por_rf_dre_ue">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_por_rf_dre_ue">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_por_rf_dre_ue</span><span class="p">(</span>
+    <span class="n">rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">ue_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">buscar_outros_cargos</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna dados do professor, com fallback externo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rf: Registro funcional (ou CPF, no caso externo) do professor.</span>
+<span class="sd">        ano_letivo: Ano letivo de referência.</span>
+<span class="sd">        ue_id: Código opcional da UE para escopo.</span>
+<span class="sd">        buscar_outros_cargos: Quando ``True``, ignora o escopo de DRE/UE.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados básicos do professor encontrado ou ``None``.</span>
+<span class="sd">    """</span>
+    <span class="n">atribuicoes</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">rf</span><span class="p">,</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">buscar_outros_cargos</span><span class="p">:</span>
+        <span class="n">atribuicoes</span> <span class="o">=</span> <span class="n">_filtrar_localizacao</span><span class="p">(</span><span class="n">atribuicoes</span><span class="p">,</span> <span class="n">ue_id</span><span class="p">)</span>
+    <span class="n">aa</span> <span class="o">=</span> <span class="n">atribuicoes</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">aa</span><span class="p">:</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span> <span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">)}</span>
+
+    <span class="n">contrato</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">ContratoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">pessoa__cpf</span><span class="o">=</span><span class="n">rf</span><span class="p">,</span> <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"pessoa"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">contrato</span><span class="p">:</span>
+        <span class="n">pessoa</span> <span class="o">=</span> <span class="n">contrato</span><span class="o">.</span><span class="n">pessoa</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">pessoa</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span> <span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">pessoa</span><span class="p">)}</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="autocomplete_professores">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.autocomplete_professores">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">autocomplete_professores</span><span class="p">(</span>
+    <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">ue_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">nome</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista professores para autocomplete.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ano_letivo: Ano letivo usado no filtro de atribuições.</span>
+<span class="sd">        ue_id: Código opcional da unidade educacional.</span>
+<span class="sd">        nome: Trecho opcional do nome do professor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista limitada de professores encontrados para autocomplete.</span>
+<span class="sd">    """</span>
+    <span class="c1"># NOSONAR # TODO: dt_disponibilizacao_aulas__isnull=True é um proxy para</span>
+    <span class="c1"># atribuição ativa. O filtro pode restringir codigos_turma_escola</span>
+    <span class="c1"># com status in ('A','O') e dt_fim nulo.</span>
+    <span class="n">efetivos</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">cargo_base__dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+
+    <span class="n">externos</span> <span class="o">=</span> <span class="n">AtribuicaoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">dt_disponibilizacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">contrato_externo__dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"contrato_externo__pessoa"</span><span class="p">)</span>
+
+    <span class="n">efetivos</span> <span class="o">=</span> <span class="n">_filtrar_localizacao</span><span class="p">(</span><span class="n">efetivos</span><span class="p">,</span> <span class="n">ue_id</span><span class="p">)</span>
+    <span class="n">externos</span> <span class="o">=</span> <span class="n">_filtrar_localizacao</span><span class="p">(</span><span class="n">externos</span><span class="p">,</span> <span class="n">ue_id</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">nome</span><span class="p">:</span>
+        <span class="n">efetivos</span> <span class="o">=</span> <span class="n">efetivos</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__nome__istartswith</span><span class="o">=</span><span class="n">nome</span>
+        <span class="p">)</span>
+        <span class="n">externos</span> <span class="o">=</span> <span class="n">externos</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">contrato_externo__pessoa__nome__istartswith</span><span class="o">=</span><span class="n">nome</span>
+        <span class="p">)</span>
+
+    <span class="c1"># União dedup por RF/CPF; ordena por nome asc e corta em 10.</span>
+    <span class="n">candidatos</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">efetivos</span><span class="p">:</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+        <span class="n">candidatos</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">ae</span> <span class="ow">in</span> <span class="n">externos</span><span class="p">:</span>
+        <span class="n">pessoa</span> <span class="o">=</span> <span class="n">ae</span><span class="o">.</span><span class="n">contrato_externo</span><span class="o">.</span><span class="n">pessoa</span>
+        <span class="n">candidatos</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">pessoa</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">pessoa</span><span class="p">))</span>
+
+    <span class="n">ordenados</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">candidatos</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">rf</span><span class="p">,</span> <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">nome_servidor</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">rf</span><span class="p">,</span> <span class="n">nome_servidor</span> <span class="ow">in</span> <span class="n">ordenados</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_por_lista_rf">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.buscar_por_lista_rf">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_por_lista_rf</span><span class="p">(</span><span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">lista_rf</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista professores por RFs e ano letivo, um item por turma atribuída.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ano_letivo: Ano letivo usado no filtro de atribuições.</span>
+<span class="sd">        lista_rf: Lista de registros funcionais pesquisados.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de ``{codigo_rf, nome}`` com um item por turma vigente.</span>
+<span class="sd">        O mesmo professor aparece N vezes se tiver N turmas.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">cargo_base__professor__codigo_rf__in</span><span class="o">=</span><span class="n">lista_rf</span><span class="p">,</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="n">vistas</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+        <span class="n">chave</span> <span class="o">=</span> <span class="p">(</span><span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">chave</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">vistas</span><span class="p">:</span>
+            <span class="n">vistas</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chave</span><span class="p">)</span>
+            <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span><span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span> <span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">)}</span>
+            <span class="p">)</span>
+    <span class="c1"># NOSONAR # TODO: evitar retorno de dados por turma do professor.</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="verificar_validade">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.verificar_validade">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">verificar_validade</span><span class="p">(</span><span class="n">rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o professor possui vínculo ativo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rf: Registro funcional do professor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando existe cargo ativo para o professor.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+        <span class="n">CargoBaseServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">professor__codigo_rf</span><span class="o">=</span><span class="n">rf</span><span class="p">,</span>
+            <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">_CD_CARGO_PROF_INFANTIL_FUND_I</span> <span class="o">=</span> <span class="mi">3239</span>
+
+
+<div class="viewcode-block" id="unidades_com_atribuicao_valida">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.unidades_com_atribuicao_valida">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unidades_com_atribuicao_valida</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista as UEs onde o professor tem atribuição válida.</span>
+
+<span class="sd">    Considera cargo 3239 (PROF.ED.INF.E ENS.FUND.I), atribuição não</span>
+<span class="sd">    cancelada e nomeação vigente.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Códigos EOL das unidades com atribuição válida, sem repetição.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">cargo_base__codigo_cargo</span><span class="o">=</span><span class="n">_CD_CARGO_PROF_INFANTIL_FUND_I</span><span class="p">,</span>
+            <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">cargo_base__dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">values_list</span><span class="p">(</span><span class="s2">"codigo_unidade_educacao"</span><span class="p">,</span> <span class="n">flat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">distinct</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="atribuicao_status">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.atribuicao_status">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">atribuicao_status</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna status de atribuição do professor na turma.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados de status da atribuição mais recente na turma.</span>
+<span class="sd">    """</span>
+    <span class="n">aa</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__gte</span><span class="o">=</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">())</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"-dt_atribuicao_aula"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">aa</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"ano_atribuicao"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"data_cancelamento"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"data_disponibilizacao"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"data_fim_turma"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"codigo_motivo_disponibilizacao"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"ano_atribuicao"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">,</span>
+        <span class="s2">"data_cancelamento"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_cancelamento</span><span class="p">),</span>
+        <span class="s2">"data_disponibilizacao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_disponibilizacao_aulas</span><span class="p">),</span>
+        <span class="s2">"data_fim_turma"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_fim_turma</span><span class="p">),</span>
+        <span class="s2">"codigo_motivo_disponibilizacao"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_motivo_disponibilizacao</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="atribuicao_verificar_data">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.atribuicao_verificar_data">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">atribuicao_verificar_data</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">data_consulta</span><span class="p">:</span> <span class="n">date</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor em uma data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        data_consulta: Data opcional usada para validar vigência.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando existe atribuição compatível com os filtros.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">data_consulta</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">_vigentes_em</span><span class="p">(</span><span class="n">qs</span><span class="p">,</span> <span class="n">data_consulta</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">qs</span><span class="o">.</span><span class="n">exists</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="atribuicao_disciplina_data">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.atribuicao_disciplina_data">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">atribuicao_disciplina_data</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">data_consulta</span><span class="p">:</span> <span class="n">date</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor em turma e disciplina.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        disciplina_id: Código do componente curricular.</span>
+<span class="sd">        data_consulta: Data opcional usada para validar vigência.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando existe atribuição para turma e disciplina.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="n">codigo_componente_curricular</span><span class="o">=</span><span class="n">disciplina_id</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">data_consulta</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">_vigentes_em_ponto_no_tempo</span><span class="p">(</span><span class="n">qs</span><span class="p">,</span> <span class="n">data_consulta</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">qs</span><span class="o">.</span><span class="n">exists</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="atribuicao_disciplina_datatick">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.atribuicao_disciplina_datatick">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">atribuicao_disciplina_datatick</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">data_tick</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição usando data em ticks.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        disciplina_id: Código do componente curricular.</span>
+<span class="sd">        data_tick: Data opcional em ticks.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando existe atribuição vigente na data informada.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        OverflowError: Quando os ticks informados excedem uma data válida.</span>
+<span class="sd">    """</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">ticks_to_date</span><span class="p">(</span><span class="n">data_tick</span><span class="p">)</span> <span class="k">if</span> <span class="n">data_tick</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">atribuicao_disciplina_data</span><span class="p">(</span>
+        <span class="n">codigo_rf</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">,</span> <span class="n">disciplina_id</span><span class="p">,</span> <span class="n">data</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="atribuicao_recorrencia_datas">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.atribuicao_recorrencia_datas">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">atribuicao_recorrencia_datas</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">data_ticks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista resultados de atribuição para datas recorrentes.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        disciplina_id: Código do componente curricular.</span>
+<span class="sd">        data_ticks: Lista de datas em ticks para validação.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista com o resultado de persistência para cada data.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        OverflowError: Quando algum tick informado excede uma data válida.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"data"</span><span class="p">:</span> <span class="n">ticks_to_datetime_str</span><span class="p">(</span><span class="n">tick</span><span class="p">),</span>
+            <span class="s2">"pode_persistir"</span><span class="p">:</span> <span class="n">atribuicao_disciplina_data</span><span class="p">(</span>
+                <span class="n">codigo_rf</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">,</span> <span class="n">disciplina_id</span><span class="p">,</span> <span class="n">ticks_to_date</span><span class="p">(</span><span class="n">tick</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">tick</span> <span class="ow">in</span> <span class="n">data_ticks</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="atribuicao_turmas_lista">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.atribuicao_turmas_lista">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">atribuicao_turmas_lista</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">codigos_turma</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista status de atribuição para turmas informadas.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        disciplina_id: Código do componente curricular.</span>
+<span class="sd">        codigos_turma: Lista de códigos EOL das turmas.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de períodos de atribuição por turma encontrada.</span>
+<span class="sd">    """</span>
+    <span class="n">codigos</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">)</span> <span class="k">for</span> <span class="n">codigo_turma</span> <span class="ow">in</span> <span class="n">codigos_turma</span><span class="p">]</span>
+
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">aa</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">codigo_componente_curricular</span><span class="o">=</span><span class="n">disciplina_id</span><span class="p">,</span>
+            <span class="n">codigo_turma_escola__in</span><span class="o">=</span><span class="n">codigos</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="o">|</span> <span class="p">(</span>
+                <span class="n">Q</span><span class="p">(</span><span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="o">&amp;</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_motivo_disponibilizacao</span><span class="o">=</span><span class="n">_CD_MOTIVO_DISPONIBILIZACAO</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"dt_disponibilizacao_aulas"</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">aa</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">atribuicao</span> <span class="ow">in</span> <span class="n">aa</span><span class="p">:</span>
+            <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">atribuicao</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">),</span>
+                    <span class="s2">"data_disponibilizacao_aulas"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span>
+                        <span class="n">atribuicao</span><span class="o">.</span><span class="n">dt_disponibilizacao_aulas</span>
+                    <span class="p">),</span>
+                    <span class="s2">"data_atribuicao_aula"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span>
+                        <span class="n">atribuicao</span><span class="o">.</span><span class="n">dt_atribuicao_aula</span>
+                    <span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+    <span class="n">ae</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">AtribuicaoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">contrato_externo__pessoa__cpf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">codigo_componente_curricular</span><span class="o">=</span><span class="n">disciplina_id</span><span class="p">,</span>
+            <span class="n">codigo_turma_escola__in</span><span class="o">=</span><span class="n">codigos</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao__isnull</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="o">|</span> <span class="p">(</span>
+                <span class="n">Q</span><span class="p">(</span><span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="o">&amp;</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_motivo_disponibilizacao_externo</span><span class="o">=</span><span class="p">(</span>
+                <span class="n">_CD_MOTIVO_DISPONIBILIZACAO_EXTERNO_FIM_ANO_LETIVO</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"dt_disponibilizacao"</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">atribuicao</span> <span class="ow">in</span> <span class="n">ae</span><span class="p">:</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">atribuicao</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">),</span>
+                <span class="s2">"data_disponibilizacao_aulas"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span>
+                    <span class="n">atribuicao</span><span class="o">.</span><span class="n">dt_disponibilizacao</span>
+                <span class="p">),</span>
+                <span class="s2">"data_atribuicao_aula"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">atribuicao</span><span class="o">.</span><span class="n">dt_atribuicao</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="atribuicao_periodo">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.atribuicao_periodo">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">atribuicao_periodo</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">componente_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">dt_inicio</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span>
+    <span class="n">dt_fim</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor em período.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional do professor.</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        componente_id: Código do componente curricular.</span>
+<span class="sd">        dt_inicio: Data inicial do período consultado.</span>
+<span class="sd">        dt_fim: Data final do período consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando existe atribuição sobreposta ao período.</span>
+<span class="sd">    """</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="n">codigo_componente_curricular</span><span class="o">=</span><span class="n">componente_id</span><span class="p">,</span>
+        <span class="n">dt_atribuicao_aula__lte</span><span class="o">=</span><span class="n">dt_fim</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+        <span class="n">base</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__gte</span><span class="o">=</span><span class="n">dt_inicio</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="ow">or</span> <span class="n">base</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="professores_atribuidos_turma_disc">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.professores_atribuidos_turma_disc">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">professores_atribuidos_turma_disc</span><span class="p">(</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">data_tick</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista professores atribuídos à turma e disciplina usando tick.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        disciplina_id: Código do componente curricular.</span>
+<span class="sd">        data_tick: Data opcional em ticks usada para validar vigência.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de professores efetivos e externos atribuídos.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        OverflowError: Quando os ticks informados excedem uma data válida.</span>
+<span class="sd">    """</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">ticks_to_date</span><span class="p">(</span><span class="n">data_tick</span><span class="p">)</span> <span class="k">if</span> <span class="n">data_tick</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">professores_atribuidos_turma_disc_data</span><span class="p">(</span>
+        <span class="n">codigo_turma</span><span class="p">,</span> <span class="n">disciplina_id</span><span class="p">,</span> <span class="n">data</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="professores_atribuidos_turma_disc_data">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.professores_atribuidos_turma_disc_data">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">professores_atribuidos_turma_disc_data</span><span class="p">(</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">date</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista professores atribuídos à turma e disciplina.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        disciplina_id: Código do componente curricular.</span>
+<span class="sd">        data: Data opcional usada para validar vigência.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de professores efetivos e externos atribuídos.</span>
+<span class="sd">    """</span>
+    <span class="n">efetivas</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_componente_curricular</span><span class="o">=</span><span class="n">disciplina_id</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">efetivas</span> <span class="o">=</span> <span class="n">_vigentes_em</span><span class="p">(</span><span class="n">efetivas</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">efetivas</span><span class="p">:</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">),</span>
+                <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_turma_escola</span><span class="p">,</span>
+                <span class="s2">"data_inicio_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_atribuicao_aula</span><span class="p">),</span>
+                <span class="s2">"data_fim_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_disponibilizacao_aulas</span><span class="p">),</span>
+                <span class="s2">"data_fim_turma"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">dt_fim_turma</span><span class="p">),</span>
+                <span class="s2">"ano_atribuicao"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">,</span>
+                <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">disciplina_id</span><span class="p">),</span>
+                <span class="s2">"disciplina_nome"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="p">,</span>
+                <span class="s2">"disciplinas_agrupadas_ids"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="n">externas</span> <span class="o">=</span> <span class="n">AtribuicaoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_componente_curricular</span><span class="o">=</span><span class="n">disciplina_id</span><span class="p">,</span>
+        <span class="n">codigo_turma_escola</span><span class="o">=</span><span class="n">codigo_turma</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"contrato_externo__pessoa"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">externas</span> <span class="o">=</span> <span class="n">externas</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dt_atribuicao__lte</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao__gte</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">ae</span> <span class="ow">in</span> <span class="n">externas</span><span class="p">:</span>
+        <span class="n">pessoa</span> <span class="o">=</span> <span class="n">ae</span><span class="o">.</span><span class="n">contrato_externo</span><span class="o">.</span><span class="n">pessoa</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo_turma"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">),</span>
+                <span class="s2">"ano_letivo"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"nome_turma"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"data_inicio_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_atribuicao</span><span class="p">),</span>
+                <span class="s2">"data_fim_atribuicao"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_disponibilizacao</span><span class="p">),</span>
+                <span class="s2">"data_fim_turma"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">dt_fim_turma</span><span class="p">),</span>
+                <span class="s2">"ano_atribuicao"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">ano_atribuicao</span><span class="p">,</span>
+                <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">pessoa</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+                <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">disciplina_id</span><span class="p">),</span>
+                <span class="s2">"disciplina_nome"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"disciplinas_agrupadas_ids"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">pessoa</span><span class="p">),</span>
+                <span class="s2">"atribuicao_externa"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="titular_por_turma_disciplina">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.titular_por_turma_disciplina">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">titular_por_turma_disciplina</span><span class="p">(</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">codigo_componente</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna professor titular por turma e componente.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        codigo_componente: Código do componente curricular.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados do professor titular encontrado ou ``None``.</span>
+<span class="sd">    """</span>
+    <span class="n">aa</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_componente_curricular</span><span class="o">=</span><span class="n">codigo_componente</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"-dt_atribuicao_aula"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">aa</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">prof</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"professor_rf"</span><span class="p">:</span> <span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">),</span>
+        <span class="s2">"disciplina"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">),</span>
+        <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">codigo_componente</span><span class="p">),</span>
+        <span class="s2">"disciplinas_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">codigo_componente</span><span class="p">),</span>
+        <span class="s2">"turma_id"</span><span class="p">:</span> <span class="n">codigo_turma</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="titulares_por_turmas">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.titulares_por_turmas">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">titulares_por_turmas</span><span class="p">(</span><span class="n">codigos_turmas</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista professores titulares por turmas.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigos_turmas: Lista de códigos EOL das turmas.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de professores titulares das turmas informadas.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_vigentes_em</span><span class="p">(</span><span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="p">,</span> <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">())</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"-dt_atribuicao_aula"</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">filtro</span> <span class="o">=</span> <span class="n">Q</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">codigo_turma</span> <span class="ow">in</span> <span class="n">codigos_turmas</span><span class="p">:</span>
+        <span class="n">filtro</span> <span class="o">|=</span> <span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">)</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">filtro</span><span class="p">)</span> <span class="k">if</span> <span class="n">filtro</span> <span class="k">else</span> <span class="n">qs</span><span class="o">.</span><span class="n">none</span><span class="p">()</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+        <span class="n">comp</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"professor_rf"</span><span class="p">:</span> <span class="n">prof</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">),</span>
+                <span class="s2">"disciplina"</span><span class="p">:</span> <span class="p">(</span>
+                    <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span>
+                    <span class="k">else</span> <span class="kc">None</span>
+                <span class="p">),</span>
+                <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="n">comp</span><span class="p">,</span>
+                <span class="s2">"disciplinas_id"</span><span class="p">:</span> <span class="n">comp</span><span class="p">,</span>
+                <span class="s2">"turma_id"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_normalizar_titulares</span><span class="p">(</span><span class="n">resultado</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Remove titulares sem disciplina e ordena pelo código curricular.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        resultado: Titulares encontrados nas fontes efetiva e externa.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Titulares válidos ordenados numericamente pela disciplina.</span>
+<span class="sd">    """</span>
+    <span class="n">titulares_validos</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">resultado</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span>
+        <span class="n">titulares_validos</span><span class="p">,</span>
+        <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">"disciplina_id"</span><span class="p">]),</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_remover_titulares_duplicados</span><span class="p">(</span><span class="n">resultado</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Remove linhas duplicadas preservando a primeira ocorrência.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        resultado: Titulares projetados no contrato da API.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Titulares distintos por todos os campos publicados.</span>
+<span class="sd">    """</span>
+    <span class="n">titulares_unicos</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">resultado</span><span class="p">:</span>
+        <span class="n">chave</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"professor_rf"</span><span class="p">),</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"nome_professor"</span><span class="p">),</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"disciplina"</span><span class="p">),</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">),</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"disciplinas_id"</span><span class="p">),</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"turma_id"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">titulares_unicos</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">chave</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">titulares_unicos</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+
+<div class="viewcode-block" id="titulares_por_turma">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.titulares_por_turma">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">titulares_por_turma</span><span class="p">(</span>
+    <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista titulares por turma.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_turma: CodigoEOL da turma.</span>
+<span class="sd">        codigo_rf: Registro funcional opcional do professor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de professores titulares conforme os filtros informados.</span>
+<span class="sd">    """</span>
+    <span class="n">ano_atual</span> <span class="o">=</span> <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span><span class="o">.</span><span class="n">year</span>
+    <span class="n">aa_qs</span> <span class="o">=</span> <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">),</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_atual</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">codigo_motivo_disponibilizacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">cargo_base__dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">cargo_base__dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="n">ae_qs</span> <span class="o">=</span> <span class="n">AtribuicaoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">_filtro_turma</span><span class="p">(</span><span class="n">codigo_turma</span><span class="p">),</span>
+        <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">ano_atual</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">codigo_motivo_disponibilizacao_externo__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">contrato_externo__dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"contrato_externo__pessoa"</span><span class="p">)</span>
+
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"professor_rf"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="p">),</span>
+            <span class="s2">"disciplina"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span>
+                <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">),</span>
+            <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">,</span>
+            <span class="s2">"disciplinas_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
+            <span class="s2">"turma_id"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">aa_qs</span>
+    <span class="p">]</span>
+    <span class="n">componentes_efetivos</span> <span class="o">=</span> <span class="p">{</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span> <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">aa_qs</span><span class="p">}</span>
+    <span class="n">resultado</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">"professor_rf"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">contrato_externo</span><span class="o">.</span><span class="n">pessoa</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+            <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">contrato_externo</span><span class="o">.</span><span class="n">pessoa</span><span class="p">),</span>
+            <span class="s2">"disciplina"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="n">ae</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">ae</span><span class="o">.</span><span class="n">descricao_componente_curricular</span>
+                <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">),</span>
+            <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">,</span>
+            <span class="s2">"disciplinas_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">ae</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
+            <span class="s2">"turma_id"</span><span class="p">:</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_turma_escola</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">ae</span> <span class="ow">in</span> <span class="n">ae_qs</span>
+        <span class="k">if</span> <span class="n">ae</span><span class="o">.</span><span class="n">codigo_componente_curricular</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">componentes_efetivos</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_rf</span><span class="p">:</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">resultado</span> <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s2">"professor_rf"</span><span class="p">]</span> <span class="o">==</span> <span class="n">codigo_rf</span>
+        <span class="p">]</span>
+    <span class="k">return</span> <span class="n">_normalizar_titulares</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="titulares_por_ue">
+<a class="viewcode-back" href="../../../api.html#apps.professores.repositories.titulares_por_ue">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">titulares_por_ue</span><span class="p">(</span>
+    <span class="n">ue_codigo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">data_referencia</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista titulares por unidade educacional.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ue_codigo: CodigoEOL da unidade educacional.</span>
+<span class="sd">        data_referencia: Data usada para validar atribuições.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de professores titulares da unidade educacional.</span>
+<span class="sd">    """</span>
+    <span class="n">data_limite_disponibilizacao</span> <span class="o">=</span> <span class="n">date</span><span class="p">(</span><span class="n">data_referencia</span><span class="o">.</span><span class="n">year</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="n">aa_qs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">ue_codigo</span><span class="p">,</span>
+            <span class="n">ano_atribuicao</span><span class="o">=</span><span class="n">data_referencia</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+            <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dt_atribuicao_aula__lte</span><span class="o">=</span><span class="n">data_referencia</span><span class="p">,</span>
+            <span class="n">codigo_tipo_turma__isnull</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">codigo_tipo_turma</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__gte</span><span class="o">=</span><span class="n">data_limite_disponibilizacao</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"professor_rf"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="p">),</span>
+            <span class="s2">"disciplina"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span>
+                <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">),</span>
+            <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
+            <span class="s2">"disciplinas_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
+            <span class="s2">"turma_id"</span><span class="p">:</span> <span class="n">_codigo_turma</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">aa_qs</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">_normalizar_titulares</span><span class="p">(</span><span class="n">_remover_titulares_duplicados</span><span class="p">(</span><span class="n">resultado</span><span class="p">))</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">SME-IntegracaoEOL-Professores-Microsservico</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Ir" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navegação</h3>
+<p class="caption" role="heading"><span class="caption-text">Referência de código</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../funcionarios.html">Funcionários</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">Referência de código</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Código do módulo</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

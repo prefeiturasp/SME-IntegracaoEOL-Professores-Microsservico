@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Funcionários &#8212; SME-IntegracaoEOL Professores</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
+    <script src="_static/documentation_options.js?v=2346ddef"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/translations.js?v=71a39b36"></script>
+    <link rel="index" title="Índice" href="genindex.html" />
+    <link rel="search" title="Buscar" href="search.html" />
+    <link rel="next" title="Referência de código" href="api.html" />
+    <link rel="prev" title="SME-IntegracaoEOL Professores" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="funcionarios">
+<h1>Funcionários<a class="headerlink" href="#funcionarios" title="Link para este cabeçalho">¶</a></h1>
+<p>Os contratos de funcionários preservam a leitura de vínculos ativos de
+servidores e funcionários externos por unidade, cargo, perfil e filtros de
+busca.</p>
+<section id="identificacao-do-usuario">
+<h2>Identificação do usuário<a class="headerlink" href="#identificacao-do-usuario" title="Link para este cabeçalho">¶</a></h2>
+<p>Alguns contratos expõem o campo <code class="docutils literal notranslate"><span class="pre">login</span></code> para indicar o usuário associado ao
+funcionário. No legado, esse valor é preenchido a partir da Identidade
+corporativa; quando não há usuário associado, o campo pode ser nulo mesmo que o
+funcionário exista no EOL.</p>
+<p>Enquanto essa integração não estiver disponível neste microsserviço, o
+Transition Gateway é responsável por manter o formato de resposta esperado
+pelos consumidores. O microsserviço retorna os dados funcionais conhecidos e
+não infere ausência de usuário sem uma fonte de Identidade.</p>
+</section>
+<section id="usuarios-por-perfil">
+<h2>Usuários por perfil<a class="headerlink" href="#usuarios-por-perfil" title="Link para este cabeçalho">¶</a></h2>
+<p>Em <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/professores/funcionarios/perfis/{id_perfil}/</span></code>, a presença de
+<code class="docutils literal notranslate"><span class="pre">codigo_dre</span></code> indica a consulta por vínculos de funcionários na DRE. Nesse
+fluxo, os dados de cargo, função e vínculo são preservados.</p>
+<p>Quando a consulta recebe apenas <code class="docutils literal notranslate"><span class="pre">codigo_rf</span></code>, o legado busca o usuário por login
+na Identidade corporativa. Nesse fluxo, o retorno traz os dados básicos do
+usuário e os campos de vínculo permanecem com os valores padrão.</p>
+</section>
+<section id="cargos-por-registro-funcional">
+<h2>Cargos por registro funcional<a class="headerlink" href="#cargos-por-registro-funcional" title="Link para este cabeçalho">¶</a></h2>
+<p>A consulta de cargos por registro funcional retorna os vínculos funcionais
+ativos associados ao servidor. O retorno é consolidado para preservar os
+dados de cargo base, cargo sobreposto e função atividade sem recompor essas
+relações em tempo de resposta.</p>
+</section>
+<section id="conecta-formacao">
+<h2>Conecta Formação<a class="headerlink" href="#conecta-formacao" title="Link para este cabeçalho">¶</a></h2>
+<p>Os contratos do Conecta Formação usam os perfis do sistema correspondente no
+CoreSSO. Os contratos já existentes do SGP continuam filtrando os perfis do
+sistema SGP para evitar misturar usuários de sistemas diferentes na mesma
+resposta.</p>
+</section>
+<section id="professores-por-escola-e-ano">
+<h2>Professores por escola e ano<a class="headerlink" href="#professores-por-escola-e-ano" title="Link para este cabeçalho">¶</a></h2>
+<p>A consulta de professores por escola e ano retorna a visão materializada das
+atribuições da unidade educacional. Quando a origem possui mais de uma
+atribuição ativa para a mesma turma e componente, a escolha do professor é
+resolvida pela carga de referência para manter estabilidade no retorno.</p>
+<p>Essa estabilização evita que o microsserviço replique variações ocasionais da
+origem quando não há desempate explícito entre atribuições concorrentes.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">SME-IntegracaoEOL-Professores-Microsservico</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Ir" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navegação</h3>
+<p class="caption" role="heading"><span class="caption-text">Referência de código</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Funcionários</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#identificacao-do-usuario">Identificação do usuário</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usuarios-por-perfil">Usuários por perfil</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cargos-por-registro-funcional">Cargos por registro funcional</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conecta-formacao">Conecta Formação</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#professores-por-escola-e-ano">Professores por escola e ano</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Referência de código</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="capítulo anterior">SME-IntegracaoEOL Professores</a></li>
+      <li>Next: <a href="api.html" title="próximo capítulo">Referência de código</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/funcionarios.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

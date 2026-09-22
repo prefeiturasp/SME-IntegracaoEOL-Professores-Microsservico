@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>apps.funcionarios.repositories &#8212; SME-IntegracaoEOL Professores</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+    <script src="../../../_static/documentation_options.js?v=2346ddef"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/translations.js?v=71a39b36"></script>
+    <link rel="index" title="Índice" href="../../../genindex.html" />
+    <link rel="search" title="Buscar" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Código-fonte para apps.funcionarios.repositories</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Queries do domínio de funcionários."""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">django.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Case</span><span class="p">,</span>
+    <span class="n">Exists</span><span class="p">,</span>
+    <span class="n">F</span><span class="p">,</span>
+    <span class="n">IntegerField</span><span class="p">,</span>
+    <span class="n">OuterRef</span><span class="p">,</span>
+    <span class="n">Q</span><span class="p">,</span>
+    <span class="n">Value</span><span class="p">,</span>
+    <span class="n">When</span><span class="p">,</span>
+    <span class="n">Window</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">django.db.models.functions</span><span class="w"> </span><span class="kn">import</span> <span class="n">RowNumber</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">django.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">timezone</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.core.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">fmt_iso</span><span class="p">,</span> <span class="n">get_nome</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.professores.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AtribuicaoAula</span><span class="p">,</span>
+    <span class="n">CargoBaseServidor</span><span class="p">,</span>
+    <span class="n">ContratoExterno</span><span class="p">,</span>
+    <span class="n">FuncaoAtividadeCargoServidor</span><span class="p">,</span>
+    <span class="n">FuncionarioCargo</span><span class="p">,</span>
+    <span class="n">FuncionarioConectaFormacao</span><span class="p">,</span>
+    <span class="n">FuncionarioConectaModalidadeEscola</span><span class="p">,</span>
+    <span class="n">FuncionarioSistemaPerfil</span><span class="p">,</span>
+    <span class="n">FuncionarioUnidadeEducacional</span><span class="p">,</span>
+    <span class="n">FuncionarioVinculoFuncional</span><span class="p">,</span>
+    <span class="n">LotacaoServidor</span><span class="p">,</span>
+    <span class="n">Professor</span><span class="p">,</span>
+    <span class="n">UnidadeEducacional</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_GUID_VAZIO</span> <span class="o">=</span> <span class="s2">"00000000-0000-0000-0000-000000000000"</span>
+<span class="n">MENSAGEM_ERRO_LEGADO</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"Houve um comportamento inesperado do sistema. Por favor, contate a SME."</span>
+<span class="p">)</span>
+<span class="n">MENSAGEM_ERRO_PERFIL_SEM_DRE_RF</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"O código da Dre ou código rf/login deve ser informados."</span>
+<span class="p">)</span>
+<span class="n">MENSAGEM_SIGPAE_SEM_DADOS</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"Sem informações na base de dados para o Código Rf informado"</span>
+<span class="p">)</span>
+<span class="n">_UE_DRE_CACHE</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">_CODIGO_CARGO_SUPERVISOR</span> <span class="o">=</span> <span class="mi">3352</span>
+<span class="n">_CODIGOS_CARGOS_GESTAO_SIGPAE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">3085</span><span class="p">,</span>
+    <span class="mi">3352</span><span class="p">,</span>
+    <span class="mi">3360</span><span class="p">,</span>
+    <span class="mi">3379</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">_ChaveFuncionarioExterno</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="perfil_placeholder_invalido">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.perfil_placeholder_invalido">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">perfil_placeholder_invalido</span><span class="p">(</span><span class="n">id_perfil</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o perfil informado é um placeholder inválido.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        id_perfil: Identificador do perfil a validar.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando o perfil corresponde ao GUID vazio.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">id_perfil</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">_GUID_VAZIO</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_dre_de_ue</span><span class="p">(</span><span class="n">ue_codigo</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Obtém a DRE vinculada a uma unidade educacional.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ue_codigo: Código EOL da unidade educacional consultada.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Código EOL da DRE vinculada à UE, ou ``None`` quando não encontrada.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ue_codigo</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">ue_codigo</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_UE_DRE_CACHE</span><span class="p">:</span>
+        <span class="n">ue</span> <span class="o">=</span> <span class="n">UnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_ue</span><span class="o">=</span><span class="n">ue_codigo</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+        <span class="n">_UE_DRE_CACHE</span><span class="p">[</span><span class="n">ue_codigo</span><span class="p">]</span> <span class="o">=</span> <span class="n">ue</span><span class="o">.</span><span class="n">codigo_dre</span> <span class="k">if</span> <span class="n">ue</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">_UE_DRE_CACHE</span><span class="p">[</span><span class="n">ue_codigo</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_nome_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Obtém o nome exibido do funcionário.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionario: Funcionário usado para extração do nome.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Nome social quando preenchido; caso contrário, nome civil.</span>
+<span class="sd">    """</span>
+    <span class="n">nome_social</span> <span class="o">=</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">nome_social</span>
+    <span class="k">if</span> <span class="n">nome_social</span> <span class="ow">and</span> <span class="n">nome_social</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">nome_social</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">nome</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fmt_data_funcionario</span><span class="p">(</span><span class="n">valor</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Formata data no contrato legado de funcionários.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        valor: Data a ser formatada.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Data no formato legado, ou ``None`` quando ausente.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">valor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">valor</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%m/</span><span class="si">%d</span><span class="s2">/%Y 00:00:00"</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_func_row</span><span class="p">(</span>
+    <span class="n">funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">,</span>
+    <span class="n">usar_nome_social</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta a representação de funcionário da UE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionario: Funcionário usado para montar os dados.</span>
+<span class="sd">        usar_nome_social: Indica se o nome social deve ter prioridade.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário no formato de funcionários da UE.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="s2">"nome"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">_nome_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">usar_nome_social</span>
+            <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">nome</span><span class="p">)</span>
+        <span class="p">),</span>
+        <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+        <span class="s2">"data_inicio"</span><span class="p">:</span> <span class="n">_fmt_data_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">data_inicio</span><span class="p">),</span>
+        <span class="s2">"data_fim"</span><span class="p">:</span> <span class="n">_fmt_data_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">data_fim</span><span class="p">),</span>
+        <span class="s2">"cargo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">cargo</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">,</span>
+        <span class="s2">"codigo_cargo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_cargo</span><span class="p">,</span>
+        <span class="s2">"codigo_tipo_funcao_atividade"</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_tipo_funcao_atividade</span> <span class="ow">or</span> <span class="mi">0</span>
+        <span class="p">),</span>
+        <span class="s2">"esta_afastado"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">esta_afastado</span><span class="p">,</span>
+        <span class="s2">"funcao_externo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">funcao_externo</span><span class="p">,</span>
+        <span class="s2">"tipo_funcao_externo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">tipo_funcao_externo</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_usuario_sgp_row</span><span class="p">(</span>
+    <span class="n">funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">,</span>
+    <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_funcao_atividade</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta funcionário SGP a partir do vínculo consolidado.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionario: Funcionário usado para montar os dados.</span>
+<span class="sd">        codigo_dre: DRE usada na consulta.</span>
+<span class="sd">        codigo_funcao_atividade: Função usada quando encontrada no conjunto.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dicionário de funcionário SGP.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">codigo_funcao_atividade</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">codigo_funcao_atividade</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">origem_vinculo</span> <span class="o">==</span> <span class="s2">"funcao_atividade"</span><span class="p">:</span>
+            <span class="n">codigo_funcao_atividade</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_tipo_funcao_atividade</span> <span class="ow">or</span> <span class="mi">0</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="s2">"login"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">nome</span><span class="p">),</span>
+        <span class="s2">"codigo_dre"</span><span class="p">:</span> <span class="n">codigo_dre</span> <span class="ow">or</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="s2">"codigo_ue"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="s2">"cd_cargo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_cargo</span><span class="p">,</span>
+        <span class="s2">"codigo_funcao_atividade"</span><span class="p">:</span> <span class="n">codigo_funcao_atividade</span><span class="p">,</span>
+        <span class="s2">"funcao_externo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">funcao_externo</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"tipo_funcao_externo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">tipo_funcao_externo</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_funcionarios_sgp_por_dre_qs</span><span class="p">(</span>
+    <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">nome_servidor_param</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">busca_por_prefixo_ue</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Filtra vínculos consolidados por DRE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_dre: Código EOL da DRE usada no filtro.</span>
+<span class="sd">        codigo_ue: Código EOL da unidade usada no filtro.</span>
+<span class="sd">        codigo_rf: RF usado no filtro.</span>
+<span class="sd">        nome_servidor_param: Trecho do nome usado no filtro.</span>
+<span class="sd">        busca_por_prefixo_ue: Indica busca por unidades do agrupamento da DRE.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Vínculos compatíveis com os filtros.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">codigo_ue</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_ue</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">busca_por_prefixo_ue</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_ue__startswith</span><span class="o">=</span><span class="n">codigo_dre</span><span class="p">[:</span><span class="mi">4</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_dre</span><span class="o">=</span><span class="n">codigo_dre</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">codigo_rf</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nome_servidor_param</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">nome__icontains</span><span class="o">=</span><span class="n">nome_servidor_param</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">data_fim__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_lotacoes_ativas</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna lotações ativas.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lotações sem data de fim.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">LotacaoServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">dt_fim__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_deduplicar_funcionarios_por_rf</span><span class="p">(</span><span class="n">rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Remove funcionários duplicados pelo RF.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rows: Funcionários ordenados para deduplicação.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista com a primeira ocorrência de cada RF.</span>
+<span class="sd">    """</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">vistos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">codigo_rf</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">"codigo_rf"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">codigo_rf</span> <span class="ow">in</span> <span class="n">vistos</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistos</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_deduplicar_modelos_por_rf</span><span class="p">(</span>
+    <span class="n">funcionarios</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">FuncionarioUnidadeEducacional</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Remove modelos duplicados pelo RF.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionarios: Funcionários considerados na seleção.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista sem repetição de RF.</span>
+<span class="sd">    """</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">vistos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">funcionarios</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span> <span class="ow">in</span> <span class="n">vistos</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistos</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">funcionario</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_funcionarios_ativos</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna funcionários sem data de fim de vínculo.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Consulta de funcionários ativos.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">data_fim__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">dt_fim_funcao_atividade__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_funcionarios_sigpae_por_rf</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna vínculos de funcionário ordenados para o SIGPAE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Consulta de vínculos encontrados.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
+        <span class="s2">"data_inicio"</span><span class="p">,</span>
+        <span class="s2">"origem_vinculo"</span><span class="p">,</span>
+        <span class="s2">"codigo_ue"</span><span class="p">,</span>
+        <span class="s2">"codigo_cargo"</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_perfis_sistema_por_login</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna perfis de sistema associados ao login.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Login consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Consulta de perfis encontrados.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">FuncionarioSistemaPerfil</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">login</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">sis_id</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
+            <span class="s2">"login"</span><span class="p">,</span>
+            <span class="s2">"nome_servidor"</span><span class="p">,</span>
+            <span class="s2">"perfil"</span><span class="p">,</span>
+            <span class="s2">"sis_id"</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_email_funcionario_sistema</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna primeiro e-mail preenchido para o login.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Login consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        E-mail encontrado ou ``None`` quando ausente.</span>
+<span class="sd">    """</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_perfis_sistema_por_login</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">email__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">email</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">values_list</span><span class="p">(</span><span class="s2">"email"</span><span class="p">,</span> <span class="n">flat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">email</span><span class="p">)</span> <span class="k">if</span> <span class="n">email</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_codigo_cargo_sigpae</span><span class="p">(</span><span class="n">codigo_cargo</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna codigo de cargo como inteiro.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_cargo: Código recebido como texto.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Código convertido ou ``None`` quando ausente.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">codigo_cargo</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">codigo_cargo</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_contrato_externo_sigpae</span><span class="p">(</span>
+    <span class="n">funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o vinculo SIGPAE representa contrato externo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionario: Funcionário usado na verificação.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Indica se o vínculo representa contrato externo.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+        <span class="n">funcionario</span><span class="o">.</span><span class="n">origem_vinculo</span> <span class="o">==</span> <span class="s2">"externo"</span>
+        <span class="ow">or</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">funcao_externo</span>
+        <span class="ow">or</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">tipo_funcao_externo</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_cargo_sigpae</span><span class="p">(</span><span class="n">funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Mapeia cargo consolidado para o contrato SIGPAE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionario: Funcionário usado no mapeamento.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados de cargo no formato esperado.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"codigo_cargo"</span><span class="p">:</span> <span class="n">_codigo_cargo_sigpae</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_cargo</span><span class="p">),</span>
+        <span class="s2">"descricao_cargo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">cargo</span><span class="p">,</span>
+        <span class="s2">"codigo_unidade"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="s2">"descricao_unidade"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">nome_ue</span><span class="p">,</span>
+        <span class="s2">"codigo_dre"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="s2">"contrato_externo"</span><span class="p">:</span> <span class="n">_contrato_externo_sigpae</span><span class="p">(</span><span class="n">funcionario</span><span class="p">),</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_cargo_sigpae_preenchido</span><span class="p">(</span><span class="n">cargo</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o cargo mapeado possui dados de vínculo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cargo: Cargo mapeado para o retorno.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Indica se o cargo possui dados preenchidos.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">cargo</span><span class="p">[</span><span class="s2">"codigo_cargo"</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="n">cargo</span><span class="p">[</span><span class="s2">"descricao_cargo"</span><span class="p">])</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_cargo_sigpae_gestao</span><span class="p">(</span><span class="n">cargo</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o cargo SIGPAE representa gestão escolar.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cargo: Cargo mapeado para o retorno.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Indica se o cargo representa gestão escolar.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">cargo</span><span class="p">[</span><span class="s2">"codigo_cargo"</span><span class="p">]</span> <span class="ow">in</span> <span class="n">_CODIGOS_CARGOS_GESTAO_SIGPAE</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_funcionario_com_funcao_atividade</span><span class="p">(</span>
+    <span class="n">funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o vínculo consolidado representa função atividade.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionario: Funcionário usado na verificação.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Indica se o vínculo representa função atividade.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">funcionario</span><span class="o">.</span><span class="n">origem_vinculo</span> <span class="o">==</span> <span class="s2">"funcao_atividade"</span>
+        <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_tipo_funcao_atividade</span><span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_funcionario_com_cargo_sobreposto</span><span class="p">(</span>
+    <span class="n">funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o vínculo consolidado representa cargo sobreposto.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionario: Funcionário usado na verificação.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Indica se o vínculo representa cargo sobreposto.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">origem_vinculo</span> <span class="o">==</span> <span class="s2">"cargo_sobreposto"</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_cargos_sigpae</span><span class="p">(</span>
+    <span class="n">funcionarios</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">FuncionarioUnidadeEducacional</span><span class="p">],</span>
+    <span class="n">ultimo_funcionario</span><span class="p">:</span> <span class="n">FuncionarioUnidadeEducacional</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Retorna cargos SIGPAE filtrados por prioridade.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        funcionarios: Funcionários considerados no retorno.</span>
+<span class="sd">        ultimo_funcionario: Último funcionário encontrado para o RF.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista de cargos selecionados.</span>
+<span class="sd">    """</span>
+    <span class="n">funcionarios_sobrepostos</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">funcionario</span>
+        <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">funcionarios</span>
+        <span class="k">if</span> <span class="n">_funcionario_com_cargo_sobreposto</span><span class="p">(</span><span class="n">funcionario</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">funcionarios_sobrepostos</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">_cargo_sigpae</span><span class="p">(</span><span class="n">funcionarios_sobrepostos</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])]</span>
+
+    <span class="n">funcionarios_sem_funcao</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">funcionario</span>
+        <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">funcionarios</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_funcionario_com_funcao_atividade</span><span class="p">(</span><span class="n">funcionario</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">funcionarios_considerados</span> <span class="o">=</span> <span class="n">funcionarios_sem_funcao</span> <span class="ow">or</span> <span class="n">funcionarios</span>
+    <span class="n">cargos_mapeados</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">_cargo_sigpae</span><span class="p">(</span><span class="n">funcionario</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">funcionarios_considerados</span>
+    <span class="p">]</span>
+    <span class="n">cargos</span> <span class="o">=</span> <span class="n">_deduplicar_dicts</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">cargo</span> <span class="k">for</span> <span class="n">cargo</span> <span class="ow">in</span> <span class="n">cargos_mapeados</span> <span class="k">if</span> <span class="n">_cargo_sigpae_preenchido</span><span class="p">(</span><span class="n">cargo</span><span class="p">)]</span>
+    <span class="p">)</span>
+    <span class="n">cargos_gestao</span> <span class="o">=</span> <span class="p">[</span><span class="n">cargo</span> <span class="k">for</span> <span class="n">cargo</span> <span class="ow">in</span> <span class="n">cargos</span> <span class="k">if</span> <span class="n">_cargo_sigpae_gestao</span><span class="p">(</span><span class="n">cargo</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">cargos_gestao</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">cargos_gestao</span>
+    <span class="k">if</span> <span class="n">cargos</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">cargos</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="k">if</span> <span class="n">ultimo_funcionario</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">_cargo_sigpae</span><span class="p">(</span><span class="n">ultimo_funcionario</span><span class="p">)]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_deduplicar_dicts</span><span class="p">(</span><span class="n">rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Remove duplicidades preservando a ordem original.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rows: Linhas consideradas na seleção.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Lista sem linhas repetidas.</span>
+<span class="sd">    """</span>
+    <span class="n">vistos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">chave</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">chave</span> <span class="ow">in</span> <span class="n">vistos</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistos</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chave</span><span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_chave_funcionario_externo</span><span class="p">(</span>
+    <span class="n">pessoa_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_ChaveFuncionarioExterno</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Monta chave entre contrato externo e unidade educacional.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pessoa_id: Identificador da pessoa.</span>
+<span class="sd">        codigo_ue: Código EOL da unidade educacional.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Chave usada no cruzamento de dados.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pessoa_id</span><span class="p">,</span> <span class="n">codigo_ue</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_funcionarios_externos_por_contrato</span><span class="p">(</span>
+    <span class="n">contratos</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ContratoExterno</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="n">_ChaveFuncionarioExterno</span><span class="p">,</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Indexa vinculos externos compativeis com os contratos.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        contratos: Contratos externos considerados.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários externos por chave.</span>
+<span class="sd">    """</span>
+    <span class="n">pessoas_id</span> <span class="o">=</span> <span class="p">{</span><span class="n">contrato</span><span class="o">.</span><span class="n">pessoa_id</span> <span class="k">for</span> <span class="n">contrato</span> <span class="ow">in</span> <span class="n">contratos</span><span class="p">}</span>
+    <span class="n">codigos_ue</span> <span class="o">=</span> <span class="p">{</span><span class="n">contrato</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span> <span class="k">for</span> <span class="n">contrato</span> <span class="ow">in</span> <span class="n">contratos</span><span class="p">}</span>
+    <span class="n">funcionarios</span> <span class="o">=</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">pessoa_id__in</span><span class="o">=</span><span class="n">pessoas_id</span><span class="p">,</span>
+        <span class="n">codigo_ue__in</span><span class="o">=</span><span class="n">codigos_ue</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">_chave_funcionario_externo</span><span class="p">(</span>
+            <span class="n">funcionario</span><span class="o">.</span><span class="n">pessoa_id</span><span class="p">,</span>
+            <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="p">):</span> <span class="n">funcionario</span>
+        <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">funcionarios</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_nome_ue_sem_tipo_escola</span><span class="p">(</span><span class="n">nome_ue</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Remove o tipo de escola do nome da unidade.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        nome_ue: Nome da unidade educacional.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Nome ajustado ou ``None`` quando ausente.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">nome_ue</span> <span class="ow">or</span> <span class="s2">" - "</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">nome_ue</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">nome_ue</span>
+    <span class="k">return</span> <span class="n">nome_ue</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">" - "</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_funcionarios_ue_legado</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna vínculos conforme a consulta legada por UE.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Consulta de vínculos compatíveis.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">Q</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"lotacao"</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"cargo_sobreposto"</span><span class="p">,</span> <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"atribuicao_aula"</span><span class="p">,</span> <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span>
+            <span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"funcao_atividade"</span><span class="p">,</span>
+            <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dt_fim_funcao_atividade__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"externo"</span><span class="p">,</span> <span class="n">data_fim__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span>
+            <span class="n">origem_vinculo__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">data_fim__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">dt_fim_funcao_atividade__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+
+<div class="viewcode-block" id="funcionarios_por_ue">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_ue">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_ue</span><span class="p">(</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">filtros</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">somente_professores</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">codigos_rfs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">filtro</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários de uma unidade educacional.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        filtros: Filtros opcionais. Chaves aceitas: ``cargos``,</span>
+<span class="sd">            ``funcoes_atividades`` e ``funcoes_externas``.</span>
+<span class="sd">        somente_professores: Indica se a consulta deve limitar professores.</span>
+<span class="sd">        codigos_rfs: Registros funcionais usados na busca direta.</span>
+<span class="sd">        filtro: Texto usado na busca por nome ou RF.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários da unidade, ordenados por nome.</span>
+<span class="sd">    """</span>
+    <span class="n">base_qs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_funcionarios_ativos</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">somente_professores</span>
+        <span class="k">else</span> <span class="p">(</span><span class="n">_funcionarios_ue_legado</span><span class="p">())</span>
+    <span class="p">)</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">base_qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_ue</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">somente_professores</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">eh_professor</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">filtros</span> <span class="o">=</span> <span class="n">filtros</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">cargos</span> <span class="o">:=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"cargos"</span><span class="p">):</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_cargo__in</span><span class="o">=</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">cargo</span><span class="p">)</span> <span class="k">for</span> <span class="n">cargo</span> <span class="ow">in</span> <span class="n">cargos</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">funcoes_atividades</span> <span class="o">:=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"funcoes_atividades"</span><span class="p">):</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_tipo_funcao_atividade__in</span><span class="o">=</span><span class="n">funcoes_atividades</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">funcoes_externas</span> <span class="o">:=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"funcoes_externas"</span><span class="p">):</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">funcao_externo__in</span><span class="o">=</span><span class="n">funcoes_externas</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigos_rfs</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf__in</span><span class="o">=</span><span class="n">codigos_rfs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">filtro</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">nome__icontains</span><span class="o">=</span><span class="n">filtro</span><span class="p">)</span> <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">codigo_rf__icontains</span><span class="o">=</span><span class="n">filtro</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+        <span class="p">(</span>
+            <span class="n">_func_row</span><span class="p">(</span>
+                <span class="n">funcionario</span><span class="p">,</span>
+                <span class="n">usar_nome_social</span><span class="o">=</span><span class="n">somente_professores</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">qs</span>
+        <span class="p">),</span>
+        <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="s2">"nome"</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">somente_professores</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">rows</span>
+    <span class="k">return</span> <span class="n">_deduplicar_funcionarios_por_rf</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_ue_cargo">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_ue_cargo">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_ue_cargo</span><span class="p">(</span><span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_cargo</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários ativos de uma unidade por cargo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        codigo_cargo: Código do cargo usado no filtro.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários ativos da unidade no cargo informado.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">funcionarios_por_ue</span><span class="p">(</span>
+        <span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="n">filtros</span><span class="o">=</span><span class="p">{</span><span class="s2">"cargos"</span><span class="p">:</span> <span class="p">[</span><span class="n">codigo_cargo</span><span class="p">]},</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_cargo">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_cargo">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_cargo</span><span class="p">(</span><span class="n">codigo_cargo</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários ativos por cargo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_cargo: Código do cargo consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários ativos vinculados ao cargo informado.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">FuncionarioCargo</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_cargo</span><span class="o">=</span><span class="n">codigo_cargo</span><span class="p">,</span>
+        <span class="n">data_fim__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">vistos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"nome"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">nome</span><span class="p">,</span>
+            <span class="s2">"cpf"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"data_inicio"</span><span class="p">:</span> <span class="n">_fmt_data_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">data_inicio</span><span class="p">),</span>
+            <span class="s2">"data_fim"</span><span class="p">:</span> <span class="n">_fmt_data_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">data_fim</span><span class="p">),</span>
+            <span class="s2">"cargo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">cargo</span><span class="p">,</span>
+            <span class="s2">"codigo_cargo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_cargo</span><span class="p">,</span>
+            <span class="s2">"codigo_tipo_funcao_atividade"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"esta_afastado"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">"funcao_externo"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"tipo_funcao_externo"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">chave</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"codigo_rf"</span><span class="p">],</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"codigo_cargo"</span><span class="p">],</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"data_inicio"</span><span class="p">],</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"data_fim"</span><span class="p">],</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"cargo"</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">chave</span> <span class="ow">in</span> <span class="n">vistos</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistos</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chave</span><span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">resultado</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="s2">"nome"</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="supervisores_por_dre">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.supervisores_por_dre">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">supervisores_por_dre</span><span class="p">(</span>
+    <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigos_rfs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista supervisores vinculados à DRE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_dre: Código EOL da DRE consultada.</span>
+<span class="sd">        codigos_rfs: Registros funcionais considerados na busca.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Supervisores encontrados para a DRE informada.</span>
+<span class="sd">    """</span>
+    <span class="n">hoje</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">localdate</span><span class="p">()</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">CargoBaseServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">professor__codigo_rf__in</span><span class="o">=</span><span class="n">codigos_rfs</span><span class="p">,</span>
+            <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">lotacoes__codigo_dre</span><span class="o">=</span><span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">codigo_cargo</span><span class="o">=</span><span class="n">_CODIGO_CARGO_SUPERVISOR</span><span class="p">)</span>
+            <span class="o">|</span> <span class="p">(</span>
+                <span class="n">Q</span><span class="p">(</span><span class="n">cargos_sobrepostos__codigo_cargo</span><span class="o">=</span><span class="n">_CODIGO_CARGO_SUPERVISOR</span><span class="p">)</span>
+                <span class="o">&amp;</span> <span class="p">(</span>
+                    <span class="n">Q</span><span class="p">(</span><span class="n">cargos_sobrepostos__dt_fim_cargo_sobreposto__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">cargos_sobrepostos__dt_fim_cargo_sobreposto__gt</span><span class="o">=</span><span class="n">hoje</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"professor"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"professor__nome"</span><span class="p">,</span> <span class="s2">"professor__codigo_rf"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">distinct</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">vistos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">cargo_base</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+        <span class="n">funcionario</span> <span class="o">=</span> <span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span>
+        <span class="n">chave</span> <span class="o">=</span> <span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">nome</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">chave</span> <span class="ow">in</span> <span class="n">vistos</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistos</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chave</span><span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">nome</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="supervisores_dres">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.supervisores_dres">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">supervisores_dres</span><span class="p">(</span><span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista supervisores da DRE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_dre: Codigo EOL da DRE consultada.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Supervisores para a DRE informada.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_dre</span><span class="o">=</span><span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="n">supervisor_dre</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"nome"</span><span class="p">)</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">vistos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span> <span class="ow">in</span> <span class="n">vistos</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistos</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">_nome_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_lista_cargos">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_lista_cargos">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_lista_cargos</span><span class="p">(</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">cargos</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários de uma unidade por cargos informados.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        cargos: Códigos de cargo usados no filtro.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários com lotação ativa nos cargos informados.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_lotacoes_ativas</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+            <span class="n">cargo_base__codigo_cargo__in</span><span class="o">=</span><span class="n">cargos</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"funcionario_rf"</span><span class="p">:</span> <span class="n">ls</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"funcionario_nome"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"cargo_id"</span><span class="p">:</span> <span class="n">ls</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">codigo_cargo</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">ls</span> <span class="ow">in</span> <span class="n">qs</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_funcao_atividade">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_funcao_atividade">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_funcao_atividade</span><span class="p">(</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_funcao_atividade</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários de uma unidade por função de atividade.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        codigo_funcao_atividade: Código da função de atividade consultada.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários da unidade na função de atividade informada.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">FuncaoAtividadeCargoServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_unidade_local_servico</span><span class="o">=</span><span class="n">codigo_ue</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">fa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"login"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">fa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="p">),</span>
+            <span class="s2">"cd_cargo"</span><span class="p">:</span> <span class="n">fa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">codigo_cargo</span><span class="p">,</span>
+            <span class="s2">"codigo_funcao_atividade"</span><span class="p">:</span> <span class="n">codigo_funcao_atividade</span><span class="p">,</span>
+            <span class="s2">"funcao_externo"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"tipo_funcao_externo"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">fa</span> <span class="ow">in</span> <span class="n">qs</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_lista_funcoes_atividade">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_lista_funcoes_atividade">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_lista_funcoes_atividade</span><span class="p">(</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">_funcoes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários de uma unidade por funções de atividade.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        _funcoes: Funções de atividade consultadas; apenas a primeira é</span>
+<span class="sd">            refletida no retorno.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários da unidade vinculados às funções de atividade.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">FuncaoAtividadeCargoServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_unidade_local_servico</span><span class="o">=</span><span class="n">codigo_ue</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"funcionario_rf"</span><span class="p">:</span> <span class="n">fa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"funcionario_nome"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"funcao_atividade_id"</span><span class="p">:</span> <span class="n">_funcoes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">_funcoes</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">fa</span> <span class="ow">in</span> <span class="n">qs</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_funcao_externa">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_funcao_externa">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_funcao_externa</span><span class="p">(</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_funcao_externa</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários externos de uma unidade por função.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        codigo_funcao_externa: Código do tipo de função externa.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários externos ativos da unidade na função informada.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">ContratoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="n">codigo_tipo_funcao</span><span class="o">=</span><span class="n">codigo_funcao_externa</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">codigo_motivo_desligamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"pessoa"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">contrato</span><span class="o">.</span><span class="n">pessoa</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+            <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">contrato</span><span class="o">.</span><span class="n">pessoa</span><span class="p">),</span>
+            <span class="s2">"codigo_escola"</span><span class="p">:</span> <span class="n">contrato</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+            <span class="s2">"data_inicio"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">contrato</span> <span class="ow">in</span> <span class="n">qs</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_lista_funcoes_externas">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_lista_funcoes_externas">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_lista_funcoes_externas</span><span class="p">(</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">funcoes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários externos de uma unidade por funções.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade educacional.</span>
+<span class="sd">        funcoes: Códigos de função externa; lista vazia retorna ``[]``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários externos ativos da unidade nas funções informadas.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">funcoes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">ContratoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="n">codigo_tipo_funcao__in</span><span class="o">=</span><span class="n">funcoes</span><span class="p">,</span>
+        <span class="n">dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">codigo_motivo_desligamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"pessoa"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">contrato</span><span class="o">.</span><span class="n">pessoa</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+            <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">contrato</span><span class="o">.</span><span class="n">pessoa</span><span class="p">),</span>
+            <span class="s2">"codigo_escola"</span><span class="p">:</span> <span class="n">contrato</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+            <span class="s2">"data_inicio"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">contrato</span> <span class="ow">in</span> <span class="n">qs</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="cargos_funcionario">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.cargos_funcionario">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cargos_funcionario</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Busca vínculos funcionais consolidados do funcionário.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        registro_funcional: RF do funcionário consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Vínculos ativos do funcionário.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">FuncionarioVinculoFuncional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">rf</span><span class="o">=</span><span class="n">registro_funcional</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
+        <span class="s2">"cd_cargo_base"</span><span class="p">,</span>
+        <span class="s2">"cd_ue_cargo_base"</span><span class="p">,</span>
+        <span class="s2">"cd_cargo_sobreposto"</span><span class="p">,</span>
+        <span class="s2">"cd_funcao_atividade"</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_filtrar_modalidade_conecta</span><span class="p">(</span>
+    <span class="n">qs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">modalidades</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+    <span class="n">anos_turma</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+    <span class="n">componentes</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Aplica filtro de modalidade do Conecta Formação.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qs: Consulta base de funcionários.</span>
+<span class="sd">        modalidades: Modalidades informadas.</span>
+<span class="sd">        anos_turma: Anos de turma informados.</span>
+<span class="sd">        componentes: Componentes curriculares informados.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Consulta filtrada por modalidade.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">modalidades</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">qs</span>
+    <span class="k">if</span> <span class="n">anos_turma</span> <span class="ow">or</span> <span class="n">componentes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_modalidade__in</span><span class="o">=</span><span class="n">modalidades</span><span class="p">)</span>
+
+    <span class="n">modalidades_escola</span> <span class="o">=</span> <span class="n">FuncionarioConectaModalidadeEscola</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">codigo_modalidade__in</span><span class="o">=</span><span class="n">modalidades</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">Q</span><span class="p">(</span>
+            <span class="n">Exists</span><span class="p">(</span>
+                <span class="n">modalidades_escola</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_ue</span><span class="o">=</span><span class="n">OuterRef</span><span class="p">(</span><span class="s2">"cargo_ue_codigo"</span><span class="p">))</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">|</span> <span class="n">Q</span><span class="p">(</span>
+            <span class="n">Exists</span><span class="p">(</span>
+                <span class="n">modalidades_escola</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                    <span class="n">codigo_ue</span><span class="o">=</span><span class="n">OuterRef</span><span class="p">(</span><span class="s2">"funcao_ue_codigo"</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_filtrar_dados_conecta</span><span class="p">(</span>
+    <span class="n">qs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">filtros</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="nb">list</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Aplica filtros principais do Conecta Formação.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        qs: Consulta base de funcionários.</span>
+<span class="sd">        filtros: Filtros recebidos na consulta.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Consulta filtrada, anos de turma e componentes curriculares.</span>
+<span class="sd">    """</span>
+    <span class="n">codigos_funcoes</span> <span class="o">=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigos_funcoes"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">codigos_funcoes</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">funcao_codigo__in</span><span class="o">=</span><span class="n">codigos_funcoes</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">funcao_codigo__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">codigos_cargos</span> <span class="o">=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigos_cargos"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">codigos_cargos</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">cargo_codigo__in</span><span class="o">=</span><span class="n">codigos_cargos</span><span class="p">)</span>
+
+    <span class="n">codigos_dres</span> <span class="o">=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigos_dres"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">codigos_dres</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">Q</span><span class="p">(</span><span class="n">cargo_dre_codigo__in</span><span class="o">=</span><span class="n">codigos_dres</span><span class="p">)</span>
+            <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">funcao_dre_codigo__in</span><span class="o">=</span><span class="n">codigos_dres</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="n">anos_turma</span> <span class="o">=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"anos_turma"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">anos_turma</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ano_turma__in</span><span class="o">=</span><span class="n">anos_turma</span><span class="p">)</span>
+
+    <span class="n">componentes</span> <span class="o">=</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigos_componentes_curriculares"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">componentes</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_componente_curricular__in</span><span class="o">=</span><span class="n">componentes</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">qs</span><span class="p">,</span> <span class="n">anos_turma</span><span class="p">,</span> <span class="n">componentes</span>
+
+
+<div class="viewcode-block" id="funcionarios_conecta_formacao">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_conecta_formacao">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_conecta_formacao</span><span class="p">(</span><span class="n">filtros</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Busca funcionários elegíveis para o Conecta Formação.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filtros: Filtros recebidos na consulta.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários compatíveis com os filtros informados.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">FuncionarioConectaFormacao</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="n">qs</span><span class="p">,</span> <span class="n">anos_turma</span><span class="p">,</span> <span class="n">componentes</span> <span class="o">=</span> <span class="n">_filtrar_dados_conecta</span><span class="p">(</span><span class="n">qs</span><span class="p">,</span> <span class="n">filtros</span><span class="p">)</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">_filtrar_modalidade_conecta</span><span class="p">(</span>
+        <span class="n">qs</span><span class="p">,</span>
+        <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_modalidade"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+        <span class="n">anos_turma</span><span class="p">,</span>
+        <span class="n">componentes</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filtros</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"eh_tipo_jornada_jeif"</span><span class="p">):</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">eh_tipo_jornada_jeif</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">campos</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"rf"</span><span class="p">,</span>
+        <span class="s2">"nome"</span><span class="p">,</span>
+        <span class="s2">"cpf"</span><span class="p">,</span>
+        <span class="s2">"cargo_codigo"</span><span class="p">,</span>
+        <span class="s2">"cargo"</span><span class="p">,</span>
+        <span class="s2">"cargo_dre_codigo"</span><span class="p">,</span>
+        <span class="s2">"cargo_ue_codigo"</span><span class="p">,</span>
+        <span class="s2">"funcao_codigo"</span><span class="p">,</span>
+        <span class="s2">"funcao"</span><span class="p">,</span>
+        <span class="s2">"funcao_dre_codigo"</span><span class="p">,</span>
+        <span class="s2">"funcao_ue_codigo"</span><span class="p">,</span>
+        <span class="s2">"tipo_vinculo"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">qs</span><span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="o">*</span><span class="n">campos</span><span class="p">)</span><span class="o">.</span><span class="n">distinct</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="usuarios_conecta_formacao">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.usuarios_conecta_formacao">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">usuarios_conecta_formacao</span><span class="p">(</span><span class="n">perfis</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista usuários do Conecta Formação por perfis.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        perfis: Perfis consultados.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Usuários ativos associados aos perfis informados.</span>
+<span class="sd">    """</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"login"</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+            <span class="s2">"nome"</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">nome_servidor</span><span class="p">,</span>
+            <span class="s2">"nome_social"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"perfil"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">perfil</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="n">FuncionarioSistemaPerfil</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">perfil__in</span><span class="o">=</span><span class="n">perfis</span><span class="p">,</span>
+                <span class="n">sis_id</span><span class="o">=</span><span class="mi">1007</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">login</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"nome_servidor"</span><span class="p">,</span> <span class="s2">"login"</span><span class="p">,</span> <span class="s2">"perfil"</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">_deduplicar_dicts</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="funcionario_externo_por_cpf">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionario_externo_por_cpf">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionario_externo_por_cpf</span><span class="p">(</span><span class="n">cpf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna dados de funcionário externo por CPF.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cpf: CPF do funcionário externo.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Contratos externos do funcionário, ou ``None`` quando não houver.</span>
+<span class="sd">    """</span>
+    <span class="n">contratos</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+        <span class="n">ContratoExterno</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pessoa__cpf</span><span class="o">=</span><span class="n">cpf</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"pessoa"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"codigo_contrato"</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">contratos</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">funcionarios</span> <span class="o">=</span> <span class="n">_funcionarios_externos_por_contrato</span><span class="p">(</span><span class="n">contratos</span><span class="p">)</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">ce</span> <span class="ow">in</span> <span class="n">contratos</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">ce</span><span class="o">.</span><span class="n">pessoa</span>
+        <span class="n">funcionario</span> <span class="o">=</span> <span class="n">funcionarios</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">_chave_funcionario_externo</span><span class="p">(</span>
+                <span class="n">ce</span><span class="o">.</span><span class="n">pessoa_id</span><span class="p">,</span>
+                <span class="n">ce</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">nome_ue</span> <span class="o">=</span> <span class="n">_nome_ue_sem_tipo_escola</span><span class="p">(</span>
+            <span class="n">funcionario</span><span class="o">.</span><span class="n">nome_ue</span> <span class="k">if</span> <span class="n">funcionario</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">funcao</span> <span class="o">=</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">dc_funcao_externo</span> <span class="k">if</span> <span class="n">funcionario</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">tipo_funcionario</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">funcionario</span><span class="o">.</span><span class="n">tipo_funcionario_externo</span> <span class="k">if</span> <span class="n">funcionario</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"nome_pessoa"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">p</span><span class="p">),</span>
+                <span class="s2">"nome_pai"</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">nome_pai</span><span class="p">,</span>
+                <span class="s2">"nome_mae"</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">nome_mae</span><span class="p">,</span>
+                <span class="s2">"data_nascimento"</span><span class="p">:</span> <span class="n">fmt_iso</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">data_nascimento</span><span class="p">),</span>
+                <span class="s2">"rg"</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">rg</span><span class="p">,</span>
+                <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+                <span class="s2">"titulo_eleitoral"</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">titulo_eleitoral</span><span class="p">,</span>
+                <span class="s2">"pis_pasep"</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">pis_pasep</span><span class="p">,</span>
+                <span class="s2">"codigo_contrato_externo"</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">codigo_contrato</span><span class="p">,</span>
+                <span class="s2">"codigo_ue"</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+                <span class="s2">"nome_ue"</span><span class="p">:</span> <span class="n">nome_ue</span><span class="p">,</span>
+                <span class="s2">"funcao"</span><span class="p">:</span> <span class="n">funcao</span><span class="p">,</span>
+                <span class="s2">"tipo_funcionario"</span><span class="p">:</span> <span class="n">tipo_funcionario</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="nome_cpf_servidor">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.nome_cpf_servidor">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nome_cpf_servidor</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna nome e CPF do servidor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        registro_funcional: RF do servidor consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Nome e CPF do servidor, ou ``None`` quando não encontrado.</span>
+<span class="sd">    """</span>
+    <span class="n">func</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_funcionarios_ativos</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="o">=</span><span class="n">registro_funcional</span><span class="p">,</span>
+            <span class="n">funcao_externo</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">func</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">func</span><span class="p">),</span> <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">func</span><span class="o">.</span><span class="n">cpf</span><span class="p">}</span>
+
+    <span class="n">prof</span> <span class="o">=</span> <span class="n">Professor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf</span><span class="o">=</span><span class="n">registro_funcional</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">prof</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">),</span> <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">prof</span><span class="o">.</span><span class="n">cpf</span><span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="nome_servidor">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.nome_servidor">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">nome_servidor</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna nome do funcionário.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        registro_funcional: RF do funcionário consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Nome do funcionário, ou ``None`` quando não encontrado.</span>
+<span class="sd">    """</span>
+    <span class="n">func</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_funcionarios_ativos</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="o">=</span><span class="n">registro_funcional</span><span class="p">,</span>
+            <span class="n">funcao_externo</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">func</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+    <span class="n">prof</span> <span class="o">=</span> <span class="n">Professor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf</span><span class="o">=</span><span class="n">registro_funcional</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">prof</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="servidor_ativo">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.servidor_ativo">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">servidor_ativo</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o servidor possui cargo ativo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        registro_funcional: RF do servidor consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando existe cargo ativo para o servidor.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+        <span class="n">CargoBaseServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">professor__codigo_rf</span><span class="o">=</span><span class="n">registro_funcional</span><span class="p">,</span>
+            <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="dre_ue_cargo">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.dre_ue_cargo">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dre_ue_cargo</span><span class="p">(</span><span class="n">registro_funcional</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_cargo</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista DRE e UE do funcionário por cargo.</span>
+
+<span class="sd">    A atribuição ativa é a que não teve as aulas disponibilizadas, o que a</span>
+<span class="sd">    origem representa com data nula. O filtro usa a data de origem porque</span>
+<span class="sd">    ``dt_disponibilizacao_aulas`` chega da carga já substituída pela data de</span>
+<span class="sd">    fim da turma quando a origem não informa valor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        registro_funcional: RF do funcionário consultado.</span>
+<span class="sd">        codigo_cargo: Código do cargo usado no filtro.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        DRE e UE de cada cargo ativo do funcionário.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">CargoBaseServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">professor__codigo_rf</span><span class="o">=</span><span class="n">registro_funcional</span><span class="p">,</span>
+            <span class="n">codigo_cargo</span><span class="o">=</span><span class="n">codigo_cargo</span><span class="p">,</span>
+            <span class="n">atribuicoes__dt_cancelamento__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">atribuicoes__dt_disponibilizacao_aulas_origem__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">atribuicoes__dt_atribuicao_aula__lte</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">localdate</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"professor"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">prefetch_related</span><span class="p">(</span><span class="s2">"lotacoes"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">distinct</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">cbs</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">lotacao</span> <span class="ow">in</span> <span class="n">cbs</span><span class="o">.</span><span class="n">lotacoes</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">cbs</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+                    <span class="s2">"codigo_dre"</span><span class="p">:</span> <span class="n">lotacao</span><span class="o">.</span><span class="n">codigo_dre</span><span class="p">,</span>
+                    <span class="s2">"codigo_ue"</span><span class="p">:</span> <span class="n">lotacao</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+                    <span class="s2">"cargo"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">_deduplicar_dicts</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="usuarios_sgp_por_perfil">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.usuarios_sgp_por_perfil">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">usuarios_sgp_por_perfil</span><span class="p">(</span>  <span class="c1"># NOSONAR</span>
+    <span class="n">_id_perfil</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">nome_servidor_param</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista usuários SGP por perfil e filtros opcionais.</span>
+
+<span class="sd">    Quando recebe apenas RF, retorna dados básicos do usuário para preservar</span>
+<span class="sd">    o contrato do legado.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        _id_perfil: Identificador de perfil; mantido por compatibilidade</span>
+<span class="sd">            de contrato, sem efeito na consulta.</span>
+<span class="sd">        codigo_dre: Código da DRE usado como filtro opcional.</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade usado como filtro opcional.</span>
+<span class="sd">        codigo_rf: RF usado como filtro opcional.</span>
+<span class="sd">        nome_servidor_param: Trecho do nome usado como filtro opcional.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Usuários com lotação ativa compatíveis com os filtros.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">codigo_dre</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">funcionarios_sgp_dre</span><span class="p">(</span>
+            <span class="n">_id_perfil</span><span class="p">,</span>
+            <span class="n">codigo_dre</span><span class="p">,</span>
+            <span class="n">codigo_ue</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+            <span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">nome_servidor_param</span><span class="o">=</span><span class="n">nome_servidor_param</span><span class="p">,</span>
+            <span class="n">busca_por_prefixo_ue</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_rf</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">FuncionarioUnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">codigo_ue</span><span class="p">:</span>
+            <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_ue</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">)</span>
+        <span class="n">funcionario</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">funcionario</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="c1"># O legado consulta CoreSSO neste fluxo e não preenche vínculo.</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="p">{</span>
+                <span class="o">**</span><span class="n">_usuario_sgp_row</span><span class="p">(</span><span class="n">funcionario</span><span class="p">),</span>
+                <span class="s2">"cd_cargo"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">"codigo_funcao_atividade"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">"funcao_externo"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">"tipo_funcao_externo"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">]</span>
+
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">LotacaoServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">dt_fim__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span>
+        <span class="s2">"cargo_base__professor"</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_dre</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">codigo_ue</span><span class="p">:</span>
+        <span class="n">ues</span> <span class="o">=</span> <span class="n">UnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_dre</span><span class="o">=</span><span class="n">codigo_dre</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">values_list</span><span class="p">(</span><span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="n">flat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_unidade_educacao__in</span><span class="o">=</span><span class="n">ues</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_ue</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_unidade_educacao</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_rf</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nome_servidor_param</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__nome__icontains</span><span class="o">=</span><span class="n">nome_servidor_param</span>
+        <span class="p">)</span>
+    <span class="n">lotacoes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">qs</span><span class="p">)</span>
+    <span class="n">ues_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">ue</span><span class="o">.</span><span class="n">codigo_ue</span><span class="p">:</span> <span class="n">ue</span><span class="o">.</span><span class="n">codigo_dre</span>
+        <span class="k">for</span> <span class="n">ue</span> <span class="ow">in</span> <span class="n">UnidadeEducacional</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_ue__in</span><span class="o">=</span><span class="p">{</span><span class="n">ls</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span> <span class="k">for</span> <span class="n">ls</span> <span class="ow">in</span> <span class="n">lotacoes</span><span class="p">}</span>
+        <span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">ls</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">ls</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="p">),</span>
+            <span class="s2">"codigo_dre"</span><span class="p">:</span> <span class="n">ues_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ls</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">),</span>
+            <span class="s2">"codigo_ue"</span><span class="p">:</span> <span class="n">ls</span><span class="o">.</span><span class="n">codigo_unidade_educacao</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">ls</span> <span class="ow">in</span> <span class="n">lotacoes</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_sgp_dre">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_sgp_dre">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_sgp_dre</span><span class="p">(</span>  <span class="c1"># NOSONAR</span>
+    <span class="n">_id_perfil</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_dre</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">nome_servidor_param</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_funcao_atividade</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># NOSONAR</span>
+    <span class="n">busca_por_prefixo_ue</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários SGP por DRE e filtros opcionais.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        _id_perfil: Identificador de perfil; mantido por compatibilidade</span>
+<span class="sd">            de contrato, sem efeito na consulta.</span>
+<span class="sd">        codigo_dre: Código da DRE usado no filtro.</span>
+<span class="sd">        codigo_ue: CodigoEOL da unidade usado como filtro opcional.</span>
+<span class="sd">        codigo_rf: RF usado como filtro opcional.</span>
+<span class="sd">        nome_servidor_param: Trecho do nome usado como filtro opcional.</span>
+<span class="sd">        codigo_funcao_atividade: Mantido por compatibilidade de contrato,</span>
+<span class="sd">            sem efeito na consulta.</span>
+<span class="sd">        busca_por_prefixo_ue: Indica busca por unidades do agrupamento da DRE.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários com lotação ativa na DRE compatíveis com os filtros.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">_funcionarios_sgp_por_dre_qs</span><span class="p">(</span>
+        <span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="n">codigo_ue</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="n">nome_servidor_param</span><span class="o">=</span><span class="n">nome_servidor_param</span><span class="p">,</span>
+        <span class="n">busca_por_prefixo_ue</span><span class="o">=</span><span class="n">busca_por_prefixo_ue</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_funcao_atividade</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_tipo_funcao_atividade</span><span class="o">=</span><span class="n">codigo_funcao_atividade</span><span class="p">)</span>
+    <span class="n">funcoes_por_rf</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">"codigo_rf"</span><span class="p">]:</span> <span class="n">item</span><span class="p">[</span><span class="s2">"codigo_tipo_funcao_atividade"</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"funcao_atividade"</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">codigo_tipo_funcao_atividade__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">codigo_tipo_funcao_atividade</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="s2">"codigo_tipo_funcao_atividade"</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="n">funcionarios</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span>
+        <span class="n">ordem_vinculo</span><span class="o">=</span><span class="n">Case</span><span class="p">(</span>
+            <span class="n">When</span><span class="p">(</span>
+                <span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"cargo_sobreposto"</span><span class="p">,</span>
+                <span class="n">codigo_cargo</span><span class="o">=</span><span class="s2">"3351"</span><span class="p">,</span>
+                <span class="n">then</span><span class="o">=</span><span class="n">Value</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">When</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"lotacao"</span><span class="p">,</span> <span class="n">then</span><span class="o">=</span><span class="n">Value</span><span class="p">(</span><span class="mi">1</span><span class="p">)),</span>
+            <span class="n">When</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"cargo_sobreposto"</span><span class="p">,</span> <span class="n">then</span><span class="o">=</span><span class="n">Value</span><span class="p">(</span><span class="mi">2</span><span class="p">)),</span>
+            <span class="n">When</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"atribuicao_aula"</span><span class="p">,</span> <span class="n">then</span><span class="o">=</span><span class="n">Value</span><span class="p">(</span><span class="mi">3</span><span class="p">)),</span>
+            <span class="n">When</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"funcao_atividade"</span><span class="p">,</span> <span class="n">then</span><span class="o">=</span><span class="n">Value</span><span class="p">(</span><span class="mi">4</span><span class="p">)),</span>
+            <span class="n">When</span><span class="p">(</span><span class="n">origem_vinculo</span><span class="o">=</span><span class="s2">"externo"</span><span class="p">,</span> <span class="n">then</span><span class="o">=</span><span class="n">Value</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">Value</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span>
+            <span class="n">output_field</span><span class="o">=</span><span class="n">IntegerField</span><span class="p">(),</span>
+        <span class="p">),</span>
+        <span class="n">ordem_rf</span><span class="o">=</span><span class="n">Window</span><span class="p">(</span>
+            <span class="n">expression</span><span class="o">=</span><span class="n">RowNumber</span><span class="p">(),</span>
+            <span class="n">partition_by</span><span class="o">=</span><span class="p">[</span><span class="n">F</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">)],</span>
+            <span class="n">order_by</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">F</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
+                <span class="n">F</span><span class="p">(</span><span class="s2">"ordem_vinculo"</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
+                <span class="n">F</span><span class="p">(</span><span class="s2">"codigo_ue"</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(</span><span class="n">nulls_last</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="p">],</span>
+        <span class="p">),</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ordem_rf</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="n">_usuario_sgp_row</span><span class="p">(</span>
+            <span class="n">funcionario</span><span class="p">,</span>
+            <span class="n">codigo_dre</span><span class="p">,</span>
+            <span class="n">funcoes_por_rf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">funcionarios</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="funcionarios_por_unidade_perfis">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.funcionarios_por_unidade_perfis">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">funcionarios_por_unidade_perfis</span><span class="p">(</span>
+    <span class="n">codigo_dre_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">perfis</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionarios de unidade por perfis de sistema.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_dre_ue: Código EOL usado na consulta.</span>
+<span class="sd">        perfis: Perfis usados para filtrar funcionários.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários encontrados para os filtros informados.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">FuncionarioSistemaPerfil</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">uad_codigo</span><span class="o">=</span><span class="n">codigo_dre_ue</span><span class="p">,</span>
+            <span class="n">perfil__in</span><span class="o">=</span><span class="n">perfis</span><span class="p">,</span>
+            <span class="n">sis_id</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"nome_servidor"</span><span class="p">,</span> <span class="s2">"login"</span><span class="p">,</span> <span class="s2">"perfil"</span><span class="p">,</span> <span class="s2">"sis_id"</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"login"</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+            <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">nome_servidor</span><span class="p">,</span>
+            <span class="s2">"perfil"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">perfil</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">qs</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">_deduplicar_dicts</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="logins_admins_sme_por_perfis">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.logins_admins_sme_por_perfis">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">logins_admins_sme_por_perfis</span><span class="p">(</span><span class="n">perfis</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista logins de administradores SME por perfis.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        perfis: Perfis usados para filtrar administradores.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Logins encontrados para os perfis informados.</span>
+<span class="sd">    """</span>
+    <span class="n">logins</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">FuncionarioSistemaPerfil</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">perfil__in</span><span class="o">=</span><span class="n">perfis</span><span class="p">,</span>
+            <span class="n">sis_id</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">login</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"login"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">values_list</span><span class="p">(</span><span class="s2">"login"</span><span class="p">,</span> <span class="n">flat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">resultado</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">vistos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">login</span> <span class="ow">in</span> <span class="n">logins</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">login</span> <span class="ow">in</span> <span class="n">vistos</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">vistos</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">login</span><span class="p">)</span>
+        <span class="n">resultado</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">login</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultado</span></div>
+
+
+
+<div class="viewcode-block" id="dados_sigpae_por_rf">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.dados_sigpae_por_rf">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dados_sigpae_por_rf</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Retorna dados de funcionario para o SIGPAE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: Registro funcional consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dados encontrados ou ``None`` quando não houver resultado.</span>
+<span class="sd">    """</span>
+    <span class="n">ultimo_funcionario</span> <span class="o">=</span> <span class="n">_funcionarios_sigpae_por_rf</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">)</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
+    <span class="n">funcionarios</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+        <span class="n">_funcionarios_ativos</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="s2">"origem_vinculo"</span><span class="p">,</span> <span class="s2">"codigo_ue"</span><span class="p">,</span> <span class="s2">"codigo_cargo"</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">funcionarios</span><span class="p">:</span>
+        <span class="n">funcionario</span> <span class="o">=</span> <span class="n">funcionarios</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"rf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+            <span class="s2">"email"</span><span class="p">:</span> <span class="n">_email_funcionario_sistema</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">),</span>
+            <span class="s2">"cargos"</span><span class="p">:</span> <span class="n">_cargos_sigpae</span><span class="p">(</span><span class="n">funcionarios</span><span class="p">,</span> <span class="n">ultimo_funcionario</span><span class="p">),</span>
+            <span class="s2">"nome"</span><span class="p">:</span> <span class="n">_nome_funcionario</span><span class="p">(</span><span class="n">funcionario</span><span class="p">),</span>
+            <span class="s2">"inexistente_eol"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">ultimo_funcionario</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"rf"</span><span class="p">:</span> <span class="n">ultimo_funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">ultimo_funcionario</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+            <span class="s2">"email"</span><span class="p">:</span> <span class="n">_email_funcionario_sistema</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">),</span>
+            <span class="s2">"cargos"</span><span class="p">:</span> <span class="p">[</span><span class="n">_cargo_sigpae</span><span class="p">(</span><span class="n">ultimo_funcionario</span><span class="p">)],</span>
+            <span class="s2">"nome"</span><span class="p">:</span> <span class="n">_nome_funcionario</span><span class="p">(</span><span class="n">ultimo_funcionario</span><span class="p">),</span>
+            <span class="s2">"inexistente_eol"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="n">perfil</span> <span class="o">=</span> <span class="n">_perfis_sistema_por_login</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">perfil</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"rf"</span><span class="p">:</span> <span class="n">perfil</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">perfil</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+        <span class="s2">"email"</span><span class="p">:</span> <span class="n">perfil</span><span class="o">.</span><span class="n">email</span><span class="p">,</span>
+        <span class="s2">"cargos"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"nome"</span><span class="p">:</span> <span class="n">perfil</span><span class="o">.</span><span class="n">nome_servidor</span><span class="p">,</span>
+        <span class="s2">"inexistente_eol"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="acesso_sondagem">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.acesso_sondagem">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">acesso_sondagem</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Verifica se o servidor possui acesso à sondagem.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: RF do servidor consultado.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``True`` quando o servidor possui atribuição de aula.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+        <span class="n">AtribuicaoAula</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">cargo_base__professor__codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_por_lista_rf_func">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.buscar_por_lista_rf_func">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_por_lista_rf_func</span><span class="p">(</span><span class="n">lista</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários por registros funcionais.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        lista: RFs dos funcionários consultados.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários distintos encontrados para os RFs informados.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">_deduplicar_modelos_por_rf</span><span class="p">(</span>
+            <span class="n">_funcionarios_ativos</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf__in</span><span class="o">=</span><span class="n">lista</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_por_lista_login">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.buscar_por_lista_login">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_por_lista_login</span><span class="p">(</span><span class="n">lista</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários por logins.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        lista: Logins (RF) dos funcionários consultados.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários encontrados para os logins informados.</span>
+<span class="sd">    """</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"login"</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+            <span class="s2">"nome_servidor"</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">nome_servidor</span><span class="p">,</span>
+            <span class="s2">"perfil"</span><span class="p">:</span> <span class="n">_GUID_VAZIO</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="n">FuncionarioSistemaPerfil</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">login__in</span><span class="o">=</span><span class="n">lista</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">sis_id</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">exclude</span><span class="p">(</span><span class="n">login</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"nome_servidor"</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">_deduplicar_dicts</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="buscar_funcionarios">
+<a class="viewcode-back" href="../../../api.html#apps.funcionarios.repositories.buscar_funcionarios">[documentos]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">buscar_funcionarios</span><span class="p">(</span>
+    <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">nome_servidor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lista funcionários por filtros básicos.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        codigo_rf: RF usado no filtro.</span>
+<span class="sd">        codigo_ue: Código EOL da unidade usado no filtro.</span>
+<span class="sd">        nome_servidor: Trecho do nome usado no filtro.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Funcionários encontrados para os filtros informados.</span>
+<span class="sd">    """</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="n">_funcionarios_ativos</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">codigo_rf</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_rf</span><span class="o">=</span><span class="n">codigo_rf</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">codigo_ue</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">codigo_ue</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nome_servidor</span><span class="p">:</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">nome__icontains</span><span class="o">=</span><span class="n">nome_servidor</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="s2">"nome"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">funcionario</span><span class="p">),</span>
+            <span class="s2">"cpf"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">cpf</span><span class="p">,</span>
+            <span class="s2">"codigo_cargo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_cargo</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"codigo_funcao_atividade"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="n">funcionario</span><span class="o">.</span><span class="n">codigo_tipo_funcao_atividade</span> <span class="ow">or</span> <span class="mi">0</span>
+            <span class="p">),</span>
+            <span class="s2">"funcao_externo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">funcao_externo</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"tipo_funcao_externo"</span><span class="p">:</span> <span class="n">funcionario</span><span class="o">.</span><span class="n">tipo_funcao_externo</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">funcionario</span> <span class="ow">in</span> <span class="n">_deduplicar_modelos_por_rf</span><span class="p">(</span><span class="n">qs</span><span class="p">)</span>
+    <span class="p">]</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">SME-IntegracaoEOL-Professores-Microsservico</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Ir" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navegação</h3>
+<p class="caption" role="heading"><span class="caption-text">Referência de código</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../funcionarios.html">Funcionários</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">Referência de código</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Código do módulo</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

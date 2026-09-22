@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>apps.professores.api.views &#8212; SME-IntegracaoEOL Professores</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+    <script src="../../../../_static/documentation_options.js?v=2346ddef"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/translations.js?v=71a39b36"></script>
+    <link rel="index" title="Índice" href="../../../../genindex.html" />
+    <link rel="search" title="Buscar" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Código-fonte para apps.professores.api.views</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Views do domínio de professores."""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">drf_spectacular.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenApiTypes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">drf_spectacular.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenApiParameter</span><span class="p">,</span> <span class="n">extend_schema</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework</span><span class="w"> </span><span class="kn">import</span> <span class="n">status</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework.request</span><span class="w"> </span><span class="kn">import</span> <span class="n">Request</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework.response</span><span class="w"> </span><span class="kn">import</span> <span class="n">Response</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rest_framework.views</span><span class="w"> </span><span class="kn">import</span> <span class="n">APIView</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.professores</span><span class="w"> </span><span class="kn">import</span> <span class="n">services</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">apps.professores.serializers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AtribuicaoDataSerializer</span><span class="p">,</span>
+    <span class="n">AtribuicaoStatusSerializer</span><span class="p">,</span>
+    <span class="n">AtribuicaoTurmaSerializer</span><span class="p">,</span>
+    <span class="n">AutoCompleteSerializer</span><span class="p">,</span>
+    <span class="n">DisciplinaTurmaAtribuidaUeSerializer</span><span class="p">,</span>
+    <span class="n">NomePorRFSerializer</span><span class="p">,</span>
+    <span class="n">ProfessorAtribuicaoTurmaDiscSerializer</span><span class="p">,</span>
+    <span class="n">ProfessorEscolaSerializer</span><span class="p">,</span>
+    <span class="n">ProfessorPerfilSerializer</span><span class="p">,</span>
+    <span class="n">ResumoSerializer</span><span class="p">,</span>
+    <span class="n">TitularPorTurmaSerializer</span><span class="p">,</span>
+    <span class="n">TitularSerializer</span><span class="p">,</span>
+    <span class="n">TitularTurmaSerializer</span><span class="p">,</span>
+    <span class="n">TurmaAtribuidaSerializer</span><span class="p">,</span>
+    <span class="n">TurmaAtribuidaUeSerializer</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_TAG_PROF</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Professores"</span><span class="p">]</span>
+<span class="n">_TAG_TITULAR</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Professores Titulares"</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="BuscaProfessoresView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaProfessoresView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscaProfessoresView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores de uma escola."""</span>
+
+<div class="viewcode-block" id="BuscaProfessoresView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaProfessoresView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professores de uma escola sem ano letivo"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_eol_escola"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ProfessorEscolaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_eol_escola</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores de uma escola.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_eol_escola: Código EOL da escola consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_professores_escola</span><span class="p">(</span><span class="n">codigo_eol_escola</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscaProfessoresAnoLetivoView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaProfessoresAnoLetivoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscaProfessoresAnoLetivoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores de uma escola por ano letivo."""</span>
+
+<div class="viewcode-block" id="BuscaProfessoresAnoLetivoView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaProfessoresAnoLetivoView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professores de uma escola por ano letivo"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_eol_escola"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ano_letivo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ProfessorEscolaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_eol_escola</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores de uma escola por ano letivo.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_eol_escola: Código EOL da escola consultada.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_professores_escola</span><span class="p">(</span>
+            <span class="n">codigo_eol_escola</span><span class="p">,</span> <span class="n">ano_letivo</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscaTurmasAtribuidasEscolaView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaTurmasAtribuidasEscolaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscaTurmasAtribuidasEscolaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas em uma escola e ano letivo."""</span>
+
+<div class="viewcode-block" id="BuscaTurmasAtribuidasEscolaView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaTurmasAtribuidasEscolaView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Turmas atribuídas por escola e ano"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_eol_escola"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ano_letivo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TurmaAtribuidaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_eol_escola</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista turmas atribuídas em uma escola e ano letivo.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_eol_escola: Código EOL da escola consultada.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_turmas_professor_escola_ano</span><span class="p">(</span>
+            <span class="n">codigo_eol_escola</span><span class="p">,</span> <span class="n">ano_letivo</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscaTurmasAtribuidasProfessorEscolaView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaTurmasAtribuidasProfessorEscolaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscaTurmasAtribuidasProfessorEscolaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas ao professor em uma escola."""</span>
+
+<div class="viewcode-block" id="BuscaTurmasAtribuidasProfessorEscolaView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscaTurmasAtribuidasProfessorEscolaView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Turmas atribuídas ao professor (escola + ano)"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_eol_escola"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ano_letivo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TurmaAtribuidaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_eol_escola</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista turmas atribuídas ao professor em uma escola.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_eol_escola: Código EOL da escola consultada.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_turmas_professor_escola_ano</span><span class="p">(</span>
+            <span class="n">codigo_eol_escola</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">,</span> <span class="n">codigo_rf</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarTurmasAtribuidasView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarTurmasAtribuidasView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarTurmasAtribuidasView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas ao professor."""</span>
+
+<div class="viewcode-block" id="BuscarTurmasAtribuidasView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarTurmasAtribuidasView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Turmas atribuídas ao professor (todas)"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TurmaAtribuidaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista turmas atribuídas ao professor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_turmas_professor</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarTurmasAtribuidasTodosAnosView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarTurmasAtribuidasTodosAnosView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarTurmasAtribuidasTodosAnosView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas ao professor em todos os anos letivos."""</span>
+
+<div class="viewcode-block" id="BuscarTurmasAtribuidasTodosAnosView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarTurmasAtribuidasTodosAnosView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Turmas atribuídas ao professor sem filtro de ano letivo"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TurmaAtribuidaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista turmas atribuídas sem restringir o ano letivo.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional ou CPF do professor.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com as atribuições encontradas.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_turmas_professor_todos_anos</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarAbrangenciaFuncionarioPerfilView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarAbrangenciaFuncionarioPerfilView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarAbrangenciaFuncionarioPerfilView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista abrangência de turmas do funcionário."""</span>
+
+<div class="viewcode-block" id="BuscarAbrangenciaFuncionarioPerfilView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarAbrangenciaFuncionarioPerfilView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Abrangência de turmas por funcionário e perfil"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"login"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"id_perfil"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">login</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">id_perfil</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista abrangência de turmas do funcionário.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            login: Login do funcionário usado para buscar abrangência.</span>
+<span class="sd">            id_perfil: Identificador do perfil SGP usado na consulta.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_abrangencia_funcionario_perfil</span><span class="p">(</span>
+            <span class="n">login</span><span class="p">,</span>
+            <span class="n">id_perfil</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TurmasAtribuidasUeView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TurmasAtribuidasUeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TurmasAtribuidasUeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista turmas atribuídas por vínculo com UE."""</span>
+
+<div class="viewcode-block" id="TurmasAtribuidasUeView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TurmasAtribuidasUeView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Turmas atribuídas por vínculo com UE"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"cargos"</span><span class="p">,</span> <span class="n">OpenApiTypes</span><span class="o">.</span><span class="n">STR</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_dre"</span><span class="p">,</span> <span class="n">OpenApiTypes</span><span class="o">.</span><span class="n">STR</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TurmaAtribuidaUeSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista turmas atribuídas por vínculo com UE.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">cargos</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">cargo</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">cargo</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="s2">"cargos"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cargo</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span>
+        <span class="p">]</span>
+        <span class="n">codigo_dre</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_dre"</span><span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">turmas_atribuidas_ue</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">cargos</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DisciplinasTurmasAtribuidasUeView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.DisciplinasTurmasAtribuidasUeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DisciplinasTurmasAtribuidasUeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista disciplinas atribuídas por vínculo com UE."""</span>
+
+<div class="viewcode-block" id="DisciplinasTurmasAtribuidasUeView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.DisciplinasTurmasAtribuidasUeView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Disciplinas atribuídas por vínculo com UE"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"cargos"</span><span class="p">,</span> <span class="n">OpenApiTypes</span><span class="o">.</span><span class="n">STR</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_dre"</span><span class="p">,</span> <span class="n">OpenApiTypes</span><span class="o">.</span><span class="n">STR</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">DisciplinaTurmaAtribuidaUeSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista disciplinas atribuídas por vínculo com UE.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">cargos</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">cargo</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">cargo</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="s2">"cargos"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cargo</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span>
+        <span class="p">]</span>
+        <span class="n">codigo_dre</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_dre"</span><span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">disciplinas_turmas_atribuidas_ue</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">codigo_turma</span><span class="p">,</span>
+            <span class="n">cargos</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">codigo_dre</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ObterNomePeloRFView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.ObterNomePeloRFView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ObterNomePeloRFView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna o nome do professor pelo registro funcional."""</span>
+
+<div class="viewcode-block" id="ObterNomePeloRFView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.ObterNomePeloRFView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter nome do professor pelo RF"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"rf_professor"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">NomePorRFSerializer</span><span class="p">,</span> <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">rf_professor</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna o nome do professor pelo registro funcional.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            rf_professor: Registro funcional do professor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">nome</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">obter_nome_rf</span><span class="p">(</span><span class="n">rf_professor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nome</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">django.http</span><span class="w"> </span><span class="kn">import</span> <span class="n">HttpResponse</span>
+
+        <span class="k">return</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">nome</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s2">"text/plain"</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarPorRfAnoLetivoView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarPorRfAnoLetivoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarPorRfAnoLetivoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna dados do professor com atribuicao de aula por ano letivo."""</span>
+
+<div class="viewcode-block" id="BuscarPorRfAnoLetivoView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarPorRfAnoLetivoView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professor com atribuicao de aula por ano letivo."</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ano_letivo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ProfessorPerfilSerializer</span><span class="p">,</span> <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna dados do professor com atribuicao de aula por ano letivo.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_professor_com_atribuicao_aula_ano_letivo</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="p">,</span> <span class="n">ano_letivo</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultado</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarPorRfDreUeView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarPorRfDreUeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarPorRfDreUeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna dados do professor por registro funcional."""</span>
+
+<div class="viewcode-block" id="BuscarPorRfDreUeView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarPorRfDreUeView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professor por RF, DRE e UE"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ano_letivo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"dre_id"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"ue_id"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"buscar_outros_cargos"</span><span class="p">,</span>
+                <span class="nb">bool</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ProfessorPerfilSerializer</span><span class="p">,</span> <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna dados do professor por registro funcional.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">ano_letivo</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="p">{</span><span class="s2">"detail"</span><span class="p">:</span> <span class="s2">"É necessário informar o ano letivo."</span><span class="p">},</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">buscar_outros_cargos</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"buscar_outros_cargos"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="o">==</span> <span class="s2">"true"</span>
+        <span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_por_rf_dre_ue</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">ano_letivo</span><span class="p">,</span>
+            <span class="n">ue_id</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ue_id"</span><span class="p">),</span>
+            <span class="n">buscar_outros_cargos</span><span class="o">=</span><span class="n">buscar_outros_cargos</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultado</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AutoCompleteView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AutoCompleteView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AutoCompleteView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores para autocomplete por DRE e ano."""</span>
+
+<div class="viewcode-block" id="AutoCompleteView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AutoCompleteView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"AutoComplete de professores por DRE e ano"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ano_letivo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"dre_id"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"ue_id"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"nome"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">AutoCompleteSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">dre_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores para autocomplete por DRE e ano.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+<span class="sd">            dre_id: Código EOL da DRE usada para filtrar professores.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">autocomplete_professores</span><span class="p">(</span>
+            <span class="n">ano_letivo</span><span class="p">,</span>
+            <span class="n">ue_id</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ue_id"</span><span class="p">),</span>
+            <span class="n">nome</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"nome"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BuscarPorListaRFView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarPorListaRFView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BuscarPorListaRFView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores por registros funcionais e ano."""</span>
+
+<div class="viewcode-block" id="BuscarPorListaRFView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.BuscarPorListaRFView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professores por lista de RF e ano"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ano_letivo"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">ResumoSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">ano_letivo</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores por registros funcionais e ano.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            ano_letivo: Ano letivo usado para filtrar vínculos e atribuições.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">ano_letivo</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+                <span class="p">{</span><span class="s2">"detail"</span><span class="p">:</span> <span class="s2">"É necessário informar o ano letivo."</span><span class="p">},</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">buscar_por_lista_rf</span><span class="p">(</span><span class="n">ano_letivo</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="VerificarValidadeView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.VerificarValidadeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">VerificarValidadeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica se o professor possui vínculo válido."""</span>
+
+<div class="viewcode-block" id="VerificarValidadeView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.VerificarValidadeView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar validade do professor"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">bool</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica se o professor possui vínculo válido.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">services</span><span class="o">.</span><span class="n">verificar_validade</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="UnidadesAtribuicaoValidaView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.UnidadesAtribuicaoValidaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UnidadesAtribuicaoValidaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista as UEs onde o professor tem atribuição válida."""</span>
+
+<div class="viewcode-block" id="UnidadesAtribuicaoValidaView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.UnidadesAtribuicaoValidaView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Listar UEs com atribuição válida do professor"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">OpenApiTypes</span><span class="o">.</span><span class="n">OBJECT</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista as UEs onde o professor tem atribuição válida.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"codigo_rf"</span><span class="p">:</span> <span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="s2">"codigos_ue"</span><span class="p">:</span> <span class="n">services</span><span class="o">.</span><span class="n">unidades_com_atribuicao_valida</span><span class="p">(</span>
+                    <span class="n">codigo_rf</span>
+                <span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AtribuicaoStatusView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoStatusView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtribuicaoStatusView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor na turma."""</span>
+
+<div class="viewcode-block" id="AtribuicaoStatusView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoStatusView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar status de atribuição na turma"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">AtribuicaoStatusSerializer</span><span class="p">,</span> <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica atribuição do professor na turma.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">services</span><span class="o">.</span><span class="n">atribuicao_status</span><span class="p">(</span><span class="n">codigo_rf</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AtribuicaoVerificarDataView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoVerificarDataView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtribuicaoVerificarDataView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor na turma em uma data."""</span>
+
+<div class="viewcode-block" id="AtribuicaoVerificarDataView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoVerificarDataView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar atribuição na turma em data"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"data_consulta"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica atribuição do professor na turma em uma data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">atribuicao_verificar_data</span><span class="p">(</span>
+                <span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="n">codigo_turma</span><span class="p">,</span>
+                <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_consulta"</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AtribuicaoDisciplinaDataView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoDisciplinaDataView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtribuicaoDisciplinaDataView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor na disciplina em uma data."""</span>
+
+<div class="viewcode-block" id="AtribuicaoDisciplinaDataView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoDisciplinaDataView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar atribuição na disciplina/turma em data"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"data_consulta"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica atribuição do professor na disciplina em uma data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">            disciplina_id: Identificador do componente curricular/disciplina.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">atribuicao_disciplina_data</span><span class="p">(</span>
+                <span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="n">codigo_turma</span><span class="p">,</span>
+                <span class="n">disciplina_id</span><span class="p">,</span>
+                <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_consulta"</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AtribuicaoDisciplinaDataTickView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoDisciplinaDataTickView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtribuicaoDisciplinaDataTickView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor usando data em ticks."""</span>
+
+<div class="viewcode-block" id="AtribuicaoDisciplinaDataTickView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoDisciplinaDataTickView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">deprecated</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar atribuição na disciplina/turma via dataTick"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"data_consulta_tick"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica atribuição do professor usando data em ticks.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">            disciplina_id: Identificador do componente curricular/disciplina.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">atribuicao_disciplina_datatick</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">codigo_turma</span><span class="p">,</span>
+            <span class="n">disciplina_id</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_consulta_tick"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="o">.</span><span class="n">payload</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">resultado</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AtribuicaoRecorrenciaDatasView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoRecorrenciaDatasView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtribuicaoRecorrenciaDatasView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista resultados de atribuição para datas recorrentes."""</span>
+
+<div class="viewcode-block" id="AtribuicaoRecorrenciaDatasView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoRecorrenciaDatasView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">deprecated</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">"Verificar atribuição na disciplina/turma em recorrência de datas"</span>
+        <span class="p">),</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"data_ticks"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span>
+            <span class="mi">200</span><span class="p">:</span> <span class="n">AtribuicaoDataSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista resultados de atribuição para datas recorrentes.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">            disciplina_id: Identificador do componente curricular/disciplina.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">atribuicao_recorrencia_datas</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">codigo_turma</span><span class="p">,</span>
+            <span class="n">disciplina_id</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="s2">"data_ticks"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="o">.</span><span class="n">payload</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">resultado</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AtribuicaoTurmasListaView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoTurmasListaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtribuicaoTurmasListaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista resultados de atribuição em turmas por disciplina."""</span>
+
+<div class="viewcode-block" id="AtribuicaoTurmasListaView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoTurmasListaView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar atribuição em turmas por disciplina"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">request</span><span class="o">=</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">AtribuicaoTurmaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista resultados de atribuição em turmas por disciplina.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            disciplina_id: Identificador do componente curricular/disciplina.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">atribuicao_turmas_lista</span><span class="p">(</span>
+            <span class="n">codigo_rf</span><span class="p">,</span>
+            <span class="n">disciplina_id</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="o">.</span><span class="n">payload</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">resultado</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AtribuicaoPeriodoView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoPeriodoView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtribuicaoPeriodoView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Verifica atribuição do professor em período."""</span>
+
+<div class="viewcode-block" id="AtribuicaoPeriodoView.post">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AtribuicaoPeriodoView.post">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Verificar atribuição do professor em período"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"componente_curricular_id"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"data_inicio_periodo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span>
+            <span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"data_fim_periodo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_rf</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">componente_curricular_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">data_inicio_periodo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">data_fim_periodo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Verifica atribuição do professor em período.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_rf: Registro funcional do professor ou servidor consultado.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">            componente_curricular_id: ID do componente curricular consultado.</span>
+<span class="sd">            data_inicio_periodo: Data inicial do período consultado.</span>
+<span class="sd">            data_fim_periodo: Data final do período de atribuição consultado.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">atribuicao_periodo</span><span class="p">(</span>
+                <span class="n">codigo_rf</span><span class="p">,</span>
+                <span class="n">codigo_turma</span><span class="p">,</span>
+                <span class="n">componente_curricular_id</span><span class="p">,</span>
+                <span class="n">data_inicio_periodo</span><span class="p">,</span>
+                <span class="n">data_fim_periodo</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ObterProfessoresAtribuidosTurmaDiscView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.ObterProfessoresAtribuidosTurmaDiscView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ObterProfessoresAtribuidosTurmaDiscView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores atribuídos a turma e disciplina em data."""</span>
+
+<div class="viewcode-block" id="ObterProfessoresAtribuidosTurmaDiscView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.ObterProfessoresAtribuidosTurmaDiscView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">deprecated</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter professores atribuídos a turma/disciplina em data"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"data_ticks"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span>
+            <span class="mi">200</span><span class="p">:</span> <span class="n">ProfessorAtribuicaoTurmaDiscSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores atribuídos a turma e disciplina em data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">            disciplina_id: Identificador do componente curricular/disciplina.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">professores_atribuidos_turma_disc</span><span class="p">(</span>
+            <span class="n">codigo_turma</span><span class="p">,</span>
+            <span class="n">disciplina_id</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_ticks"</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="o">.</span><span class="n">payload</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">resultado</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ProfessoresAtribuidosTurmaDiscDataView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.ProfessoresAtribuidosTurmaDiscDataView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProfessoresAtribuidosTurmaDiscDataView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores atribuídos a turma e disciplina em data ISO."""</span>
+
+<div class="viewcode-block" id="ProfessoresAtribuidosTurmaDiscDataView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.ProfessoresAtribuidosTurmaDiscDataView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_PROF</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Obter professores atribuídos a turma/disciplina em data ISO"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"disciplina_id"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"data"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span>
+            <span class="mi">200</span><span class="p">:</span> <span class="n">ProfessorAtribuicaoTurmaDiscSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="mi">400</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="mi">422</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="mi">500</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">disciplina_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores atribuídos a turma e disciplina em data ISO.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">            disciplina_id: Identificador do componente curricular/disciplina.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">professores_atribuidos_turma_disc_data</span><span class="p">(</span>
+                <span class="n">codigo_turma</span><span class="p">,</span>
+                <span class="n">disciplina_id</span><span class="p">,</span>
+                <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data"</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TitularPorTurmaDisciplinaView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularPorTurmaDisciplinaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TitularPorTurmaDisciplinaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna professor titular por turma e disciplina."""</span>
+
+<div class="viewcode-block" id="TitularPorTurmaDisciplinaView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularPorTurmaDisciplinaView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_TITULAR</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professor titular por turma e disciplina"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_componente_curricular"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TitularSerializer</span><span class="p">,</span> <span class="mi">204</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">codigo_componente_curricular</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retorna professor titular por turma e disciplina.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+<span class="sd">            codigo_componente_curricular: Código do componente curricular.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="n">resultado</span> <span class="o">=</span> <span class="n">services</span><span class="o">.</span><span class="n">titular_por_turma_disciplina</span><span class="p">(</span>
+            <span class="n">codigo_turma</span><span class="p">,</span> <span class="n">codigo_componente_curricular</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">resultado</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_204_NO_CONTENT</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">resultado</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TitularesPorTurmasView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularesPorTurmasView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TitularesPorTurmasView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores titulares por turmas."""</span>
+
+<div class="viewcode-block" id="TitularesPorTurmasView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularesPorTurmasView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_TITULAR</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professores titulares por lista de turmas"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigos_turmas"</span><span class="p">,</span>
+                <span class="nb">int</span><span class="p">,</span>
+                <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TitularPorTurmaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores titulares por turmas.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">titulares_por_turmas</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="s2">"codigos_turmas"</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TitularesPorTurmaView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularesPorTurmaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TitularesPorTurmaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores titulares por turma."""</span>
+
+<div class="viewcode-block" id="TitularesPorTurmaView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularesPorTurmaView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_TITULAR</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professores titulares por turma"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"codigo_turma"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span>
+                <span class="s2">"codigo_rf"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TitularTurmaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">codigo_turma</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores titulares por turma.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            codigo_turma: Código EOL da turma consultada.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">titulares_por_turma</span><span class="p">(</span>
+                <span class="n">codigo_turma</span><span class="p">,</span>
+                <span class="n">codigo_rf</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">query_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"codigo_rf"</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TitularesPorUeView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularesPorUeView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TitularesPorUeView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Lista professores titulares por unidade e data de referência."""</span>
+
+<div class="viewcode-block" id="TitularesPorUeView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.TitularesPorUeView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="n">_TAG_TITULAR</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Buscar professores titulares por UE e data de referência"</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"ue_codigo"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+            <span class="n">OpenApiParameter</span><span class="p">(</span><span class="s2">"data_referencia"</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">OpenApiParameter</span><span class="o">.</span><span class="n">PATH</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span><span class="mi">200</span><span class="p">:</span> <span class="n">TitularPorTurmaSerializer</span><span class="p">(</span><span class="n">many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+        <span class="n">ue_codigo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">data_referencia</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Lista professores titulares por unidade e data de referência.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP recebida pela API.</span>
+<span class="sd">            ue_codigo: Código EOL da unidade educacional consultada.</span>
+<span class="sd">            data_referencia: Data de referência usada para consultar titulares.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Resposta HTTP com o resultado da operação.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+            <span class="n">services</span><span class="o">.</span><span class="n">titulares_por_ue</span><span class="p">(</span>
+                <span class="n">ue_codigo</span><span class="p">,</span>
+                <span class="n">data_referencia</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AdministradorSgpEscolaView">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AdministradorSgpEscolaView">[documentos]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AdministradorSgpEscolaView</span><span class="p">(</span><span class="n">APIView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Retorna RFs dos administradores SGP de uma escola."""</span>
+
+<div class="viewcode-block" id="AdministradorSgpEscolaView.get">
+<a class="viewcode-back" href="../../../../api.html#apps.professores.api.views.AdministradorSgpEscolaView.get">[documentos]</a>
+    <span class="nd">@extend_schema</span><span class="p">(</span>
+        <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">"Escolas"</span><span class="p">],</span>
+        <span class="n">operation_id</span><span class="o">=</span><span class="s2">"E01_administrador_sgp"</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="s2">"Lista administradores SGP da escola"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">"Retorna lista de RFs/logins de administradores SGP da escola. "</span>
+            <span class="s2">"Inclui administradores da UE e da DRE associada. "</span>
+            <span class="s2">"Dados sincronizados do CoreSSO via ETL."</span>
+        <span class="p">),</span>
+        <span class="n">responses</span><span class="o">=</span><span class="p">{</span>
+            <span class="mi">200</span><span class="p">:</span> <span class="n">OpenApiTypes</span><span class="o">.</span><span class="n">OBJECT</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">codigo_ue</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Busca administradores.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Requisição HTTP.</span>
+<span class="sd">            codigo_ue: Código EOL da unidade educacional.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Lista de RFs.</span>
+<span class="sd">        """</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">apps.professores.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdministradorEscola</span>
+
+        <span class="n">administradores</span> <span class="o">=</span> <span class="n">AdministradorEscola</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">codigo_ue</span><span class="o">=</span><span class="n">codigo_ue</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">values_list</span><span class="p">(</span><span class="s2">"rf_login"</span><span class="p">,</span> <span class="n">flat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">administradores</span><span class="p">),</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_200_OK</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">SME-IntegracaoEOL-Professores-Microsservico</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Ir" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navegação</h3>
+<p class="caption" role="heading"><span class="caption-text">Referência de código</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../funcionarios.html">Funcionários</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">Referência de código</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Código do módulo</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
