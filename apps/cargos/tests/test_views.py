@@ -24,7 +24,7 @@ class TestCargosView:
 
         assert res.status_code == 200
         assert res.data == [
-            {"codigoCargo": 3360, "nomeCargo": "DIRETOR"},
+            {"codigo_cargo": 3360, "nome_cargo": "DIRETOR"},
         ]
 
     def test_sem_cargos_retorna_lista_vazia(self, client):
