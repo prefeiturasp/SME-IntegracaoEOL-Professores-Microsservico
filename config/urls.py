@@ -26,6 +26,7 @@ urlpatterns = [
         ),
         name="swagger-ui",
     ),
+    path(_API, include("apps.cargos.api.urls")),
     path(_API, include("apps.professores.api.urls")),
     path(_API, include("apps.turmas.api.urls")),
     path(_API, include("apps.funcionarios.api.urls")),
