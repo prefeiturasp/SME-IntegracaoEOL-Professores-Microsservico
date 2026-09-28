@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
+    "apps.cargos",
     "apps.core.apps.CoreConfig",
     "apps.professores",
     "apps.turmas",
