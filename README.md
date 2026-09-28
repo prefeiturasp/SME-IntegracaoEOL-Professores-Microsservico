@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SME-IntegracaoEOL-Professores-Microsservico
 
 Microsserviço do domínio Professores para o SGP (Sistema de Gestão Pedagógica) da SME-SP.
@@ -216,3 +217,6 @@ O resultado fica em `docs/_build/index.html` (acessível no host via volume).
 
 - Contrato completo: `../swagger_contrato_microsservico.md`
 - Projeto ETL de referência: `../SME-SGP-MS-ETL/`
+=======
+# SME-IntegracaoEOL-Professores-Microsservico
+>>>>>>> homolog
