@@ -30,10 +30,6 @@ Given('que possuo acesso à API de funcionários', () => {
 
 })
 
-// ======================================================
-// TURMAS ATRIBUÍDAS DA UE
-// ======================================================
-
 When('envio uma requisição POST para buscar turmas atribuídas da UE definida em {string}', (envKey) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
@@ -63,10 +59,6 @@ When('envio uma requisição POST para buscar turmas atribuídas da UE definida 
   })
 
 })
-
-// ======================================================
-// FUNCIONÁRIOS POR RF, UE E NOME
-// ======================================================
 
 When('envio uma requisição POST para buscar funcionário definido em {string}', (prefix) => {
 
@@ -104,10 +96,6 @@ When('envio uma requisição POST para buscar funcionário definido em {string}'
 
 })
 
-// ======================================================
-// DISCIPLINAS DA TURMA
-// ======================================================
-
 When('envio uma requisição GET para buscar disciplinas da turma definida em {string}', (envKey) => {
 
   const apiUrl = getEnvOrFail('API_URL_NOVA')
@@ -136,10 +124,6 @@ When('envio uma requisição GET para buscar disciplinas da turma definida em {s
   })
 
 })
-
-// ======================================================
-// SWITCH ABRANGÊNCIA DE TURMAS
-// ======================================================
 
 When('envio uma requisição GET para buscar turmas com abrangência UE definida em {string}', (prefix) => {
 
@@ -293,10 +277,6 @@ When('envio uma requisição GET para buscar turmas com abrangência DRE Escolas
   })
 
 })
-
-// ======================================================
-// THEN
-// ======================================================
 
 Then('a API de funcionários deve responder com status 200', () => {
 

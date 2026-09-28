@@ -23,9 +23,6 @@ function logBody(body) {
   cy.log(`BODY => ${serialized}`)
 }
 
-// ======================================================
-// PROFESSOR POR RF E ANO LETIVO
-// ======================================================
 
 Given('que possuo acesso à API de professores por RF', () => {
 
@@ -71,10 +68,6 @@ When('envio uma requisição GET para buscar professor por RF e ano letivo', () 
 
 })
 
-// ======================================================
-// VALIDAR PROFESSOR POR RF
-// ======================================================
-
 Given('que possuo acesso à API de validação de professor', () => {
 
   getEnvOrFail('API_URL_NOVA')
@@ -113,10 +106,6 @@ When('envio uma requisição GET para validar professor por RF', () => {
 
 })
 
-// ======================================================
-// CONSULTAR NOME DO PROFESSOR POR RF
-// ======================================================
-
 Given('que possuo acesso à API de consulta de nome do professor', () => {
 
   getEnvOrFail('API_URL_NOVA')
@@ -154,10 +143,6 @@ When('envio uma requisição GET para consultar nome do professor por RF', () =>
   })
 
 })
-
-// ======================================================
-// THEN
-// ======================================================
 
 Then('a API deve responder com status 200', () => {
 

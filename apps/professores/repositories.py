@@ -567,9 +567,7 @@ def buscar_professores_escola(codigo_ue: str, ano_letivo: int) -> list[dict]:
         codigo_escola=codigo_ue,
         ano_letivo=ano_letivo,
     ).order_by("id")
-    return [
-        _professor_escola_ano_row(professor) for professor in professores
-    ]
+    return [_professor_escola_ano_row(professor) for professor in professores]
 
 
 def buscar_turmas_professor_escola_ano(
@@ -905,12 +903,10 @@ def verificar_validade(rf: str) -> bool:
     Returns:
         ``True`` quando existe cargo ativo para o professor.
     """
-    return bool(
-        CargoBaseServidor.objects.filter(
-            professor__codigo_rf=rf,
-            dt_fim_nomeacao__isnull=True,
-        ).exists()
-    )
+    return CargoBaseServidor.objects.filter(
+        professor_id=rf,
+        dt_fim_nomeacao__isnull=True,
+    ).exists()
 
 
 _CD_CARGO_PROF_INFANTIL_FUND_I = 3239
