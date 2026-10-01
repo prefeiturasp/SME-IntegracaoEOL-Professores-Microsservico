@@ -1,14 +1,15 @@
 """Rotas principais do projeto Django."""
 
-from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.permissions import AllowAny
 
+from apps.core.health import HealthView
+
 _API = "api/v1/"
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path(f"{_API}professores/health/", HealthView.as_view(), name="health"),
     path(
         f"{_API}schema/",
         SpectacularAPIView.as_view(
