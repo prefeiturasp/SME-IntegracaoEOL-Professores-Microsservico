@@ -610,9 +610,7 @@
         <span class="n">codigo_escola</span><span class="o">=</span><span class="n">codigo_ue</span><span class="p">,</span>
         <span class="n">ano_letivo</span><span class="o">=</span><span class="n">ano_letivo</span><span class="p">,</span>
     <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s2">"id"</span><span class="p">)</span>
-    <span class="k">return</span> <span class="p">[</span>
-        <span class="n">_professor_escola_ano_row</span><span class="p">(</span><span class="n">professor</span><span class="p">)</span> <span class="k">for</span> <span class="n">professor</span> <span class="ow">in</span> <span class="n">professores</span>
-    <span class="p">]</span></div>
+    <span class="k">return</span> <span class="p">[</span><span class="n">_professor_escola_ano_row</span><span class="p">(</span><span class="n">professor</span><span class="p">)</span> <span class="k">for</span> <span class="n">professor</span> <span class="ow">in</span> <span class="n">professores</span><span class="p">]</span></div>
 
 
 
@@ -981,12 +979,10 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        ``True`` quando existe cargo ativo para o professor.</span>
 <span class="sd">    """</span>
-    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
-        <span class="n">CargoBaseServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">professor__codigo_rf</span><span class="o">=</span><span class="n">rf</span><span class="p">,</span>
-            <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-    <span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">CargoBaseServidor</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+        <span class="n">professor_id</span><span class="o">=</span><span class="n">rf</span><span class="p">,</span>
+        <span class="n">dt_fim_nomeacao__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span></div>
 
 
 
