@@ -1,0 +1,51 @@
+"""Autenticação por API key para requests DRF."""
+
+import secrets
+from dataclasses import dataclass
+
+from django.conf import settings
+from rest_framework import authentication, exceptions
+from rest_framework.request import Request
+
+
+@dataclass
+class UsuarioApiKey:
+    """Representa autenticação válida por chave de API."""
+
+    username: str = "api_key_user"
+    is_authenticated: bool = True
+    is_active: bool = True
+
+
+class ApiKeyAuthentication(authentication.BaseAuthentication):
+    """Autentica requests por header de API key."""
+
+    keyword = "X-API-Key"
+
+    def authenticate(
+        self, request: Request
+    ) -> tuple[UsuarioApiKey, None] | None:
+        """Autentica request por header de API key.
+
+        Args:
+            request: Requisição DRF com headers da chamada.
+
+        Returns:
+            Usuário autenticado e credencial nula, ou ``None`` sem header.
+
+        Raises:
+            AuthenticationFailed: Quando a API key não está configurada ou é
+                inválida.
+        """
+        chave_esperada = settings.API_KEY
+        if not chave_esperada:
+            raise exceptions.AuthenticationFailed("API key nao configurada")
+
+        chave_recebida = request.headers.get(self.keyword)
+        if not chave_recebida:
+            return None
+
+        if not secrets.compare_digest(chave_recebida, chave_esperada):
+            raise exceptions.AuthenticationFailed("API key invalida")
+
+        return (UsuarioApiKey(), None)

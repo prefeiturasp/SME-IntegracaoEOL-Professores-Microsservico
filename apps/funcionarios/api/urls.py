@@ -1,0 +1,148 @@
+"""Rotas da API do domínio de funcionários."""
+
+from django.urls import path
+
+from apps.funcionarios.api.views import (
+    AcessoSondagemView,
+    BuscarFuncionariosView,
+    BuscarPorListaLoginView,
+    BuscarPorListaRFView,
+    CargosFuncionarioView,
+    ConectaFormacaoView,
+    DadosSigpaeView,
+    DreUeAtribuicaoCargoView,
+    FuncionarioExternoPorCpfView,
+    FuncionariosAdminsSmeView,
+    FuncionariosPorCargoView,
+    FuncionariosPorUEView,
+    FuncionariosPorUnidadePerfisView,
+    FuncionariosSGPDreView,
+    FuncionariosUEView,
+    NomeCPFServidorView,
+    NomeUsuarioEOLView,
+    ServidorAtivoView,
+    SupervisoresDreConsolidadoView,
+    SupervisoresPorDreView,
+    UsuariosConectaFormacaoView,
+    UsuariosSGPView,
+)
+
+_BASE_ACESSOS = "professores/acessos"
+_BASE_ESCOLAS = "professores/escolas"
+_BASE_FUNCIONARIOS = "professores/funcionarios"
+_BASE_PERFIS = "professores/perfis"
+
+urlpatterns = [
+    path(
+        "funcionarios/",
+        BuscarFuncionariosView.as_view(),
+        name="funcionarios-buscar",
+    ),
+    path(
+        f"{_BASE_ESCOLAS}/<str:codigo_ue>/funcionarios/",
+        FuncionariosPorUEView.as_view(),
+        name="funcionarios-ue",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/ue/<str:codigo_ue>/",
+        FuncionariosUEView.as_view(),
+        name="funcionarios-ue-legado",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/cargos/<int:codigo_cargo>/",
+        FuncionariosPorCargoView.as_view(),
+        name="funcionarios-cargo-legado",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/supervisores/<str:codigo_dre>/",
+        SupervisoresPorDreView.as_view(),
+        name="funcionarios-supervisores-dre",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/dres/<str:codigo_dre>/supervisores/",
+        SupervisoresDreConsolidadoView.as_view(),
+        name="funcionarios-dre-supervisores",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/unidade/<str:codigo_dre_ue>/",
+        FuncionariosPorUnidadePerfisView.as_view(),
+        name="funcionarios-unidade-perfis",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/admins/sme/",
+        FuncionariosAdminsSmeView.as_view(),
+        name="funcionarios-admins-sme",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/DadosSigpae/<str:codigo_rf>/",
+        DadosSigpaeView.as_view(),
+        name="funcionarios-dados-sigpae",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/cargo/<str:registro_funcional>/",
+        CargosFuncionarioView.as_view(),
+        name="funcionarios-cargos-rf",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/registros-funcionais/conecta-formacao/",
+        ConectaFormacaoView.as_view(),
+        name="funcionarios-conecta-formacao",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/usuarios/conecta-formacao/",
+        UsuariosConectaFormacaoView.as_view(),
+        name="funcionarios-usuarios-conecta-formacao",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/funcionario-externo/<str:cpf>/",
+        FuncionarioExternoPorCpfView.as_view(),
+        name="funcionario-externo-cpf",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/nome-servidor/<str:registro_funcional>/",
+        NomeCPFServidorView.as_view(),
+        name="funcionario-nome-servidor",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/nome-usuario-eol/<str:registro_funcional>/",
+        NomeUsuarioEOLView.as_view(),
+        name="funcionario-nome-usuario-eol",
+    ),
+    path(
+        f"{_BASE_ACESSOS}/funcionario-ativo/<str:registro_funcional>/",
+        ServidorAtivoView.as_view(),
+        name="funcionario-ativo",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/atribuicao/<str:registro_funcional>/"
+        "cargo/<int:codigo_cargo>/",
+        DreUeAtribuicaoCargoView.as_view(),
+        name="funcionario-atribuicao-cargo",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/perfis/<str:id_perfil>/",
+        UsuariosSGPView.as_view(),
+        name="funcionarios-perfil",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/perfis/<str:id_perfil>/dres/<str:codigo_dre>/",
+        FuncionariosSGPDreView.as_view(),
+        name="funcionarios-perfil-dre",
+    ),
+    path(
+        f"{_BASE_PERFIS}/servidores/<str:codigo_rf>/"
+        "VerificaSeProfessorTemAcessoAhSondagem/",
+        AcessoSondagemView.as_view(),
+        name="professor-acesso-sondagem",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/BuscarPorListaRF/",
+        BuscarPorListaRFView.as_view(),
+        name="funcionarios-buscar-lista-rf",
+    ),
+    path(
+        f"{_BASE_FUNCIONARIOS}/BuscarPorListaLogin/",
+        BuscarPorListaLoginView.as_view(),
+        name="funcionarios-buscar-lista-login",
+    ),
+]
