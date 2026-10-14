@@ -1,6 +1,7 @@
 """Queries do domínio de professores."""
 
 from datetime import date
+from types import SimpleNamespace
 from typing import Any
 
 from django.db.models import Q
@@ -1515,21 +1516,36 @@ def titulares_por_ue(
             Q(dt_disponibilizacao_aulas__isnull=True)
             | Q(dt_disponibilizacao_aulas__gte=data_limite_disponibilizacao)
         )
-        .select_related("cargo_base__professor")
+        .values(
+            "cargo_base__professor__codigo_rf",
+            "cargo_base__professor__nome",
+            "cargo_base__professor__nome_social",
+            "descricao_componente_curricular",
+            "codigo_componente_curricular",
+            "codigo_turma_escola",
+        )
     )
 
     resultado = [
         {
-            "professor_rf": aa.cargo_base.professor.codigo_rf,
-            "nome_professor": get_nome(aa.cargo_base.professor),
+            "professor_rf": aa["cargo_base__professor__codigo_rf"],
+            "nome_professor": get_nome(
+                SimpleNamespace(
+                    nome=aa["cargo_base__professor__nome"],
+                    nome_social=aa["cargo_base__professor__nome_social"],
+                )
+            ),
             "disciplina": (
-                aa.descricao_componente_curricular.rstrip()
-                if aa.descricao_componente_curricular
+                aa["descricao_componente_curricular"].rstrip()
+                if aa["descricao_componente_curricular"]
                 else None
             ),
-            "disciplina_id": str(aa.codigo_componente_curricular),
-            "disciplinas_id": str(aa.codigo_componente_curricular),
-            "turma_id": _codigo_turma(aa) or 0,
+            "disciplina_id": str(aa["codigo_componente_curricular"]),
+            "disciplinas_id": str(aa["codigo_componente_curricular"]),
+            "turma_id": _codigo_turma(
+                SimpleNamespace(codigo_turma_escola=aa["codigo_turma_escola"])
+            )
+            or 0,
         }
         for aa in aa_qs
     ]
