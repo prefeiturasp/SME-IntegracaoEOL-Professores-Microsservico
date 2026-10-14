@@ -690,6 +690,20 @@ def test_titulares_por_ue_retorna_payload(atribuicao):
     ]
 
 
+def test_titulares_por_ue_prefere_nome_social(atribuicao):
+    """Usa o nome social do professor quando preenchido."""
+    professor = atribuicao.cargo_base.professor
+    professor.nome_social = "Nome Social Ficticio"
+    professor.save(update_fields=["nome_social"])
+
+    resultado = repositories.titulares_por_ue(
+        "000532",
+        date(2024, 6, 1),
+    )
+
+    assert resultado[0]["nome_professor"] == "Nome Social Ficticio"
+
+
 def test_titulares_por_ue_ignora_atribuicao_cancelada(atribuicao):
     """Ignora atribuição cancelada."""
     atribuicao.dt_cancelamento = date.today()
