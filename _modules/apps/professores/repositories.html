@@ -36,6 +36,7 @@
 <span></span><span class="sd">"""Queries do domínio de professores."""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">types</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimpleNamespace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">django.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Q</span>
@@ -1633,21 +1634,36 @@
             <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__isnull</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="o">|</span> <span class="n">Q</span><span class="p">(</span><span class="n">dt_disponibilizacao_aulas__gte</span><span class="o">=</span><span class="n">data_limite_disponibilizacao</span><span class="p">)</span>
         <span class="p">)</span>
-        <span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s2">"cargo_base__professor"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">values</span><span class="p">(</span>
+            <span class="s2">"cargo_base__professor__codigo_rf"</span><span class="p">,</span>
+            <span class="s2">"cargo_base__professor__nome"</span><span class="p">,</span>
+            <span class="s2">"cargo_base__professor__nome_social"</span><span class="p">,</span>
+            <span class="s2">"descricao_componente_curricular"</span><span class="p">,</span>
+            <span class="s2">"codigo_componente_curricular"</span><span class="p">,</span>
+            <span class="s2">"codigo_turma_escola"</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="p">)</span>
 
     <span class="n">resultado</span> <span class="o">=</span> <span class="p">[</span>
         <span class="p">{</span>
-            <span class="s2">"professor_rf"</span><span class="p">:</span> <span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="o">.</span><span class="n">codigo_rf</span><span class="p">,</span>
-            <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">cargo_base</span><span class="o">.</span><span class="n">professor</span><span class="p">),</span>
+            <span class="s2">"professor_rf"</span><span class="p">:</span> <span class="n">aa</span><span class="p">[</span><span class="s2">"cargo_base__professor__codigo_rf"</span><span class="p">],</span>
+            <span class="s2">"nome_professor"</span><span class="p">:</span> <span class="n">get_nome</span><span class="p">(</span>
+                <span class="n">SimpleNamespace</span><span class="p">(</span>
+                    <span class="n">nome</span><span class="o">=</span><span class="n">aa</span><span class="p">[</span><span class="s2">"cargo_base__professor__nome"</span><span class="p">],</span>
+                    <span class="n">nome_social</span><span class="o">=</span><span class="n">aa</span><span class="p">[</span><span class="s2">"cargo_base__professor__nome_social"</span><span class="p">],</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
             <span class="s2">"disciplina"</span><span class="p">:</span> <span class="p">(</span>
-                <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
-                <span class="k">if</span> <span class="n">aa</span><span class="o">.</span><span class="n">descricao_componente_curricular</span>
+                <span class="n">aa</span><span class="p">[</span><span class="s2">"descricao_componente_curricular"</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">aa</span><span class="p">[</span><span class="s2">"descricao_componente_curricular"</span><span class="p">]</span>
                 <span class="k">else</span> <span class="kc">None</span>
             <span class="p">),</span>
-            <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
-            <span class="s2">"disciplinas_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="o">.</span><span class="n">codigo_componente_curricular</span><span class="p">),</span>
-            <span class="s2">"turma_id"</span><span class="p">:</span> <span class="n">_codigo_turma</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"disciplina_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="p">[</span><span class="s2">"codigo_componente_curricular"</span><span class="p">]),</span>
+            <span class="s2">"disciplinas_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">aa</span><span class="p">[</span><span class="s2">"codigo_componente_curricular"</span><span class="p">]),</span>
+            <span class="s2">"turma_id"</span><span class="p">:</span> <span class="n">_codigo_turma</span><span class="p">(</span>
+                <span class="n">SimpleNamespace</span><span class="p">(</span><span class="n">codigo_turma_escola</span><span class="o">=</span><span class="n">aa</span><span class="p">[</span><span class="s2">"codigo_turma_escola"</span><span class="p">])</span>
+            <span class="p">)</span>
+            <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="n">aa_qs</span>
     <span class="p">]</span>
