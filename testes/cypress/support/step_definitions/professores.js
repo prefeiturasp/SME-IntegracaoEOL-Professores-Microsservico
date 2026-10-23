@@ -1,153 +1,140 @@
-import { Given, When, Then } from 'cypress-cucumber-preprocessor/steps'
+import { Given, When, Then } from "cypress-cucumber-preprocessor/steps";
 
-let response
+let response;
 
 function getEnvOrFail(key) {
-  const value = Cypress.env(key)
+  const value = Cypress.env(key);
 
-  expect(value, `Variável ${key} não definida`).to.exist
-  expect(String(value).trim(), `${key} vazia`).to.not.be.empty
+  expect(value, `Variável ${key} não definida`).to.exist;
+  expect(String(value).trim(), `${key} vazia`).to.not.be.empty;
 
-  return value
+  return value;
 }
 
 function logBody(body) {
-  const serialized = JSON.stringify(body)
-  const maxLength = 2000
+  const serialized = JSON.stringify(body);
+  const maxLength = 2000;
 
   if (serialized && serialized.length > maxLength) {
-    cy.log(`BODY (truncado, ${serialized.length} caracteres) => ${serialized.slice(0, maxLength)}...`)
-    return
+    cy.log(
+      `BODY (truncado, ${serialized.length} caracteres) => ${serialized.slice(0, maxLength)}...`,
+    );
+    return;
   }
 
-  cy.log(`BODY => ${serialized}`)
+  cy.log(`BODY => ${serialized}`);
 }
 
+Given("que possuo acesso à API de professores por RF", () => {
+  getEnvOrFail("API_URL_NOVA");
+  getEnvOrFail("API_KEY_NOVA");
+  getEnvOrFail("CODIGO_RF");
+  getEnvOrFail("ANO_LETIVO");
+});
 
-Given('que possuo acesso à API de professores por RF', () => {
+When(
+  "envio uma requisição GET para buscar professor por RF e ano letivo",
+  () => {
+    const apiUrl = getEnvOrFail("API_URL_NOVA");
+    const apiKey = getEnvOrFail("API_KEY_NOVA");
 
-  getEnvOrFail('API_URL_NOVA')
-  getEnvOrFail('API_KEY_NOVA')
-  getEnvOrFail('CODIGO_RF')
-  getEnvOrFail('ANO_LETIVO')
+    const codigoRf = getEnvOrFail("CODIGO_RF");
+    const anoLetivo = getEnvOrFail("ANO_LETIVO");
 
-})
+    const endpoint = `${apiUrl}/api/professores/${codigoRf}/BuscarPorRf/${anoLetivo}`;
 
-When('envio uma requisição GET para buscar professor por RF e ano letivo', () => {
+    cy.log(`Endpoint => ${endpoint}`);
 
-  const apiUrl = getEnvOrFail('API_URL_NOVA')
-  const apiKey = getEnvOrFail('API_KEY_NOVA')
+    return cy
+      .request({
+        method: "GET",
+        url: endpoint,
+        qs: {
+          buscar_outros_cargos: false,
+        },
+        headers: {
+          accept: "application/json",
+          "X-API-Key": apiKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((res) => {
+        response = res;
 
-  const codigoRf = getEnvOrFail('CODIGO_RF')
-  const anoLetivo = getEnvOrFail('ANO_LETIVO')
+        cy.log(`STATUS => ${res.status}`);
+        logBody(res.body);
+      });
+  },
+);
 
-  const endpoint =
-    `${apiUrl}/api/professores/${codigoRf}/BuscarPorRf/${anoLetivo}/`
+Given("que possuo acesso à API de validação de professor", () => {
+  getEnvOrFail("API_URL_NOVA");
+  getEnvOrFail("API_KEY_NOVA");
+  getEnvOrFail("CODIGO_RF");
+});
 
-  cy.log(`Endpoint => ${endpoint}`)
+When("envio uma requisição GET para validar professor por RF", () => {
+  const apiUrl = getEnvOrFail("API_URL_NOVA");
+  const apiKey = getEnvOrFail("API_KEY_NOVA");
+  const codigoRf = getEnvOrFail("CODIGO_RF");
 
-  return cy.request({
-    method: 'GET',
-    url: endpoint,
-    qs: {
-      buscar_outros_cargos: false,
-    },
-    headers: {
-      accept: 'application/json',
-      'X-API-Key': apiKey,
-    },
-    failOnStatusCode: false,
-  }).then((res) => {
+  const endpoint = `${apiUrl}/api/professores/${codigoRf}/validade`;
 
-    response = res
+  cy.log(`Endpoint => ${endpoint}`);
 
-    cy.log(`STATUS => ${res.status}`)
-    logBody(res.body)
+  return cy
+    .request({
+      method: "GET",
+      url: endpoint,
+      headers: {
+        accept: "application/json",
+        "X-API-Key": apiKey,
+      },
+      failOnStatusCode: false,
+    })
+    .then((res) => {
+      response = res;
 
-  })
+      cy.log(`STATUS => ${res.status}`);
+      logBody(res.body);
+    });
+});
 
-})
+Given("que possuo acesso à API de consulta de nome do professor", () => {
+  getEnvOrFail("API_URL_NOVA");
+  getEnvOrFail("API_KEY_NOVA");
+  getEnvOrFail("CODIGO_RF");
+});
 
-Given('que possuo acesso à API de validação de professor', () => {
+When("envio uma requisição GET para consultar nome do professor por RF", () => {
+  const apiUrl = getEnvOrFail("API_URL_NOVA");
+  const apiKey = getEnvOrFail("API_KEY_NOVA");
+  const codigoRf = getEnvOrFail("CODIGO_RF");
 
-  getEnvOrFail('API_URL_NOVA')
-  getEnvOrFail('API_KEY_NOVA')
-  getEnvOrFail('CODIGO_RF')
+  const endpoint = `${apiUrl}/api/professores/${codigoRf}`;
 
-})
+  cy.log(`Endpoint => ${endpoint}`);
 
-When('envio uma requisição GET para validar professor por RF', () => {
+  return cy
+    .request({
+      method: "GET",
+      url: endpoint,
+      headers: {
+        accept: "application/json",
+        "X-API-Key": apiKey,
+      },
+      failOnStatusCode: false,
+    })
+    .then((res) => {
+      response = res;
 
-  const apiUrl = getEnvOrFail('API_URL_NOVA')
-  const apiKey = getEnvOrFail('API_KEY_NOVA')
-  const codigoRf = getEnvOrFail('CODIGO_RF')
+      cy.log(`STATUS => ${res.status}`);
+      logBody(res.body);
+    });
+});
 
-  const endpoint =
-    `${apiUrl}/api/professores/${codigoRf}/validade/`
+Then("a API deve responder com status 200", () => {
+  expect(response, "response não pode ser undefined").to.exist;
 
-  cy.log(`Endpoint => ${endpoint}`)
-
-  return cy.request({
-    method: 'GET',
-    url: endpoint,
-    headers: {
-      accept: 'application/json',
-      'X-API-Key': apiKey,
-    },
-    failOnStatusCode: false,
-  }).then((res) => {
-
-    response = res
-
-    cy.log(`STATUS => ${res.status}`)
-    logBody(res.body)
-
-  })
-
-})
-
-Given('que possuo acesso à API de consulta de nome do professor', () => {
-
-  getEnvOrFail('API_URL_NOVA')
-  getEnvOrFail('API_KEY_NOVA')
-  getEnvOrFail('CODIGO_RF')
-
-})
-
-When('envio uma requisição GET para consultar nome do professor por RF', () => {
-
-  const apiUrl = getEnvOrFail('API_URL_NOVA')
-  const apiKey = getEnvOrFail('API_KEY_NOVA')
-  const codigoRf = getEnvOrFail('CODIGO_RF')
-
-  const endpoint =
-    `${apiUrl}/api/professores/${codigoRf}/`
-
-  cy.log(`Endpoint => ${endpoint}`)
-
-  return cy.request({
-    method: 'GET',
-    url: endpoint,
-    headers: {
-      accept: 'application/json',
-      'X-API-Key': apiKey,
-    },
-    failOnStatusCode: false,
-  }).then((res) => {
-
-    response = res
-
-    cy.log(`STATUS => ${res.status}`)
-    logBody(res.body)
-
-  })
-
-})
-
-Then('a API deve responder com status 200', () => {
-
-  expect(response, 'response não pode ser undefined').to.exist
-
-  expect(response.status).to.eq(200)
-
-})
+  expect(response.status).to.eq(200);
+});
