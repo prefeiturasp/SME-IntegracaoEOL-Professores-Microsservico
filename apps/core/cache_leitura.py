@@ -55,7 +55,7 @@ def _ler(backend: Any, chave: str) -> Any:
         return _AUSENTE
     try:
         payload = json.loads(texto)
-    except (ValueError, UnicodeError):
+    except ValueError:
         return _AUSENTE
     return payload if isinstance(payload, list) else _AUSENTE
 
