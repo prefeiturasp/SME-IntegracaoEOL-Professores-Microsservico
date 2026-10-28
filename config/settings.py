@@ -143,6 +143,38 @@ TEST_RUNNER = "config.test_runner.ProfessoresTestRunner"
 API_KEY = os.getenv("API_KEY", "")
 API_KEY_HEADER = os.getenv("API_KEY_HEADER", "X-API-Key")
 
+PROFESSORES_CACHE_ENABLED = os.getenv("PROFESSORES_CACHE_ENABLED", "0") == "1"
+PROFESSORES_CACHE_URL = os.getenv("PROFESSORES_CACHE_URL", "")
+PROFESSORES_CACHE_TTL = int(os.getenv("PROFESSORES_CACHE_TTL", "300"))
+PROFESSORES_CACHE_MAX_BYTES = int(
+    os.getenv("PROFESSORES_CACHE_MAX_BYTES", str(16 * 1024 * 1024))
+)
+PROFESSORES_CACHE_LOCK_SECONDS = 30
+PROFESSORES_CACHE_WAIT_SECONDS = 0.1
+
+if PROFESSORES_CACHE_ENABLED and (
+    not PROFESSORES_CACHE_URL
+    or PROFESSORES_CACHE_TTL <= 0
+    or PROFESSORES_CACHE_MAX_BYTES <= 0
+):
+    raise ImproperlyConfigured(
+        "Configuração de cache de Professores inválida."
+    )
+
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "professores": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": PROFESSORES_CACHE_URL or "redis://localhost:6379/0",
+        "KEY_PREFIX": "professores:" + os.getenv("SME_ENVIRONMENT", "local"),
+        "OPTIONS": {
+            "socket_connect_timeout": 0.2,
+            "socket_timeout": 0.2,
+            "retry_on_timeout": False,
+        },
+    },
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [

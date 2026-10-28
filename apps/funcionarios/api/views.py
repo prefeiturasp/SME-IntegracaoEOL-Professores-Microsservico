@@ -6,6 +6,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.cache_leitura import obter_ou_calcular
 from apps.funcionarios import services
 from apps.funcionarios.serializers import (
     BuscarFuncionariosFiltroSerializer,
@@ -388,19 +389,23 @@ class ConectaFormacaoView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
-        serializer = ConectaFormacaoFiltroSerializer(
-            data=request.query_params
-        )
+        serializer = ConectaFormacaoFiltroSerializer(data=request.query_params)
         if not serializer.is_valid():
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        funcionarios = services.funcionarios_conecta_formacao(
-            serializer.validated_data
+        filtros = dict(serializer.validated_data)
+        resultado = obter_ou_calcular(
+            "p44",
+            filtros,
+            lambda: list(
+                ConectaFormacaoSerializer(
+                    services.funcionarios_conecta_formacao(filtros), many=True
+                ).data
+            ),
         )
-        response = ConectaFormacaoSerializer(funcionarios, many=True)
-        return Response(response.data)
+        return Response(resultado)
 
 
 class UsuariosConectaFormacaoView(APIView):
@@ -464,7 +469,13 @@ class FuncionariosPorCargoView(APIView):
         Returns:
             Resposta HTTP com o resultado da operação.
         """
-        return Response(services.funcionarios_por_cargo(codigo_cargo))
+        return Response(
+            obter_ou_calcular(
+                "p47",
+                {"codigo_cargo": codigo_cargo},
+                lambda: services.funcionarios_por_cargo(codigo_cargo),
+            )
+        )
 
 
 class SupervisoresPorDreView(APIView):
@@ -934,9 +945,7 @@ class BuscarPorListaLoginView(APIView):
         serializer = ListaTextoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(
-            services.buscar_por_lista_login(
-                serializer.validated_data["itens"]
-            )
+            services.buscar_por_lista_login(serializer.validated_data["itens"])
         )
 
 
