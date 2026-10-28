@@ -58,6 +58,27 @@ normal. O marcador expira sozinho para não permitir que um construtor atrasado
 remova o marcador de outro. Essa espera reduz reconstruções simultâneas sem
 transformar o armazenamento em dependência de disponibilidade da API.
 
+## Configuração
+
+O `.env.example` é um modelo versionado para configuração local. Ele mantém
+somente a ativação e a conexão do cache; as opções de ajuste usam os padrões
+abaixo quando não forem definidas no ambiente.
+
+| Variável | Padrão | Uso |
+| --- | --- | --- |
+| `PROFESSORES_CACHE_ENABLED` | `0` | `1` ativa o cache após a preparação das fontes pelo ETL. |
+| `PROFESSORES_CACHE_URL` | Vazio | URL de conexão com o Redis/KeyDB; obrigatória quando o cache está ativo. |
+| `PROFESSORES_CACHE_TTL` | `300` | Validade das respostas em segundos; deve ser positiva. |
+| `PROFESSORES_CACHE_MAX_BYTES` | `16777216` | Limite positivo por resposta em bytes, equivalente a 16 MiB. |
+| `SME_ENVIRONMENT` | `local` | Identifica o ambiente no prefixo das chaves. |
+
+Para ativar o cache, configure a URL fornecida pela infraestrutura, o ambiente
+correto e `PROFESSORES_CACHE_ENABLED=1`, seguindo a ordem de publicação abaixo.
+Para manter os padrões, não é necessário definir TTL ou limite de tamanho.
+As réplicas devem compartilhar o backend, o ambiente e `DJANGO_SECRET_KEY`,
+usada no HMAC dos parâmetros. Valores reais e credenciais ficam nas variáveis
+do ambiente ou no `.env` local, que não deve ser versionado.
+
 ## Publicação
 
 1. Aplicar a migration e publicar o ETL com o registro de cargas antes de ativar

@@ -31,8 +31,6 @@ def _geracao_pronta() -> str | None:
             "geracao", "cargas_ativas", "falha"
         )
         banco = consulta.db
-        # Em PostgreSQL, uma falha de SELECT também aborta a transação.
-        # O savepoint preserva a consulta normal de uma requisição atômica.
         protecao = (
             transaction.atomic(using=banco)
             if connections[banco].in_atomic_block
@@ -124,8 +122,6 @@ def obter_ou_calcular(
 
     _registrar(operacao, "miss")
     resultado = calcular()
-    # A geração do banco é durável e muda antes das escritas do ETL.
-    # Uma construção antiga nunca preenche a geração de uma carga nova.
     if _geracao_pronta() != geracao:
         _registrar(operacao, "geracao_alterada")
         return resultado
@@ -142,6 +138,4 @@ def obter_ou_calcular(
         backend.set(chave, texto, timeout=settings.PROFESSORES_CACHE_TTL)
     except Exception:
         _registrar(operacao, "falha_preenchimento")
-    # O marcador de construção expira sozinho. Não removê-lo evita que um
-    # construtor atrasado remova o marcador adquirido por outro processo.
     return resultado
