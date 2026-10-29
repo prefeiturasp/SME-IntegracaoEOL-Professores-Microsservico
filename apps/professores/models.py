@@ -1,7 +1,5 @@
 """Models do domínio de professores."""
 
-from uuid import uuid4
-
 from django.db import models
 
 _HELP_UE = "ID da UnidadeEducacional neste DB."
@@ -11,21 +9,6 @@ _HELP_GRADE = "ID da escola_grade — ref. domínio pedagógico."
 _HELP_COMP = "ID do componente curricular — ref. domínio curricular."
 _HELP_TERR = "ID do território do saber — ref. domínio pedagógico."
 _HELP_EXP = "ID da experiência pedagógica — ref. domínio pedagógico."
-
-
-class ControleCargaProfessores(models.Model):
-    """Representa a geração de dados e as cargas ainda em andamento."""
-
-    id = models.PositiveSmallIntegerField(primary_key=True, default=1)
-    geracao = models.UUIDField(default=uuid4)
-    cargas_ativas = models.JSONField(default=list)
-    falha = models.BooleanField(default=True)
-    atualizado_em = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        app_label = "professores"
-        db_table = "controle_carga_professores"
-        managed = False
 
 
 class UnidadeEducacional(models.Model):

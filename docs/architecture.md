@@ -2,21 +2,20 @@
 
 Conecta Formação e funcionários por cargo usam cache compartilhado em
 Redis/KeyDB. A resposta é armazenada após autenticação e validação dos filtros.
-As chaves consideram o ambiente, a operação, os parâmetros e a geração da carga.
+As chaves consideram o ambiente, a operação, os parâmetros e a versão do formato.
 
 ## Invalidação
 
-O ETL atualiza `controle_carga_professores` no início e no fim de cada carga.
-O MS verifica esse controle antes de usar o cache e antes de gravar uma resposta.
-A troca de geração invalida as entradas anteriores, que expiram pelo TTL.
+Cada resposta expira 300 segundos após a gravação, por padrão. A leitura não
+renova esse prazo. Após a expiração, a próxima chamada consulta o banco.
 
-Com carga ativa, falha ou controle indisponível, a API consulta a origem sem
-usar ou preencher o cache. Cargas amostrais ou com falha bloqueiam o cache até
-uma carga completa bem-sucedida. Falhas no Redis/KeyDB também levam à consulta
-direta; erros das consultas não são armazenados.
+O acompanhamento das cargas permanece na auditoria do ETL. O MS não consulta
+o estado das execuções. Durante uma carga, respostas anteriores ou parciais
+podem ser reutilizadas até expirar. A rotina diária às 3h deve terminar antes
+do horário de uso.
 
-Se uma carga for interrompida e deixar um registro ativo, confirme o encerramento
-dos processos e reconcilie o controle no ETL antes de liberar o cache.
+Falhas no Redis/KeyDB levam à consulta direta; erros das consultas não são
+armazenados.
 
 ## Configuração
 
@@ -35,12 +34,7 @@ conexão, o ambiente e `DJANGO_SECRET_KEY`, usada no HMAC dos parâmetros.
 
 ## Ativação
 
-1. Aplicar `professores.0031_controlecargaprofessores` e publicar o ETL com o
-   controle de cargas.
-2. Executar uma carga completa. Para uma base já conferida, usar
-   `inicializar_cache_professores --confirmar-fontes-completas`, que exige
-   auditoria concluída e ausência de cargas ativas.
-3. Configurar a URL, o ambiente e `PROFESSORES_CACHE_ENABLED=1` no MS.
+Configurar a URL, o ambiente e `PROFESSORES_CACHE_ENABLED=1` no MS.
+A ativação não exige migration nem alteração no ETL.
 
-Para desativar, definir `PROFESSORES_CACHE_ENABLED=0`. Faça isso antes de
-reverter o ETL para uma versão sem controle de cargas.
+Para desativar, definir `PROFESSORES_CACHE_ENABLED=0`.

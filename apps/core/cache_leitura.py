@@ -1,4 +1,4 @@
-"""Reutiliza representações de consultas com fontes completas."""
+"""Reutiliza representações de consultas por tempo limitado."""
 
 import hashlib
 import hmac
@@ -6,14 +6,10 @@ import json
 import logging
 import time
 from collections.abc import Callable
-from contextlib import nullcontext
 from typing import Any, cast
 
 from django.conf import settings
 from django.core.cache import caches
-from django.db import DatabaseError, connections, transaction
-
-from apps.professores.models import ControleCargaProfessores
 
 logger = logging.getLogger(__name__)
 _AUSENTE = object()
@@ -23,26 +19,6 @@ def _registrar(operacao: str, evento: str) -> None:
     logger.info(
         "cache_leitura", extra={"operacao": operacao, "evento": evento}
     )
-
-
-def _geracao_pronta() -> str | None:
-    try:
-        consulta = ControleCargaProfessores.objects.filter(pk=1).values_list(
-            "geracao", "cargas_ativas", "falha"
-        )
-        banco = consulta.db
-        protecao = (
-            transaction.atomic(using=banco)
-            if connections[banco].in_atomic_block
-            else nullcontext()
-        )
-        with protecao:
-            estado = consulta.first()
-    except DatabaseError:
-        return None
-    if estado is None or estado[1] != [] or estado[2]:
-        return None
-    return str(estado[0])
 
 
 def _ler(backend: Any, chave: str) -> Any:
@@ -77,10 +53,6 @@ def obter_ou_calcular(
     """
     if not settings.PROFESSORES_CACHE_ENABLED:
         return calcular()
-    geracao = _geracao_pronta()
-    if geracao is None:
-        _registrar(operacao, "fontes_indisponiveis")
-        return calcular()
 
     identidade = json.dumps(
         parametros,
@@ -91,7 +63,7 @@ def obter_ou_calcular(
     digest = hmac.new(
         settings.SECRET_KEY.encode(), identidade, hashlib.sha256
     ).hexdigest()
-    chave = f"leitura:v1:{operacao}:{geracao}:{digest}"
+    chave = f"leitura:v2:{operacao}:{digest}"
 
     try:
         backend = caches["professores"]
@@ -122,9 +94,6 @@ def obter_ou_calcular(
 
     _registrar(operacao, "miss")
     resultado = calcular()
-    if _geracao_pronta() != geracao:
-        _registrar(operacao, "geracao_alterada")
-        return resultado
     try:
         texto = json.dumps(
             resultado,
