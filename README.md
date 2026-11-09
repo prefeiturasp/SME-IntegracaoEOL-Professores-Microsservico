@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # SME-IntegracaoEOL-Professores-Microsservico
 
 Microsserviço do domínio Professores para o SGP (Sistema de Gestão Pedagógica) da SME-SP.
@@ -46,17 +45,19 @@ Os modelos ETL que cada app cobre:
 
 ## Rodar localmente (sem Docker)
 
+Copie o modelo de configuração, preencha as variáveis locais e instale as
+dependências:
+
 ```bash
-# 1. Copiar o .env
 cp .env.example .env
-
-# 2. Instalar dependências
 pip install -r requirements/local.txt
+```
 
-# 3. Aplicar migrations (SQLite, apenas tabelas internas do Django)
+Aplique as migrations das tabelas internas do Django somente com o banco
+SQLite local configurado. Depois, inicie o servidor:
+
+```bash
 python manage.py migrate
-
-# 4. Rodar o servidor
 python manage.py runserver 0.0.0.0:[PORT_WEB]
 ```
 
@@ -79,7 +80,12 @@ Acesse em: http://localhost:[PORT_WEB]/api/v1/docs/
 
 ```bash
 cp .env.example .env
-# Edite .env: DJANGO_DEBUG=0, DJANGO_SECRET_KEY=...
+```
+
+Configure `DJANGO_DEBUG=0`, uma chave forte em `DJANGO_SECRET_KEY` e as demais
+variáveis do ambiente antes de iniciar:
+
+```bash
 docker compose up --build
 ```
 
@@ -217,6 +223,11 @@ O resultado fica em `docs/_build/index.html` (acessível no host via volume).
 
 - Contrato completo: `../swagger_contrato_microsservico.md`
 - Projeto ETL de referência: `../SME-SGP-MS-ETL/`
-=======
-# SME-IntegracaoEOL-Professores-Microsservico
->>>>>>> homolog
+
+## Cache de leitura
+
+O cache de funcionários por cargo e Conecta Formação é
+opcional e fica desabilitado por padrão. O `.env.example` contém as variáveis
+essenciais; as opções de ajuste, a invalidação por cargas do ETL e a ordem de
+publicação estão em
+[Cache das consultas de Professores](docs/architecture.md).
