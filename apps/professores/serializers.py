@@ -3,6 +3,23 @@
 from rest_framework import serializers
 
 
+class BuscaProfessorPorRfQuerySerializer(serializers.Serializer):
+    """Valida filtros da busca unificada sem alterar as consultas atuais."""
+
+    dre_id = serializers.CharField(required=False, max_length=20)
+    ue_id = serializers.CharField(required=False, max_length=20)
+    buscar_outros_cargos = serializers.BooleanField(default=False)
+    tipo_busca = serializers.ChoiceField(
+        choices=("rf", "rf_dre_ue"),
+        required=False,
+        help_text=(
+            "rf seleciona BuscarPorRf; rf_dre_ue seleciona BuscarPorRfDreUe, "
+            "inclusive sem filtros. Se omitido, DRE/UE selecionam rf_dre_ue; "
+            "sem localização, usa rf."
+        ),
+    )
+
+
 class ProfessorEscolaSerializer(serializers.Serializer):
     """Serializa dados de professor em unidade educacional."""
 

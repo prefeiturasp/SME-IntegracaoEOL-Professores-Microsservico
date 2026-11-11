@@ -14,6 +14,7 @@ from apps.professores.api.views import (
     AutoCompleteView,
     BuscaProfessoresAnoLetivoView,
     BuscaProfessoresView,
+    BuscaProfessorPorRfView,
     BuscarAbrangenciaFuncionarioPerfilView,
     BuscarPorListaRFView,
     BuscarPorRfAnoLetivoView,
@@ -39,6 +40,11 @@ _BASE_PROF = "professores"
 _BASE_ESC = "escolas"
 
 urlpatterns = [
+    path(
+        f"{_BASE_PROF}/<str:codigo_rf>/anos_letivos/<int:ano_letivo>/",
+        BuscaProfessorPorRfView.as_view(),
+        name="professor-busca-rf",
+    ),
     path(
         f"{_BASE_PROF}/{_BASE_ESC}/<str:codigo_eol_escola>/{_BASE_PROF}/",
         BuscaProfessoresView.as_view(),

@@ -199,6 +199,41 @@ def buscar_por_rf_dre_ue(
     )
 
 
+def buscar_professor_por_rf(
+    codigo_rf: str,
+    ano_letivo: int,
+    dre_id: str | None = None,
+    ue_id: str | None = None,
+    buscar_outros_cargos: bool = False,
+    tipo_busca: str | None = None,
+) -> dict | None:
+    """Seleciona uma das buscas existentes, preservando suas regras.
+
+    Args:
+        codigo_rf: Registro funcional ou CPF recebido na consulta.
+        ano_letivo: Ano letivo de referência.
+        dre_id: DRE recebida no contrato atual, usada para selecionar a busca.
+        ue_id: UE opcional da consulta com localização.
+        buscar_outros_cargos: Filtro interpretado pela consulta selecionada.
+        tipo_busca: ``rf`` ou ``rf_dre_ue``; omitido, usa a localização.
+
+    Returns:
+        Dados da consulta original ou ``None`` quando não encontrados.
+    """
+    if tipo_busca is None:
+        tipo_busca = "rf_dre_ue" if dre_id or ue_id else "rf"
+    if tipo_busca == "rf":
+        return buscar_professor_com_atribuicao_aula_ano_letivo(
+            codigo_rf, ano_letivo
+        )
+    return buscar_por_rf_dre_ue(
+        codigo_rf,
+        ano_letivo,
+        ue_id=ue_id,
+        buscar_outros_cargos=buscar_outros_cargos,
+    )
+
+
 def autocomplete_professores(
     ano_letivo: int,
     ue_id: str | None = None,
