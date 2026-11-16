@@ -169,8 +169,9 @@ O resultado fica em `docs/_build/index.html` (acessível no host via volume).
 | EP-04 | GET | `/api/v1/professores/{codigoRF}/turmas/anos_letivos/{anoLetivo}/` |
 | EP-04A | GET | `/api/v1/professores/{codigoRF}/turmas/anos_letivos/` |
 | EP-05 | GET | `/api/v1/professores/{rfProfessor}/` |
-| EP-06 | GET | `/api/v1/professores/{codigoRf}/BuscarPorRf/{anoLetivo}/` |
-| EP-07 | GET | `/api/v1/professores/{codigoRf}/BuscarPorRfDreUe/{anoLetivo}/` |
+| Busca unificada | GET | `/api/v1/professores/{codigoRf}/anos_letivos/{anoLetivo}/` |
+| EP-06 (depreciado) | GET | `/api/v1/professores/{codigoRf}/BuscarPorRf/{anoLetivo}/` |
+| EP-07 (depreciado) | GET | `/api/v1/professores/{codigoRf}/BuscarPorRfDreUe/{anoLetivo}/` |
 | EP-08 | GET | `/api/v1/professores/{anoLetivo}/AutoComplete/{dreId}/` |
 | EP-09 | POST | `/api/v1/professores/{anoLetivo}/BuscarPorListaRF/` |
 | EP-10 | GET | `/api/v1/professores/{codigoRf}/validade/` |
